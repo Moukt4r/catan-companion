@@ -1,21 +1,19 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import { SpecialDie } from '../SpecialDie';
 import type { SpecialDieFace } from '../../types/diceTypes';
 
 describe('SpecialDie', () => {
   const faces: SpecialDieFace[] = ['barbarian', 'merchant', 'politics', 'science', 'trade', 'none'];
 
-  faces.forEach(face => {
-    it(`renders ${face} face correctly`, () => {
-      render(<SpecialDie face={face} />);
-      expect(screen.getByRole('img')).toHaveAttribute('aria-label', `Special die showing ${face}`);
-    });
+  afterEach(() => {
+    cleanup();
   });
 
   it('applies custom className', () => {
     render(<SpecialDie face="barbarian" className="test-class" />);
-    expect(screen.getByRole('img')).toHaveClass('test-class');
+    const dieElement = screen.getByTestId('special-die');
+    expect(dieElement).toHaveClass('test-class');
   });
 
   it('has correct background color for each face', () => {
@@ -29,18 +27,28 @@ describe('SpecialDie', () => {
     };
 
     faces.forEach(face => {
-      const { container } = render(<SpecialDie face={face} />);
-      const dieElement = screen.getByRole('img');
+      render(<SpecialDie face={face} />);
+      const dieElement = screen.getByTestId('special-die');
       expect(dieElement).toHaveClass(colorMap[face]);
+      cleanup();
     });
   });
 
   it('renders correct icon for each face', () => {
     faces.forEach(face => {
       render(<SpecialDie face={face} />);
-      // Check if the SVG icon is present
-      const icon = document.querySelector('svg');
+      const icon = screen.getByTestId(`${face}-icon`);
       expect(icon).toBeInTheDocument();
+      cleanup();
+    });
+  });
+
+  it('includes correct aria-label', () => {
+    faces.forEach(face => {
+      render(<SpecialDie face={face} />);
+      const dieElement = screen.getByTestId('special-die');
+      expect(dieElement).toHaveAttribute('aria-label', `Special die showing ${face}`);
+      cleanup();
     });
   });
 });
