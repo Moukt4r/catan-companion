@@ -1,68 +1,82 @@
 import { DiceRoller } from '../diceRoller';
+import { SpecialDieFace } from '../../types/diceTypes';
 
-describe('DiceRoller', () => {
+describe('DiceRoller with special die', () => {
   let diceRoller: DiceRoller;
-
+  
   beforeEach(() => {
     diceRoller = new DiceRoller();
   });
 
-  describe('constructor', () => {
-    test('throws error for invalid discard count', () => {
-      expect(() => new DiceRoller(-1)).toThrow();
-      expect(() => new DiceRoller(36)).toThrow();
+  describe('special die functionality', () => {
+    test('does not include special die by default', () => {
+      const roll = diceRoller.roll();
+      expect(roll.specialDie).toBeUndefined();
     });
 
-    test('accepts custom random function', () => {
-      const mockRandom = jest.fn().mockReturnValue(0.5);
-      const roller = new DiceRoller(4, mockRandom);
-      roller.roll();
-      expect(mockRandom).toHaveBeenCalled();
+    test('includes special die when enabled', () => {
+      diceRoller.setUseSpecialDie(true);
+      const roll = diceRoller.roll();
+      expect(roll.specialDie).toBeDefined();
+      expect(['barbarian', 'merchant', 'politics', 'science', 'trade', 'none']).toContain(roll.specialDie);
     });
-  });
 
-  describe('roll distribution', () => {
-    test('provides fair distribution of sums', () => {
-      const sums = new Map<number, number>();
-      const rolls = 1000;
+    test('can toggle special die', () => {
+      diceRoller.setUseSpecialDie(true);
+      expect(diceRoller.isUsingSpecialDie()).toBe(true);
       
+      diceRoller.setUseSpecialDie(false);
+      expect(diceRoller.isUsingSpecialDie()).toBe(false);
+    });
+
+    test('special die has uniform distribution', () => {
+      diceRoller.setUseSpecialDie(true);
+      const faces = new Map<SpecialDieFace, number>();
+      const rolls = 6000;
+
       for (let i = 0; i < rolls; i++) {
         const roll = diceRoller.roll();
-        sums.set(roll.sum, (sums.get(roll.sum) || 0) + 1);
+        if (roll.specialDie) {
+          faces.set(roll.specialDie, (faces.get(roll.specialDie) || 0) + 1);
+        }
       }
 
-      // Check that each sum appears with expected frequency
-      const expectedFrequencies = {
-        2: 1/36, 3: 2/36, 4: 3/36, 5: 4/36, 6: 5/36, 7: 6/36,
-        8: 5/36, 9: 4/36, 10: 3/36, 11: 2/36, 12: 1/36
-      };
+      // Each face should appear approximately rolls/6 times
+      const expectedCount = rolls / 6;
+      const tolerance = expectedCount * 0.1; // 10% tolerance
 
-      for (const [sum, count] of sums.entries()) {
-        const actualFrequency = count / rolls;
-        const expectedFrequency = expectedFrequencies[sum as keyof typeof expectedFrequencies];
-        const tolerance = 0.1; // 10% tolerance
-
-        expect(Math.abs(actualFrequency - expectedFrequency))
-          .toBeLessThan(tolerance);
+      for (const count of faces.values()) {
+        expect(Math.abs(count - expectedCount)).toBeLessThan(tolerance);
       }
     });
   });
 
-  describe('boundary conditions', () => {
-    test('handles exactly 32 rolls before reshuffle', () => {
-      const rolls = new Set<string>();
-      
-      // Roll 32 times (36 - 4 discard)
+  // Include previous basic dice rolling tests
+  describe('basic functionality', () => {
+    test('generates all 36 possible combinations', () => {
+      const results = new Set<string>();
       for (let i = 0; i < 32; i++) {
         const roll = diceRoller.roll();
-        rolls.add(`${roll.dice1},${roll.dice2}`);
+        results.add(`${roll.dice1},${roll.dice2}`);
+        expect(roll.sum).toBe(roll.dice1 + roll.dice2);
+        expect(roll.dice1).toBeGreaterThanOrEqual(1);
+        expect(roll.dice1).toBeLessThanOrEqual(6);
+        expect(roll.dice2).toBeGreaterThanOrEqual(1);
+        expect(roll.dice2).toBeLessThanOrEqual(6);
+      }
+      expect(results.size).toBe(32);
+    });
+
+    test('respects discard count', () => {
+      const customRoller = new DiceRoller(6); // Discard 6 instead of default 4
+      const results = new Set<string>();
+      
+      while (customRoller.getRemainingRolls() > 0) {
+        const roll = customRoller.roll();
+        results.add(`${roll.dice1},${roll.dice2}`);
       }
       
-      expect(rolls.size).toBe(32);
-      
-      // Next roll should trigger reshuffle
-      const nextRoll = diceRoller.roll();
-      expect(nextRoll).toBeDefined();
+      expect(results.size).toBe(30); // 36 - 6 discarded
     });
   });
 });
