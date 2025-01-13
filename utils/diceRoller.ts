@@ -1,18 +1,23 @@
 import { DiceRoll, SpecialDieFace } from '../types/diceTypes';
 
+export const SPECIAL_DIE_FACES: readonly SpecialDieFace[] = [
+  'barbarian',
+  'merchant',
+  'politics',
+  'science',
+  'trade',
+  'none'
+] as const;
+
+export const isSpecialDieFace = (face: string): face is SpecialDieFace => {
+  return SPECIAL_DIE_FACES.includes(face as SpecialDieFace);
+};
+
 export class DiceRoller {
   private combinations: DiceRoll[];
   private currentIndex: number;
   private discardCount: number;
   private useSpecialDie: boolean;
-  private readonly specialDieFaces: SpecialDieFace[] = [
-    'barbarian',
-    'merchant',
-    'politics',
-    'science',
-    'trade',
-    'none'
-  ];
   private randomFn: () => number;
 
   constructor(discardCount: number = 4, useSpecialDie: boolean = false, randomFn: () => number = Math.random) {
@@ -51,7 +56,7 @@ export class DiceRoller {
   }
 
   private rollSpecialDie(): SpecialDieFace {
-    return this.specialDieFaces[Math.floor(this.randomFn() * this.specialDieFaces.length)];
+    return SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
   }
 
   public roll(): DiceRoll {
@@ -86,5 +91,9 @@ export class DiceRoller {
 
   public isUsingSpecialDie(): boolean {
     return this.useSpecialDie;
+  }
+
+  public static getAllSpecialDieFaces(): readonly SpecialDieFace[] {
+    return SPECIAL_DIE_FACES;
   }
 }
