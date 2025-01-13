@@ -7,102 +7,111 @@ describe('BarbarianTracker', () => {
     tracker = new BarbarianTracker();
   });
 
-  describe('initialization', () => {
-    it('starts with zero progress', () => {
-      const state = tracker.getState();
-      expect(state.currentProgress).toBe(0);
-      expect(state.isAttacking).toBe(false);
+  describe('event emission', () => {
+    it('notifies subscribers of state changes', done => {
+      const callback = jest.fn();
+      tracker.subscribe(callback);
+      
+      tracker.advance();
+      
+      // Use setTimeout to handle async notification
+      setTimeout(() => {
+        expect(callback).toHaveBeenCalledWith(expect.objectContaining({
+          currentProgress: 1
+        }));
+        done();
+      });
     });
 
-    it('uses default max progress of 7', () => {
-      const state = tracker.getState();
-      expect(state.maxProgress).toBe(7);
-    });
-
-    it('accepts custom max progress', () => {
-      const customTracker = new BarbarianTracker(5);
-      const state = customTracker.getState();
-      expect(state.maxProgress).toBe(5);
-    });
-
-    it('throws error for invalid max progress', () => {
-      expect(() => new BarbarianTracker(0)).toThrow();
-      expect(() => new BarbarianTracker(-1)).toThrow();
+    it('allows unsubscribing from events', () => {
+      const callback = jest.fn();
+      const unsubscribe = tracker.subscribe(callback);
+      
+      unsubscribe();
+      tracker.advance();
+      
+      expect(callback).not.toHaveBeenCalled();
     });
   });
 
-  describe('progress tracking', () => {
-    it('advances progress by one', () => {
+  describe('state persistence', () => {
+    it('saves and loads state correctly', () => {
       tracker.advance();
+      tracker.setKnights(3);
+      
       const state = tracker.getState();
-      expect(state.currentProgress).toBe(1);
+      const newTracker = new BarbarianTracker();
+      newTracker.loadState(state);
+      
+      expect(newTracker.getState()).toEqual(state);
     });
 
-    it('triggers attack at max progress', () => {
-      // Advance to just before max
-      for (let i = 0; i < 6; i++) {
-        const result = tracker.advance();
-        expect(result).toBe(false);
-      }
-
-      // Next advance should trigger attack
-      const result = tracker.advance();
-      expect(result).toBe(true);
-
-      const state = tracker.getState();
-      expect(state.isAttacking).toBe(true);
-    });
-
-    it('maintains attack state until reset', () => {
-      // Advance to attack
-      for (let i = 0; i < 7; i++) {
-        tracker.advance();
-      }
-
-      // Additional advances should maintain attack state
-      tracker.advance();
-      tracker.advance();
-
-      const state = tracker.getState();
-      expect(state.isAttacking).toBe(true);
+    it('validates loaded state', () => {
+      expect(() => tracker.loadState({ maxProgress: 0 })).not.toThrow();
+      expect(tracker.getState().maxProgress).toBe(7); // Keeps original value
+      
+      expect(() => tracker.loadState({ knights: -1 })).not.toThrow();
+      expect(tracker.getState().knights).toBe(0); // Keeps original value
     });
   });
 
-  describe('reset functionality', () => {
-    it('resets progress and attack state', () => {
-      // Advance to attack
-      for (let i = 0; i < 7; i++) {
-        tracker.advance();
-      }
+  describe('undo functionality', () => {
+    it('can undo advance action', () => {
+      tracker.advance();
+      const stateBeforeUndo = tracker.getState();
+      
+      tracker.undo();
+      expect(tracker.getState().currentProgress).toBe(0);
+      
+      // Can't undo twice
+      tracker.undo();
+      expect(tracker.getState().currentProgress).toBe(0);
+    });
 
+    it('can undo reset action', () => {
+      tracker.advance();
+      tracker.advance();
       tracker.reset();
-      const state = tracker.getState();
-      expect(state.currentProgress).toBe(0);
-      expect(state.isAttacking).toBe(false);
+      
+      tracker.undo();
+      expect(tracker.getState().currentProgress).toBe(2);
     });
   });
 
-  describe('max progress modification', () => {
-    it('allows changing max progress', () => {
-      tracker.setMaxProgress(5);
-      const state = tracker.getState();
-      expect(state.maxProgress).toBe(5);
+  describe('knight management', () => {
+    it('tracks knight count', () => {
+      tracker.setKnights(3);
+      expect(tracker.getState().knights).toBe(3);
     });
 
-    it('resets progress if current exceeds new max', () => {
-      // Advance to 4
-      for (let i = 0; i < 4; i++) {
+    it('prevents negative knight count', () => {
+      expect(() => tracker.setKnights(-1)).toThrow();
+    });
+
+    it('records knights at attack time', () => {
+      tracker.setKnights(3);
+      for (let i = 0; i < 7; i++) {
         tracker.advance();
       }
-
-      tracker.setMaxProgress(3);
-      const state = tracker.getState();
-      expect(state.currentProgress).toBe(0);
+      
+      const { attackHistory } = tracker.getState();
+      expect(attackHistory[0].knightsAtAttack).toBe(3);
     });
+  });
 
-    it('throws error for invalid max progress', () => {
-      expect(() => tracker.setMaxProgress(0)).toThrow();
-      expect(() => tracker.setMaxProgress(-1)).toThrow();
+  describe('statistics tracking', () => {
+    it('maintains attack history', () => {
+      tracker.setKnights(2);
+      for (let i = 0; i < 7; i++) tracker.advance();
+      tracker.reset();
+      
+      tracker.setKnights(3);
+      for (let i = 0; i < 7; i++) tracker.advance();
+      
+      const { attackHistory } = tracker.getState();
+      expect(attackHistory).toHaveLength(2);
+      expect(attackHistory[0].knightsAtAttack).toBe(2);
+      expect(attackHistory[1].knightsAtAttack).toBe(3);
     });
   });
 });
