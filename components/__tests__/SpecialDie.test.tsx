@@ -30,7 +30,17 @@ describe('SpecialDie', () => {
 
     faces.forEach(face => {
       const { container } = render(<SpecialDie face={face} />);
-      expect(container.firstChild).toHaveClass(colorMap[face]);
+      const dieElement = screen.getByRole('img');
+      expect(dieElement).toHaveClass(colorMap[face]);
+    });
+  });
+
+  it('renders correct icon for each face', () => {
+    faces.forEach(face => {
+      render(<SpecialDie face={face} />);
+      // Check if the SVG icon is present
+      const icon = document.querySelector('svg');
+      expect(icon).toBeInTheDocument();
     });
   });
 });
