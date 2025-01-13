@@ -1,14 +1,16 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EventDisplay } from '../EventDisplay';
-import type { GameEvent } from '../../utils/events';
+import type { GameEvent } from '../../types/eventTypes';
 
 describe('EventDisplay', () => {
   const mockEvent: GameEvent = {
     id: 'test-event',
     title: 'Test Event',
     description: 'Test Description',
-    type: 'positive'
+    type: 'positive',
+    severity: 'low',
+    category: 'resource'
   };
 
   const mockClose = jest.fn();
@@ -40,13 +42,32 @@ describe('EventDisplay', () => {
       { ...mockEvent, type: 'neutral' }
     ];
 
-    const { rerender } = render(<EventDisplay event={events[0]} onClose={mockClose} />);
-    expect(screen.getByRole('alert')).toHaveClass('bg-green-50');
+    events.forEach(event => {
+      const { container } = render(<EventDisplay event={event} onClose={mockClose} />);
+      const alert = container.firstChild;
+      
+      switch (event.type) {
+        case 'positive':
+          expect(alert).toHaveClass('bg-green-50');
+          break;
+        case 'negative':
+          expect(alert).toHaveClass('bg-red-50');
+          break;
+        case 'neutral':
+          expect(alert).toHaveClass('bg-blue-50');
+          break;
+      }
+    });
+  });
 
-    rerender(<EventDisplay event={events[1]} onClose={mockClose} />);
-    expect(screen.getByRole('alert')).toHaveClass('bg-red-50');
+  it('renders appropriate icon for event type', () => {
+    const { rerender } = render(<EventDisplay event={mockEvent} onClose={mockClose} />);
+    expect(screen.getByTestId('thumbs-up-icon')).toBeInTheDocument();
 
-    rerender(<EventDisplay event={events[2]} onClose={mockClose} />);
-    expect(screen.getByRole('alert')).toHaveClass('bg-blue-50');
+    rerender(<EventDisplay event={{ ...mockEvent, type: 'negative' }} onClose={mockClose} />);
+    expect(screen.getByTestId('thumbs-down-icon')).toBeInTheDocument();
+
+    rerender(<EventDisplay event={{ ...mockEvent, type: 'neutral' }} onClose={mockClose} />);
+    expect(screen.getByTestId('alert-circle-icon')).toBeInTheDocument();
   });
 });
