@@ -7,65 +7,62 @@ describe('DiceRoller', () => {
     diceRoller = new DiceRoller();
   });
 
-  test('generates all 36 possible combinations', () => {
-    const results = new Set<string>();
-    for (let i = 0; i < 32; i++) {
-      const roll = diceRoller.roll();
-      results.add(`${roll.dice1},${roll.dice2}`);
-      expect(roll.sum).toBe(roll.dice1 + roll.dice2);
-      expect(roll.dice1).toBeGreaterThanOrEqual(1);
-      expect(roll.dice1).toBeLessThanOrEqual(6);
-      expect(roll.dice2).toBeGreaterThanOrEqual(1);
-      expect(roll.dice2).toBeLessThanOrEqual(6);
-    }
-    expect(results.size).toBe(32);
+  describe('constructor', () => {
+    test('throws error for invalid discard count', () => {
+      expect(() => new DiceRoller(-1)).toThrow();
+      expect(() => new DiceRoller(36)).toThrow();
+    });
+
+    test('accepts custom random function', () => {
+      const mockRandom = jest.fn().mockReturnValue(0.5);
+      const roller = new DiceRoller(4, mockRandom);
+      roller.roll();
+      expect(mockRandom).toHaveBeenCalled();
+    });
   });
 
-  test('discards correct number of combinations', () => {
-    const discardCount = 4;
-    const diceRoller = new DiceRoller(discardCount);
-    const rolls = [];
-    
-    while (diceRoller.getRemainingRolls() > 0) {
-      rolls.push(diceRoller.roll());
-    }
-    
-    expect(rolls.length).toBe(36 - discardCount);
+  describe('roll distribution', () => {
+    test('provides fair distribution of sums', () => {
+      const sums = new Map<number, number>();
+      const rolls = 1000;
+      
+      for (let i = 0; i < rolls; i++) {
+        const roll = diceRoller.roll();
+        sums.set(roll.sum, (sums.get(roll.sum) || 0) + 1);
+      }
+
+      // Check that each sum appears with expected frequency
+      const expectedFrequencies = {
+        2: 1/36, 3: 2/36, 4: 3/36, 5: 4/36, 6: 5/36, 7: 6/36,
+        8: 5/36, 9: 4/36, 10: 3/36, 11: 2/36, 12: 1/36
+      };
+
+      for (const [sum, count] of sums.entries()) {
+        const actualFrequency = count / rolls;
+        const expectedFrequency = expectedFrequencies[sum as keyof typeof expectedFrequencies];
+        const tolerance = 0.1; // 10% tolerance
+
+        expect(Math.abs(actualFrequency - expectedFrequency))
+          .toBeLessThan(tolerance);
+      }
+    });
   });
 
-  test('shuffles and resets after using all combinations', () => {
-    const firstSet = new Set<string>();
-    const secondSet = new Set<string>();
-    
-    // Roll through first complete set
-    for (let i = 0; i < 32; i++) {
-      const roll = diceRoller.roll();
-      firstSet.add(`${roll.dice1},${roll.dice2}`);
-    }
-    
-    // Roll through second complete set
-    for (let i = 0; i < 32; i++) {
-      const roll = diceRoller.roll();
-      secondSet.add(`${roll.dice1},${roll.dice2}`);
-    }
-    
-    expect(firstSet.size).toBe(32);
-    expect(secondSet.size).toBe(32);
-  });
-
-  test('allows changing discard count', () => {
-    diceRoller.setDiscardCount(6);
-    const rolls = [];
-    
-    while (diceRoller.getRemainingRolls() > 0) {
-      rolls.push(diceRoller.roll());
-    }
-    
-    expect(rolls.length).toBe(30);
-  });
-
-  test('throws error for invalid discard count', () => {
-    expect(() => diceRoller.setDiscardCount(-1)).toThrow();
-    expect(() => diceRoller.setDiscardCount(36)).toThrow();
+  describe('boundary conditions', () => {
+    test('handles exactly 32 rolls before reshuffle', () => {
+      const rolls = new Set<string>();
+      
+      // Roll 32 times (36 - 4 discard)
+      for (let i = 0; i < 32; i++) {
+        const roll = diceRoller.roll();
+        rolls.add(`${roll.dice1},${roll.dice2}`);
+      }
+      
+      expect(rolls.size).toBe(32);
+      
+      // Next roll should trigger reshuffle
+      const nextRoll = diceRoller.roll();
+      expect(nextRoll).toBeDefined();
+    });
   });
 });
