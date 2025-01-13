@@ -1,32 +1,50 @@
-// Mock all lucide icons
-const mockIcon = ({ size = 24, color = 'currentColor', ...props } = {}) => {
-  return {
-    type: 'svg',
-    props: {
-      width: size,
-      height: size,
-      fill: 'none',
-      stroke: color,
-      ...props,
-    },
-  };
+const React = require('react');
+
+const createIcon = (name) => {
+  return React.forwardRef(({ size = 24, color = 'currentColor', ...props }, ref) => {
+    return React.createElement(
+      'svg',
+      {
+        ref,
+        width: size,
+        height: size,
+        fill: 'none',
+        stroke: color,
+        'data-testid': `${name}-icon`,
+        ...props,
+      },
+      React.createElement('path', {
+        d: 'M0 0h24v24H0z',
+        stroke: 'none',
+      })
+    );
+  });
 };
 
 // Export all icons used in the app
-export const ShieldAlert = mockIcon;
-export const GalleryVerticalEnd = mockIcon;
-export const Building2 = mockIcon;
-export const Lightbulb = mockIcon;
-export const ShoppingCart = mockIcon;
-export const Ban = mockIcon;
-export const Settings = mockIcon;
-export const BarChart2 = mockIcon;
-export const Save = mockIcon;
-export const RotateCcw = mockIcon;
-export const Sun = mockIcon;
-export const Moon = mockIcon;
-export const Volume2 = mockIcon;
-export const VolumeX = mockIcon;
-export const Monitor = mockIcon;
-export const Zap = mockIcon;
-export const ZapOff = mockIcon;
+module.exports = {
+  ShieldAlert: createIcon('shield-alert'),
+  GalleryVerticalEnd: createIcon('gallery-vertical-end'),
+  Building2: createIcon('building'),
+  Lightbulb: createIcon('lightbulb'),
+  ShoppingCart: createIcon('shopping-cart'),
+  Ban: createIcon('ban'),
+  Settings: createIcon('settings'),
+  BarChart2: createIcon('bar-chart'),
+  Save: createIcon('save'),
+  RotateCcw: createIcon('rotate-ccw'),
+  Sun: createIcon('sun'),
+  Moon: createIcon('moon'),
+  Volume2: createIcon('volume'),
+  VolumeX: createIcon('volume-x'),
+  Monitor: createIcon('monitor'),
+  Zap: createIcon('zap'),
+  ZapOff: createIcon('zap-off'),
+  X: createIcon('x'),
+  Info: createIcon('info'),
+  AlertTriangle: createIcon('alert-triangle'),
+  Sword: createIcon('sword'),
+  ThumbsUp: createIcon('thumbs-up'),
+  ThumbsDown: createIcon('thumbs-down'),
+  AlertCircle: createIcon('alert-circle'),
+};
