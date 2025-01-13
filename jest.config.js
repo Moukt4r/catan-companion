@@ -3,6 +3,7 @@ const config = {
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
+    '^@/components/ui/(.*)$': '<rootDir>/__mocks__/components/ui/$1',
     '^@/components/(.*)$': '<rootDir>/components/$1',
     '^@/pages/(.*)$': '<rootDir>/pages/$1',
     '^@/utils/(.*)$': '<rootDir>/utils/$1',
@@ -12,7 +13,7 @@ const config = {
     '\\.css$': '<rootDir>/__mocks__/styleMock.js'
   },
   transform: {
-    '^.+\\.(t|j)sx?$': ['@swc/jest'],
+    '^.+\\.(t|j)sx?$': ['@swc/jest']
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$',
