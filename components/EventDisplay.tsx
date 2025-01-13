@@ -1,5 +1,5 @@
 import React from 'react';
-import Alert, { AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { X, ThumbsUp, ThumbsDown, AlertCircle } from 'lucide-react';
 import type { GameEvent } from '../types/eventTypes';
 
@@ -33,7 +33,7 @@ const getEventIcon = (type: GameEvent['type']) => {
   }
 };
 
-export const EventDisplay: React.FC<EventDisplayProps> = ({ event, onClose }) => {
+const EventDisplay: React.FC<EventDisplayProps> = ({ event, onClose }) => {
   return (
     <Alert className={`relative mb-4 ${getEventStyles(event.type)}`}>
       <button
@@ -53,3 +53,5 @@ export const EventDisplay: React.FC<EventDisplayProps> = ({ event, onClose }) =>
     </Alert>
   );
 };
+
+export default EventDisplay;
