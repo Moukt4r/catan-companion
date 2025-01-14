@@ -1,14 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { Swords } from 'lucide-react';
 
 interface BarbarianTrackerProps {
   threshold?: number;
 }
 
-export const BarbarianTracker: React.FC<BarbarianTrackerProps> = ({ threshold = 7 }) => {
+export interface BarbarianTrackerRef {
+  advance: () => void;
+}
+
+export const BarbarianTracker = forwardRef<BarbarianTrackerRef, BarbarianTrackerProps>((
+  { threshold = 7 },
+  ref
+) => {
   const [progress, setProgress] = useState(0);
   const [knightCount, setKnightCount] = useState(0);
   const [attacks, setAttacks] = useState<{date: Date; success: boolean}[]>([]);
+
+  useImperativeHandle(ref, () => ({
+    advance: () => setProgress(p => Math.min(p + 1, threshold))
+  }));
 
   useEffect(() => {
     if (progress >= threshold) {
@@ -74,4 +85,6 @@ export const BarbarianTracker: React.FC<BarbarianTrackerProps> = ({ threshold = 
       )}
     </div>
   );
-};
+});
+
+BarbarianTracker.displayName = 'BarbarianTracker';
