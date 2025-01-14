@@ -13,16 +13,14 @@ export interface BarbarianState {
   };
 }
 
-type StateChangeCallback = (state: BarbarianState) => void;
-
 export class BarbarianTracker {
   private currentProgress: number = 0;
   private maxProgress: number;
   private isAttacking: boolean = false;
   private knights: number = 0;
   private attackHistory: BarbarianState['attackHistory'] = [];
-  private listeners: Set<StateChangeCallback> = new Set();
   private lastAction?: BarbarianState['lastAction'];
+  private listeners: Set<(state: BarbarianState) => void> = new Set();
 
   constructor(maxProgress: number = 7) {
     if (maxProgress < 1) {
@@ -31,24 +29,23 @@ export class BarbarianTracker {
     this.maxProgress = maxProgress;
   }
 
-  public subscribe(callback: StateChangeCallback): () => void {
-    this.listeners.add(callback);
-    return () => this.listeners.delete(callback);
-  }
-
   private notifyListeners(): void {
     const state = this.getState();
     this.listeners.forEach(listener => listener(state));
   }
 
   private saveLastAction(type: BarbarianState['lastAction']['type']): void {
-    const { lastAction, ...currentState } = this.getState();
-    this.lastAction = { type, previousState: currentState };
+    const currentState = this.getState();
+    const { lastAction, ...stateWithoutLastAction } = currentState;
+    this.lastAction = {
+      type,
+      previousState: { ...stateWithoutLastAction }
+    };
   }
 
   public advance(): boolean {
     this.saveLastAction('advance');
-
+    
     if (this.isAttacking) {
       return true;
     }
@@ -69,21 +66,26 @@ export class BarbarianTracker {
     return false;
   }
 
+  public undo(): boolean {
+    if (!this.lastAction) return false;
+    
+    const { type, previousState } = this.lastAction;
+    this.maxProgress = previousState.maxProgress;
+    this.currentProgress = previousState.currentProgress;
+    this.isAttacking = previousState.isAttacking;
+    this.knights = previousState.knights;
+    this.attackHistory = [...previousState.attackHistory];
+    this.lastAction = undefined;
+    
+    this.notifyListeners();
+    return true;
+  }
+
   public reset(): void {
     this.saveLastAction('reset');
     this.currentProgress = 0;
     this.isAttacking = false;
     this.notifyListeners();
-  }
-
-  public undo(): boolean {
-    if (!this.lastAction) return false;
-
-    const { type, previousState } = this.lastAction;
-    Object.assign(this, previousState);
-    this.lastAction = undefined;
-    this.notifyListeners();
-    return true;
   }
 
   public setMaxProgress(max: number): void {
@@ -107,12 +109,9 @@ export class BarbarianTracker {
     this.notifyListeners();
   }
 
-  public getStepsUntilAttack(): number {
-    return this.isAttacking ? 0 : this.maxProgress - this.currentProgress;
-  }
-
-  public getAttackCount(): number {
-    return this.attackHistory.length;
+  public subscribe(callback: (state: BarbarianState) => void): () => void {
+    this.listeners.add(callback);
+    return () => this.listeners.delete(callback);
   }
 
   public getState(): BarbarianState {
@@ -122,7 +121,10 @@ export class BarbarianTracker {
       isAttacking: this.isAttacking,
       knights: this.knights,
       attackHistory: [...this.attackHistory],
-      lastAction: this.lastAction
+      lastAction: this.lastAction ? {
+        type: this.lastAction.type,
+        previousState: { ...this.lastAction.previousState }
+      } : undefined
     };
   }
 
@@ -140,7 +142,13 @@ export class BarbarianTracker {
       this.knights = state.knights;
     }
     if (Array.isArray(state.attackHistory)) {
-      this.attackHistory = state.attackHistory;
+      this.attackHistory = [...state.attackHistory];
+    }
+    if (state.lastAction) {
+      this.lastAction = {
+        type: state.lastAction.type,
+        previousState: { ...state.lastAction.previousState }
+      };
     }
     this.notifyListeners();
   }

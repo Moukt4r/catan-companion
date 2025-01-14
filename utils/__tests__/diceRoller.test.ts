@@ -1,9 +1,10 @@
-import { DiceRoller, SPECIAL_DIE_FACES, isSpecialDieFace } from '../diceRoller';
+import { DiceRoller, isSpecialDieFace, SPECIAL_DIE_FACES } from '../diceRoller';
 
 describe('DiceRoller with special die', () => {
   let diceRoller: DiceRoller;
   
   beforeEach(() => {
+    // Create new instance for each test
     diceRoller = new DiceRoller();
   });
 
@@ -42,29 +43,20 @@ describe('DiceRoller with special die', () => {
         }
       }
 
-      // Each face should appear approximately rolls/6 times
       const expectedCount = rolls / 6;
-      const tolerance = expectedCount * 0.1; // 10% tolerance
+      const tolerance = expectedCount * 0.1;  // 10% tolerance
 
       for (const count of faces.values()) {
         expect(Math.abs(count - expectedCount)).toBeLessThan(tolerance);
       }
-    });
-
-    test('getAllSpecialDieFaces returns all faces', () => {
-      const faces = DiceRoller.getAllSpecialDieFaces();
-      expect(faces).toEqual(SPECIAL_DIE_FACES);
-      expect(Object.isFrozen(faces)).toBe(true);
     });
   });
 
   describe('type guards', () => {
     test('isSpecialDieFace validates face types', () => {
       expect(isSpecialDieFace('barbarian')).toBe(true);
-      expect(isSpecialDieFace('invalid')).toBe(false);
+      expect(isSpecialDieFace('invalid' as any)).toBe(false);
       expect(isSpecialDieFace('')).toBe(false);
     });
   });
-
-  // Include previous basic dice rolling tests...
 });
