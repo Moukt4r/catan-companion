@@ -6,7 +6,7 @@ import type { DiceRoll } from '@/types/diceTypes';
 import { SPECIAL_DIE_COLORS, SPECIAL_DIE_ICONS } from '@/types/diceTypes';
 
 interface DiceRollerProps {
-  onRoll?: () => void;
+  onRoll?: (roll: DiceRoll) => void;
 }
 
 export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
@@ -37,9 +37,9 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     setTotalPips(prev => prev + roll.sum);
     setRollHistory(prev => [roll, ...prev].slice(0, 10));
 
-    // Trigger any additional effects (barbarian, events, etc.)
+    // Call onRoll with the roll result
     if (onRoll) {
-      onRoll();
+      onRoll(roll);
     }
 
     setIsRolling(false);
