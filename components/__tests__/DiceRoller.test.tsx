@@ -48,17 +48,20 @@ describe('DiceRoller', () => {
     render(<DiceRoller />);
     const button = screen.getByRole('button', { name: 'Roll Dice' });
 
-    await act(async () => {
+    act(() => {
       fireEvent.click(button);
-      expect(screen.getByText('Rolling...')).toBeInTheDocument();
-      expect(button).toBeDisabled();
+    });
+
+    expect(screen.getByRole('button')).toHaveTextContent('Rolling...');
+    expect(button).toBeDisabled();
       
-      // Fast-forward animation timer
+    // Fast-forward animation timer
+    act(() => {
       jest.advanceTimersByTime(600);
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Roll Dice')).toBeInTheDocument();
+      expect(screen.getByRole('button')).toHaveTextContent('Roll Dice');
       expect(button).not.toBeDisabled();
     });
   });
@@ -68,15 +71,16 @@ describe('DiceRoller', () => {
     
     const button = screen.getByRole('button', { name: 'Roll Dice' });
 
-    await act(async () => {
+    act(() => {
       fireEvent.click(button);
-      // Fast-forward animation timer
+    });
+
+    act(() => {
       jest.advanceTimersByTime(600);
     });
 
     await waitFor(() => {
-      const totalRolls = screen.getByText(/Total Rolls:/i);
-      expect(totalRolls).toHaveTextContent('Total Rolls: 1');
+      expect(screen.getByText(/Total Rolls:/i)).toHaveTextContent('Total Rolls: 1');
     });
   });
 });
