@@ -1,16 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
-import { DiceDisplay } from './DiceDisplay';
+import DiceDisplay from './DiceDisplay';
 import { Loader, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import type { DiceRoll } from '@/types/diceTypes';
-import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
 
 interface DiceRollerProps {
   onRoll?: (roll: DiceRoll) => void;
 }
 
 export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
-  const [diceRoller] = useState(() => new DiceRollerUtil(4, true));
+  const [diceRoller] = useState(() => new DiceRollerUtil(4, true)); // Always use special die
   const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
   const [discardCount, setDiscardCount] = useState(4);
   const [isRolling, setIsRolling] = useState(false);
@@ -69,26 +68,11 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     setRollHistory([]);
   }, []);
 
-  const renderSpecialDie = (face: DiceRoll['specialDie']) => {
-    if (!face || !SPECIAL_DIE_INFO[face]) return null;
-    
-    const { color, icon, label } = SPECIAL_DIE_INFO[face];
-    return (
-      <span 
-        className="inline-flex items-center gap-1" 
-        title={`${label} Die Face`}
-      >
-        <span className={`w-3 h-3 rounded-full ${color}`} />
-        <span>{icon}</span>
-      </span>
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="discardCount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label htmlFor="discardCount" className="block text-sm font-medium text-gray-700 mb-1">
             Discard Count (0-35):
           </label>
           <input
@@ -98,14 +82,14 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
             max="35"
             value={discardCount}
             onChange={handleDiscardChange}
-            className="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white"
+            className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg"
           />
         </div>
         
         <div className="flex items-center justify-end">
           <button
             onClick={() => setIsSoundEnabled(!isSoundEnabled)}
-            className="p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
+            className="p-2 text-gray-600 hover:text-blue-600"
             aria-label={`${isSoundEnabled ? 'Disable' : 'Enable'} sound`}
           >
             {isSoundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
@@ -116,7 +100,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
       <button
         onClick={handleRoll}
         disabled={isRolling}
-        className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg shadow transition-colors"
+        className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow"
       >
         {isRolling ? (
           <span className="flex items-center justify-center">
@@ -140,7 +124,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
             <h3 className="font-medium">Roll History</h3>
             <button
               onClick={resetStats}
-              className="p-1.5 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
+              className="p-1.5 text-gray-600 hover:text-blue-600"
               title="Reset statistics"
             >
               <RotateCcw size={18} />
@@ -152,7 +136,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
                 <span>
                   Roll {rollHistory.length - index}: {roll.dice1} + {roll.dice2} = {roll.sum}
                 </span>
-                {roll.specialDie && renderSpecialDie(roll.specialDie)}
+                {roll.specialDie && <DiceDisplay roll={roll} isRolling={false} />}
               </div>
             ))}
           </div>
@@ -161,3 +145,5 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     </div>
   );
 };
+
+export default DiceRoller;
