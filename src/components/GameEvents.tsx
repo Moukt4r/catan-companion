@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, Settings } from 'lucide-react';
 
 type EventType = 'positive' | 'negative' | 'neutral';
 
@@ -7,7 +7,7 @@ interface GameEvent {
   id: number;
   type: EventType;
   description: string;
-  threshold?: number; // Some events only trigger above certain dice rolls
+  threshold?: number;
 }
 
 const EVENTS: GameEvent[] = [
@@ -48,57 +48,138 @@ const EVENTS: GameEvent[] = [
   { id: 30, type: 'neutral', description: 'Merchant Visit! Special trades available next turn.' }
 ];
 
-const EVENT_CHANCE = 0.15; // 15% chance of event by default
+const DEFAULT_EVENT_CHANCE = 0.15; // 15% chance by default
+const DEFAULT_CHECK_INTERVAL = 30000; // 30 seconds by default
 
 export const GameEvents: React.FC = () => {
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
   const [eventHistory, setEventHistory] = useState<GameEvent[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [eventChance, setEventChance] = useState(DEFAULT_EVENT_CHANCE);
+  const [checkInterval, setCheckInterval] = useState(DEFAULT_CHECK_INTERVAL);
+  const [isEventsEnabled, setIsEventsEnabled] = useState(true);
 
   const checkForEvent = useCallback(() => {
-    if (Math.random() < EVENT_CHANCE) {
+    if (!isEventsEnabled) return;
+
+    if (Math.random() < eventChance) {
       const event = EVENTS[Math.floor(Math.random() * EVENTS.length)];
       setCurrentEvent(event);
       setEventHistory(prev => [event, ...prev].slice(0, 10));
+
+      // Play a notification sound
+      const audio = new Audio('/event-notification.mp3');
+      audio.play().catch(() => {});
 
       // Auto-dismiss after 10 seconds
       setTimeout(() => {
         setCurrentEvent(null);
       }, 10000);
     }
-  }, []);
+  }, [eventChance, isEventsEnabled]);
+
+  // Add a function to manually trigger an event (for testing)
+  const triggerRandomEvent = () => {
+    if (!isEventsEnabled) return;
+    
+    const event = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+    setCurrentEvent(event);
+    setEventHistory(prev => [event, ...prev].slice(0, 10));
+  };
 
   const getEventIcon = (type: EventType) => {
     switch (type) {
       case 'positive':
-        return <CheckCircle2 className="text-green-500" size={20} />;
+        return <CheckCircle2 className="text-green-500 dark:text-green-400" size={20} />;
       case 'negative':
-        return <AlertTriangle className="text-red-500" size={20} />;
+        return <AlertTriangle className="text-red-500 dark:text-red-400" size={20} />;
       case 'neutral':
-        return <AlertCircle className="text-blue-500" size={20} />;
+        return <AlertCircle className="text-blue-500 dark:text-blue-400" size={20} />;
     }
   };
 
   useEffect(() => {
-    const timer = setInterval(checkForEvent, 30000); // Check every 30 seconds
+    if (!isEventsEnabled) return;
+    
+    const timer = setInterval(checkForEvent, checkInterval);
     return () => clearInterval(timer);
-  }, [checkForEvent]);
-
-  if (!currentEvent && eventHistory.length === 0) return null;
+  }, [checkForEvent, checkInterval, isEventsEnabled]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium">Game Events</h3>
-        {eventHistory.length > 0 && (
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-medium">Game Events</h3>
           <button
-            onClick={() => setShowHistory(!showHistory)}
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+            title="Configure events"
+          >
+            <Settings size={16} />
+          </button>
+        </div>
+        <div className="flex items-center gap-4">
+          {eventHistory.length > 0 && (
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              {showHistory ? 'Hide History' : 'Show History'}
+            </button>
+          )}
+          <button
+            onClick={triggerRandomEvent}
             className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
           >
-            {showHistory ? 'Hide History' : 'Show History'}
+            Trigger Event
           </button>
-        )}
+        </div>
       </div>
+
+      {showSettings && (
+        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="eventsEnabled"
+              checked={isEventsEnabled}
+              onChange={(e) => setIsEventsEnabled(e.target.checked)}
+              className="h-4 w-4 text-blue-600 rounded border-gray-300"
+            />
+            <label htmlFor="eventsEnabled" className="text-sm font-medium dark:text-gray-300">
+              Enable random events
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Event Chance (0-100%)
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={eventChance * 100}
+              onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))} 
+              className="block w-full px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg dark:text-white"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Check Interval (seconds)
+            </label>
+            <input
+              type="number"
+              min="5"
+              value={checkInterval / 1000}
+              onChange={(e) => setCheckInterval(parseInt(e.target.value) * 1000)}
+              className="block w-full px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg dark:text-white"
+            />
+          </div>
+        </div>
+      )}
 
       {currentEvent && (
         <div 
@@ -128,6 +209,12 @@ export const GameEvents: React.FC = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {!currentEvent && !showHistory && eventHistory.length === 0 && isEventsEnabled && (
+        <p className="text-gray-600 dark:text-gray-400 text-sm italic">
+          Random events will appear here. They have a {(eventChance * 100).toFixed(0)}% chance to occur every {checkInterval / 1000} seconds.
+        </p>
       )}
     </div>
   );
