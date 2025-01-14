@@ -1,36 +1,61 @@
-import Header from '@/components/Header';
-import { DiceRoller } from '@/components/DiceRoller';
-import { BarbarianTracker, type BarbarianTrackerRef } from '@/components/BarbarianTracker';
-import { GameEvents, type GameEventsRef } from '@/components/GameEvents';
-import { useCallback, useRef } from 'react';
-import type { DiceRoll } from '@/types/diceTypes';
+import { useState } from 'react';
+import type { Player } from '@/types/playerTypes';
+import { StartScreen } from '@/components/StartScreen';
+import { GameScreen } from '@/components/GameScreen';
 
 export default function Home() {
-  const barbarianTrackerRef = useRef<BarbarianTrackerRef | null>(null);
-  const gameEventsRef = useRef<GameEventsRef | null>(null);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 
-  const handleDiceRoll = useCallback((roll: DiceRoll) => {
-    // Only advance barbarian progress on barbarian special die face
-    if (roll.specialDie === 'barbarian') {
-      barbarianTrackerRef.current?.advance();
-    }
-    // Check for random events on each roll
-    gameEventsRef.current?.checkForEvent();
-  }, []);
+  const handleStartGame = (newPlayers: Player[]) => {
+    setPlayers(newPlayers);
+    setGameStarted(true);
+  };
+
+  const nextTurn = () => {
+    setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
+    // Update player statistics
+    setPlayers(prev => {
+      const newPlayers = [...prev];
+      newPlayers[currentPlayerIndex] = {
+        ...newPlayers[currentPlayerIndex],
+        statistics: {
+          ...newPlayers[currentPlayerIndex].statistics,
+          turnCount: newPlayers[currentPlayerIndex].statistics.turnCount + 1,
+        },
+      };
+      return newPlayers;
+    });
+  };
+
+  const updatePlayerStatistics = (playerId: string, updates: Partial<Player['statistics']>) => {
+    setPlayers(prev => {
+      const newPlayers = [...prev];
+      const playerIndex = newPlayers.findIndex(p => p.id === playerId);
+      if (playerIndex === -1) return prev;
+
+      newPlayers[playerIndex] = {
+        ...newPlayers[playerIndex],
+        statistics: {
+          ...newPlayers[playerIndex].statistics,
+          ...updates,
+        },
+      };
+      return newPlayers;
+    });
+  };
+
+  if (!gameStarted) {
+    return <StartScreen onStartGame={handleStartGame} />;
+  }
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header />
-      <div className="container mx-auto p-4">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold mb-4">Roll the Dice</h2>
-            <DiceRoller onRoll={handleDiceRoll} />
-          </div>
-          <BarbarianTracker ref={barbarianTrackerRef} />
-          <GameEvents ref={gameEventsRef} />
-        </div>
-      </div>
-    </main>
+    <GameScreen
+      players={players}
+      currentPlayerIndex={currentPlayerIndex}
+      onNextTurn={nextTurn}
+      onUpdateStatistics={updatePlayerStatistics}
+    />
   );
 }
