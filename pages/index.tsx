@@ -3,18 +3,18 @@ import { DiceRoller } from '@/components/DiceRoller';
 import { BarbarianTracker, type BarbarianTrackerRef } from '@/components/BarbarianTracker';
 import { GameEvents, type GameEventsRef } from '@/components/GameEvents';
 import { useCallback, useRef } from 'react';
+import type { DiceRoll } from '@/types/diceTypes';
 
 export default function Home() {
   const barbarianTrackerRef = useRef<BarbarianTrackerRef | null>(null);
   const gameEventsRef = useRef<GameEventsRef | null>(null);
 
-  const handleBarbarianRoll = useCallback(() => {
-    barbarianTrackerRef.current?.advance();
-  }, []);
-
-  const handleDiceRoll = useCallback(() => {
-    // Check for barbarian and trigger events on each roll
-    barbarianTrackerRef.current?.advance();
+  const handleDiceRoll = useCallback((roll: DiceRoll) => {
+    // Only advance barbarian progress on barbarian special die face
+    if (roll.specialDie === 'barbarian') {
+      barbarianTrackerRef.current?.advance();
+    }
+    // Check for random events on each roll
     gameEventsRef.current?.checkForEvent();
   }, []);
 
