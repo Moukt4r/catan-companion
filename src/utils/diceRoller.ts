@@ -8,15 +8,15 @@ export interface DiceRoll {
 }
 
 // Special die has 6 faces:
-// 1 barbarian (red)
-// 2 merchant (yellow)
-// 2 politics (green)
+// 3 barbarian (red)
+// 1 merchant (yellow)
+// 1 politics (green)
 // 1 science (blue)
 export const SPECIAL_DIE_FACES: readonly SpecialDieFace[] = Object.freeze([
   'barbarian',
+  'barbarian',
+  'barbarian',
   'merchant',
-  'merchant',
-  'politics',
   'politics',
   'science'
 ]) as const;
