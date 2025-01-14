@@ -14,7 +14,7 @@ describe('DiceRoller', () => {
 
   it('renders initial state correctly', () => {
     render(<DiceRoller />);
-    expect(screen.getByText(/Roll/i)).toBeInTheDocument();
+    expect(screen.getByText('Roll Dice')).toBeInTheDocument();
     expect(screen.getByLabelText(/Discard Count/i)).toHaveValue(4);
   });
 
@@ -46,11 +46,11 @@ describe('DiceRoller', () => {
 
   it('shows loading state while rolling', async () => {
     render(<DiceRoller />);
-    const button = screen.getByText(/Roll/i);
+    const button = screen.getByRole('button', { name: 'Roll Dice' });
 
     await act(async () => {
       fireEvent.click(button);
-      expect(screen.getByText(/Rolling/i)).toBeInTheDocument();
+      expect(screen.getByText('Rolling...')).toBeInTheDocument();
       expect(button).toBeDisabled();
       
       // Fast-forward animation timer
@@ -58,7 +58,7 @@ describe('DiceRoller', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Roll/i)).toBeInTheDocument();
+      expect(screen.getByText('Roll Dice')).toBeInTheDocument();
       expect(button).not.toBeDisabled();
     });
   });
@@ -66,7 +66,7 @@ describe('DiceRoller', () => {
   it('updates statistics after rolling', async () => {
     render(<DiceRoller />);
     
-    const button = screen.getByText(/Roll/i);
+    const button = screen.getByRole('button', { name: 'Roll Dice' });
 
     await act(async () => {
       fireEvent.click(button);
@@ -75,8 +75,8 @@ describe('DiceRoller', () => {
     });
 
     await waitFor(() => {
-      const stats = screen.getByText(/Total Rolls/i);
-      expect(stats.textContent).toContain('1');
+      const totalRolls = screen.getByText(/Total Rolls:/i);
+      expect(totalRolls).toHaveTextContent('Total Rolls: 1');
     });
   });
 });
