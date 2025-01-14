@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sun, Moon } from 'lucide-react';
 
 interface HeaderProps {
@@ -6,7 +6,7 @@ interface HeaderProps {
   className?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ 
+export const Header: React.FC<HeaderProps> = ({ 
   title = 'Catan Companion',
   className = '' 
 }) => {
@@ -20,7 +20,6 @@ const Header: React.FC<HeaderProps> = ({
   }, []);
 
   useEffect(() => {
-    // Update theme when it changes
     if (isDark) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
