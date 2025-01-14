@@ -1,6 +1,8 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, RenderOptions } from '@testing-library/react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+// Import mocks
+import './testUtils/mockComponents';
 
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -10,11 +12,10 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-const customRender = (ui: React.ReactElement, options = {}) =>
-  render(ui, { wrapper: AllTheProviders, ...options });
+const customRender = (
+  ui: React.ReactElement,
+  options?: Omit<RenderOptions, 'wrapper'>
+) => render(ui, { wrapper: AllTheProviders, ...options });
 
-// re-export everything
 export * from '@testing-library/react';
-
-// override render method
 export { customRender as render };
