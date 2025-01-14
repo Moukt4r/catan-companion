@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, Settings } from 'lucide-react';
 
 type EventType = 'positive' | 'negative' | 'neutral';
@@ -49,44 +49,35 @@ const EVENTS: GameEvent[] = [
 ];
 
 const DEFAULT_EVENT_CHANCE = 0.15; // 15% chance by default
-const DEFAULT_CHECK_INTERVAL = 30000; // 30 seconds by default
 
-export const GameEvents: React.FC = () => {
+export interface GameEventsRef {
+  checkForEvent: () => void;
+}
+
+export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
   const [eventHistory, setEventHistory] = useState<GameEvent[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [eventChance, setEventChance] = useState(DEFAULT_EVENT_CHANCE);
-  const [checkInterval, setCheckInterval] = useState(DEFAULT_CHECK_INTERVAL);
   const [isEventsEnabled, setIsEventsEnabled] = useState(true);
 
-  const checkForEvent = useCallback(() => {
-    if (!isEventsEnabled) return;
+  useImperativeHandle(ref, () => ({
+    checkForEvent: () => {
+      if (!isEventsEnabled) return;
 
-    if (Math.random() < eventChance) {
-      const event = EVENTS[Math.floor(Math.random() * EVENTS.length)];
-      setCurrentEvent(event);
-      setEventHistory(prev => [event, ...prev].slice(0, 10));
+      if (Math.random() < eventChance) {
+        const event = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+        setCurrentEvent(event);
+        setEventHistory(prev => [event, ...prev].slice(0, 10));
 
-      // Play a notification sound
-      const audio = new Audio('/event-notification.mp3');
-      audio.play().catch(() => {});
-
-      // Auto-dismiss after 10 seconds
-      setTimeout(() => {
-        setCurrentEvent(null);
-      }, 10000);
+        // Auto-dismiss after 10 seconds
+        setTimeout(() => {
+          setCurrentEvent(null);
+        }, 10000);
+      }
     }
-  }, [eventChance, isEventsEnabled]);
-
-  // Add a function to manually trigger an event (for testing)
-  const triggerRandomEvent = () => {
-    if (!isEventsEnabled) return;
-    
-    const event = EVENTS[Math.floor(Math.random() * EVENTS.length)];
-    setCurrentEvent(event);
-    setEventHistory(prev => [event, ...prev].slice(0, 10));
-  };
+  }), [eventChance, isEventsEnabled]);
 
   const getEventIcon = (type: EventType) => {
     switch (type) {
@@ -98,13 +89,6 @@ export const GameEvents: React.FC = () => {
         return <AlertCircle className="text-blue-500 dark:text-blue-400" size={20} />;
     }
   };
-
-  useEffect(() => {
-    if (!isEventsEnabled) return;
-    
-    const timer = setInterval(checkForEvent, checkInterval);
-    return () => clearInterval(timer);
-  }, [checkForEvent, checkInterval, isEventsEnabled]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
@@ -119,22 +103,14 @@ export const GameEvents: React.FC = () => {
             <Settings size={16} />
           </button>
         </div>
-        <div className="flex items-center gap-4">
-          {eventHistory.length > 0 && (
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              {showHistory ? 'Hide History' : 'Show History'}
-            </button>
-          )}
+        {eventHistory.length > 0 && (
           <button
-            onClick={triggerRandomEvent}
+            onClick={() => setShowHistory(!showHistory)}
             className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
           >
-            Trigger Event
+            {showHistory ? 'Hide History' : 'Show History'}
           </button>
-        </div>
+        )}
       </div>
 
       {showSettings && (
@@ -162,19 +138,6 @@ export const GameEvents: React.FC = () => {
               max="100"
               value={eventChance * 100}
               onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))} 
-              className="block w-full px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg dark:text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Check Interval (seconds)
-            </label>
-            <input
-              type="number"
-              min="5"
-              value={checkInterval / 1000}
-              onChange={(e) => setCheckInterval(parseInt(e.target.value) * 1000)}
               className="block w-full px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg dark:text-white"
             />
           </div>
@@ -213,9 +176,11 @@ export const GameEvents: React.FC = () => {
 
       {!currentEvent && !showHistory && eventHistory.length === 0 && isEventsEnabled && (
         <p className="text-gray-600 dark:text-gray-400 text-sm italic">
-          Random events will appear here. They have a {(eventChance * 100).toFixed(0)}% chance to occur every {checkInterval / 1000} seconds.
+          Each dice roll has a {(eventChance * 100).toFixed(0)}% chance to trigger a random event.
         </p>
       )}
     </div>
   );
-};
+});
+
+GameEvents.displayName = 'GameEvents';
