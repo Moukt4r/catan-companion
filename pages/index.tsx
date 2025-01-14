@@ -1,14 +1,14 @@
 import Header from '@/components/Header';
 import { DiceRoller } from '@/components/DiceRoller';
-import { BarbarianTracker } from '@/components/BarbarianTracker';
-import { useState } from 'react';
+import { BarbarianTracker, type BarbarianTrackerRef } from '@/components/BarbarianTracker';
+import { useCallback, useRef } from 'react';
 
 export default function Home() {
-  const [barbarianTrackerRef, setBarbarianTrackerRef] = useState<{ advance: () => void } | null>(null);
+  const barbarianTrackerRef = useRef<BarbarianTrackerRef | null>(null);
 
-  const handleBarbarianRoll = () => {
-    barbarianTrackerRef?.advance();
-  };
+  const handleBarbarianRoll = useCallback(() => {
+    barbarianTrackerRef.current?.advance();
+  }, []);
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -19,7 +19,7 @@ export default function Home() {
             <h2 className="text-xl font-bold mb-4">Roll the Dice</h2>
             <DiceRoller onBarbarianRoll={handleBarbarianRoll} />
           </div>
-          <BarbarianTracker ref={(ref) => setBarbarianTrackerRef(ref)} />
+          <BarbarianTracker ref={barbarianTrackerRef} />
         </div>
       </div>
     </main>
