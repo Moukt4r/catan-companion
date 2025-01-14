@@ -1,65 +1,49 @@
-import React, { memo } from 'react';
+import React from 'react';
+import { ShieldAlert, GalleryVerticalEnd, Building2, Lightbulb, ShoppingCart, Ban } from 'lucide-react';
 import type { SpecialDieFace } from '../types/diceTypes';
-import {
-  ShieldAlert,
-  GalleryVerticalEnd,
-  Building2,
-  Lightbulb,
-  ShoppingCart,
-  Ban
-} from 'lucide-react';
 
 interface SpecialDieProps {
   face: SpecialDieFace;
   className?: string;
 }
 
-const getSpecialDieIcon = (face: SpecialDieFace): JSX.Element => {
-  const iconProps = {
+const getSpecialDieIcon = (face: SpecialDieFace) => {
+  const props = { 
     className: "h-8 w-8 text-white",
-    "aria-hidden": true
+    'aria-hidden': "true",
+    'data-testid': `${face}-icon`
   };
 
   switch (face) {
-    case 'barbarian': return <ShieldAlert {...iconProps} />;
-    case 'merchant': return <GalleryVerticalEnd {...iconProps} />;
-    case 'politics': return <Building2 {...iconProps} />;
-    case 'science': return <Lightbulb {...iconProps} />;
-    case 'trade': return <ShoppingCart {...iconProps} />;
-    case 'none': return <Ban {...iconProps} />;
+    case 'barbarian': return <ShieldAlert {...props} />;
+    case 'merchant': return <GalleryVerticalEnd {...props} />;
+    case 'politics': return <Building2 {...props} />;
+    case 'science': return <Lightbulb {...props} />;
+    case 'trade': return <ShoppingCart {...props} />;
+    case 'none': return <Ban {...props} />;
   }
 };
 
-const getBgColor = (face: SpecialDieFace): string => {
-  switch (face) {
-    case 'barbarian': return 'bg-red-600';
-    case 'merchant': return 'bg-yellow-600';
-    case 'politics': return 'bg-green-600';
-    case 'science': return 'bg-blue-600';
-    case 'trade': return 'bg-purple-600';
-    case 'none': return 'bg-gray-400';
-  }
-};
+export const SpecialDie: React.FC<SpecialDieProps> = ({ face, className = '' }) => {
+  const getBgColor = () => {
+    switch (face) {
+      case 'barbarian': return 'bg-red-600';
+      case 'merchant': return 'bg-yellow-600';
+      case 'politics': return 'bg-green-600';
+      case 'science': return 'bg-blue-600';
+      case 'trade': return 'bg-purple-600';
+      case 'none': return 'bg-gray-400';
+    }
+  };
 
-const FACE_DESCRIPTIONS = {
-  barbarian: 'Triggers barbarian movement on the Cities & Knights board',
-  merchant: 'Allows moving the merchant piece',
-  politics: 'Provides a politics card',
-  science: 'Provides a science card',
-  trade: 'Provides a trade card',
-  none: 'No special action'
-};
-
-export const SpecialDie: React.FC<SpecialDieProps> = memo(({ face, className = '' }) => {
   return (
     <div 
-      className={`w-16 h-16 rounded-lg flex items-center justify-center ${getBgColor(face)} ${className}`}
+      data-testid="special-die"
+      className={`w-16 h-16 rounded-lg flex items-center justify-center ${getBgColor()} ${className}`}
       role="img"
       aria-label={`Special die showing ${face}`}
-      title={FACE_DESCRIPTIONS[face]}
     >
       {getSpecialDieIcon(face)}
-      <span className="sr-only">{face} - {FACE_DESCRIPTIONS[face]}</span>
     </div>
   );
-});
+};
