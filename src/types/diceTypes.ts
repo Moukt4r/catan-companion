@@ -20,12 +20,12 @@ export const SPECIAL_DIE_INFO: Record<SpecialDieFace, SpecialDieInfo> = {
     label: 'Barbarian'
   },
   politics: {
-    color: 'bg-green-500',
+    color: 'bg-blue-500',
     icon: '👑',
     label: 'Politics'
   },
   science: {
-    color: 'bg-blue-500',
+    color: 'bg-green-500',
     icon: '🧪',
     label: 'Science'
   },
