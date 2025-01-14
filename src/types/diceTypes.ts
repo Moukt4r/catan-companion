@@ -7,16 +7,31 @@ export interface DiceRoll {
   specialDie?: SpecialDieFace;
 }
 
-export const SPECIAL_DIE_COLORS = {
-  barbarian: 'bg-red-500',
-  merchant: 'bg-yellow-400',
-  politics: 'bg-green-500',
-  science: 'bg-blue-500',
-} as const;
+interface SpecialDieInfo {
+  color: string;
+  icon: string;
+  label: string;
+}
 
-export const SPECIAL_DIE_ICONS = {
-  barbarian: '⚔️', // Barbarian (red)
-  merchant: '💰', // Merchant (yellow)
-  politics: '👑', // Politics (green)
-  science: '🧪', // Science (blue)
+export const SPECIAL_DIE_INFO: Record<SpecialDieFace, SpecialDieInfo> = {
+  barbarian: {
+    color: 'bg-red-500',
+    icon: '⚔️',
+    label: 'Barbarian'
+  },
+  politics: {
+    color: 'bg-blue-500',
+    icon: '👑',
+    label: 'Politics'
+  },
+  science: {
+    color: 'bg-green-500',
+    icon: '🧪',
+    label: 'Science'
+  },
+  merchant: {
+    color: 'bg-yellow-400',
+    icon: '💰',
+    label: 'Merchant'
+  }
 } as const;
