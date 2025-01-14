@@ -1,6 +1,7 @@
 import Header from '@/components/Header';
 import { DiceRoller } from '@/components/DiceRoller';
 import { BarbarianTracker, type BarbarianTrackerRef } from '@/components/BarbarianTracker';
+import { GameEvents } from '@/components/GameEvents';
 import { useCallback, useRef } from 'react';
 
 export default function Home() {
@@ -20,6 +21,7 @@ export default function Home() {
             <DiceRoller onBarbarianRoll={handleBarbarianRoll} />
           </div>
           <BarbarianTracker ref={barbarianTrackerRef} />
+          <GameEvents />
         </div>
       </div>
     </main>
