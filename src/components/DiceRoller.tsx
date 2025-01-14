@@ -11,7 +11,75 @@ interface DiceRollerProps {
 }
 
 export const DiceRoller: React.FC<DiceRollerProps> = ({ onBarbarianRoll }) => {
-  // ... rest of the component stays the same ...
+  const [diceRoller] = useState(() => new DiceRollerUtil(4, true)); // Initialize with special die enabled
+  const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
+  const [discardCount, setDiscardCount] = useState(4);
+  const [isRolling, setIsRolling] = useState(false);
+  const [rollCount, setRollCount] = useState(0);
+  const [totalPips, setTotalPips] = useState(0);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  const [rollHistory, setRollHistory] = useState<DiceRoll[]>([]);
+
+  const playDiceSound = useCallback(() => {
+    if (isSoundEnabled) {
+      const audio = new Audio('/dice-roll.mp3');
+      audio.play().catch(() => {});
+    }
+  }, [isSoundEnabled]);
+
+  const handleRoll = useCallback(async () => {
+    setIsRolling(true);
+    playDiceSound();
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    const roll = diceRoller.roll();
+    setCurrentRoll(roll);
+    setRollCount(prev => prev + 1);
+    setTotalPips(prev => prev + roll.sum);
+    setRollHistory(prev => [roll, ...prev].slice(0, 10));
+
+    if (roll.specialDie === 'barbarian' && onBarbarianRoll) {
+      onBarbarianRoll();
+    }
+
+    setIsRolling(false);
+  }, [diceRoller, playDiceSound, onBarbarianRoll]);
+
+  const handleKeyPress = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'r' || event.key === 'R') {
+      handleRoll();
+    }
+  }, [handleRoll]);
+
+  React.useEffect(() => {
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [handleKeyPress]);
+
+  const handleDiscardChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const newCount = parseInt(event.target.value, 10);
+    if (!isNaN(newCount) && newCount >= 0 && newCount < 36) {
+      setDiscardCount(newCount);
+      diceRoller.setDiscardCount(newCount);
+    }
+  }, [diceRoller]);
+
+  const resetStats = useCallback(() => {
+    setRollCount(0);
+    setTotalPips(0);
+    setRollHistory([]);
+  }, []);
+
+  const renderSpecialDie = (face: string) => {
+    const color = SPECIAL_DIE_COLORS[face as keyof typeof SPECIAL_DIE_COLORS];
+    const icon = SPECIAL_DIE_ICONS[face as keyof typeof SPECIAL_DIE_ICONS];
+    return (
+      <span className="inline-flex items-center">
+        <span className={`w-3 h-3 rounded-full ${color} mr-1`} />
+        {icon}
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -55,7 +123,42 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onBarbarianRoll }) => {
         ) : 'Roll Dice (Press R)'}
       </button>
 
-      {/* ... rest of the component stays the same ... */}
+      {currentRoll && <DiceDisplay roll={currentRoll} isRolling={isRolling} />}
+
+      <div className="space-y-2">
+        <div>Total Rolls: {rollCount}</div>
+        <div>Average Roll: {rollCount > 0 ? (totalPips / rollCount).toFixed(1) : '0.0'}</div>
+        <div>Remaining Rolls: {diceRoller.getRemainingRolls()}</div>
+      </div>
+
+      {rollHistory.length > 0 && (
+        <div className="mt-4">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-medium">Roll History</h3>
+            <button
+              onClick={resetStats}
+              className="p-1.5 text-gray-600 hover:text-blue-600"
+              title="Reset statistics"
+            >
+              <RotateCcw size={18} />
+            </button>
+          </div>
+          <div className="space-y-1 text-sm">
+            {rollHistory.map((roll, index) => (
+              <div key={index} className="flex justify-between">
+                <span>
+                  Roll {rollHistory.length - index}: {roll.dice1} + {roll.dice2} = {roll.sum}
+                </span>
+                {roll.specialDie && (
+                  <span>{renderSpecialDie(roll.specialDie)}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <GameEvents />
     </div>
   );
 };
