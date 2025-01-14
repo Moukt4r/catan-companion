@@ -3,9 +3,15 @@ import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 import { DiceDisplay } from './DiceDisplay';
 import { Loader, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import type { DiceRoll } from '@/types/diceTypes';
+import { SPECIAL_DIE_COLORS, SPECIAL_DIE_ICONS } from '@/types/diceTypes';
+import { GameEvents } from './GameEvents';
 
-export const DiceRoller: React.FC = () => {
-  const [diceRoller] = useState(() => new DiceRollerUtil(4, true)); // Initialize with special die enabled
+interface DiceRollerProps {
+  onBarbarianRoll?: () => void;
+}
+
+export const DiceRoller: React.FC<DiceRollerProps> = ({ onBarbarianRoll }) => {
+  const [diceRoller] = useState(() => new DiceRollerUtil(4, true));
   const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
   const [discardCount, setDiscardCount] = useState(4);
   const [isRolling, setIsRolling] = useState(false);
@@ -31,8 +37,13 @@ export const DiceRoller: React.FC = () => {
     setRollCount(prev => prev + 1);
     setTotalPips(prev => prev + roll.sum);
     setRollHistory(prev => [roll, ...prev].slice(0, 10));
+
+    if (roll.specialDie === 'barbarian' && onBarbarianRoll) {
+      onBarbarianRoll();
+    }
+
     setIsRolling(false);
-  }, [diceRoller, playDiceSound]);
+  }, [diceRoller, playDiceSound, onBarbarianRoll]);
 
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
     if (event.key === 'r' || event.key === 'R') {
@@ -53,6 +64,17 @@ export const DiceRoller: React.FC = () => {
     }
   }, [diceRoller]);
 
+  const renderSpecialDie = (face: string) => {
+    const color = SPECIAL_DIE_COLORS[face as keyof typeof SPECIAL_DIE_COLORS];
+    const icon = SPECIAL_DIE_ICONS[face as keyof typeof SPECIAL_DIE_ICONS];
+    return (
+      <span className="inline-flex items-center">
+        <span className={`w-3 h-3 rounded-full ${color} mr-1`} />
+        {icon}
+      </span>
+    );
+  };
+
   const resetStats = useCallback(() => {
     setRollCount(0);
     setTotalPips(0);
@@ -63,7 +85,7 @@ export const DiceRoller: React.FC = () => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="discardCount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label htmlFor="discardCount" className="block text-sm font-medium text-gray-700 mb-1">
             Discard Count (0-35):
           </label>
           <input
@@ -73,7 +95,7 @@ export const DiceRoller: React.FC = () => {
             max="35"
             value={discardCount}
             onChange={handleDiscardChange}
-            className="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+            className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg"
           />
         </div>
         
@@ -123,14 +145,20 @@ export const DiceRoller: React.FC = () => {
           </div>
           <div className="space-y-1 text-sm">
             {rollHistory.map((roll, index) => (
-              <div key={index}>
-                Roll {rollHistory.length - index}: {roll.dice1} + {roll.dice2} = {roll.sum}
-                {roll.specialDie && ` (${roll.specialDie})`}
+              <div key={index} className="flex justify-between">
+                <span>
+                  Roll {rollHistory.length - index}: {roll.dice1} + {roll.dice2} = {roll.sum}
+                </span>
+                {roll.specialDie && (
+                  <span>{renderSpecialDie(roll.specialDie)}</span>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
+
+      <GameEvents />
     </div>
   );
 };
