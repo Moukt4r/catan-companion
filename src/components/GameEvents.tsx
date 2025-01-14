@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 type EventType = 'positive' | 'negative' | 'neutral';
@@ -87,13 +87,13 @@ export const GameEvents: React.FC = () => {
   if (!currentEvent && eventHistory.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-medium">Game Events</h3>
         {eventHistory.length > 0 && (
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
           >
             {showHistory ? 'Hide History' : 'Show History'}
           </button>
@@ -103,16 +103,16 @@ export const GameEvents: React.FC = () => {
       {currentEvent && (
         <div 
           className={`p-4 rounded-lg mb-4 ${
-            currentEvent.type === 'positive' ? 'bg-green-50 border-l-4 border-green-500' :
-            currentEvent.type === 'negative' ? 'bg-red-50 border-l-4 border-red-500' :
-            'bg-blue-50 border-l-4 border-blue-500'
+            currentEvent.type === 'positive' ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500' :
+            currentEvent.type === 'negative' ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500' :
+            'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
           }`}
         >
           <div className="flex items-center gap-2">
             {getEventIcon(currentEvent.type)}
             <span className="font-medium">Event!</span>
           </div>
-          <p className="mt-2">{currentEvent.description}</p>
+          <p className="mt-2 dark:text-gray-300">{currentEvent.description}</p>
         </div>
       )}
 
@@ -121,7 +121,7 @@ export const GameEvents: React.FC = () => {
           {eventHistory.map((event, index) => (
             <div
               key={`${event.id}-${index}`}
-              className="flex items-center gap-2 text-sm text-gray-600"
+              className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
             >
               {getEventIcon(event.type)}
               <span>{event.description}</span>
