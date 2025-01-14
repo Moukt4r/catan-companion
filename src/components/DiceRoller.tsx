@@ -3,7 +3,7 @@ import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 import { DiceDisplay } from './DiceDisplay';
 import { Loader, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import type { DiceRoll } from '@/types/diceTypes';
-import { SPECIAL_DIE_COLORS, SPECIAL_DIE_ICONS } from '@/types/diceTypes';
+import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
 
 interface DiceRollerProps {
   onRoll?: (roll: DiceRoll) => void;
@@ -37,7 +37,6 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     setTotalPips(prev => prev + roll.sum);
     setRollHistory(prev => [roll, ...prev].slice(0, 10));
 
-    // Call onRoll with the roll result
     if (onRoll) {
       onRoll(roll);
     }
@@ -70,13 +69,17 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     setRollHistory([]);
   }, []);
 
-  const renderSpecialDie = (face: string) => {
-    const color = SPECIAL_DIE_COLORS[face as keyof typeof SPECIAL_DIE_COLORS];
-    const icon = SPECIAL_DIE_ICONS[face as keyof typeof SPECIAL_DIE_ICONS];
+  const renderSpecialDie = (face: DiceRoll['specialDie']) => {
+    if (!face || !SPECIAL_DIE_INFO[face]) return null;
+    
+    const { color, icon, label } = SPECIAL_DIE_INFO[face];
     return (
-      <span className="inline-flex items-center">
-        <span className={`w-3 h-3 rounded-full ${color} mr-1`} />
-        {icon}
+      <span 
+        className="inline-flex items-center gap-1" 
+        title={`${label} Die Face`}
+      >
+        <span className={`w-3 h-3 rounded-full ${color}`} />
+        <span>{icon}</span>
       </span>
     );
   };
@@ -145,13 +148,11 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
           </div>
           <div className="space-y-1 text-sm">
             {rollHistory.map((roll, index) => (
-              <div key={index} className="flex justify-between">
+              <div key={index} className="flex justify-between items-center">
                 <span>
                   Roll {rollHistory.length - index}: {roll.dice1} + {roll.dice2} = {roll.sum}
                 </span>
-                {roll.specialDie && (
-                  <span>{renderSpecialDie(roll.specialDie)}</span>
-                )}
+                {roll.specialDie && renderSpecialDie(roll.specialDie)}
               </div>
             ))}
           </div>
