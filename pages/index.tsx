@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Player } from '@/types/playerTypes';
-import { StartScreen } from '@/components/StartScreen';
+import StartScreen from '@/components/StartScreen';
 import { GameScreen } from '@/components/GameScreen';
 
 export default function Home() {
