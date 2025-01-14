@@ -4,14 +4,13 @@ import { DiceDisplay } from './DiceDisplay';
 import { Loader, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import type { DiceRoll } from '@/types/diceTypes';
 import { SPECIAL_DIE_COLORS, SPECIAL_DIE_ICONS } from '@/types/diceTypes';
-import { GameEvents } from './GameEvents';
 
 interface DiceRollerProps {
-  onBarbarianRoll?: () => void;
+  onRoll?: () => void;
 }
 
-export const DiceRoller: React.FC<DiceRollerProps> = ({ onBarbarianRoll }) => {
-  const [diceRoller] = useState(() => new DiceRollerUtil(4, true)); // Initialize with special die enabled
+export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
+  const [diceRoller] = useState(() => new DiceRollerUtil(4, true));
   const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
   const [discardCount, setDiscardCount] = useState(4);
   const [isRolling, setIsRolling] = useState(false);
@@ -38,12 +37,13 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onBarbarianRoll }) => {
     setTotalPips(prev => prev + roll.sum);
     setRollHistory(prev => [roll, ...prev].slice(0, 10));
 
-    if (roll.specialDie === 'barbarian' && onBarbarianRoll) {
-      onBarbarianRoll();
+    // Trigger any additional effects (barbarian, events, etc.)
+    if (onRoll) {
+      onRoll();
     }
 
     setIsRolling(false);
-  }, [diceRoller, playDiceSound, onBarbarianRoll]);
+  }, [diceRoller, playDiceSound, onRoll]);
 
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
     if (event.key === 'r' || event.key === 'R') {
@@ -85,7 +85,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onBarbarianRoll }) => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="discardCount" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="discardCount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Discard Count (0-35):
           </label>
           <input
@@ -95,14 +95,14 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onBarbarianRoll }) => {
             max="35"
             value={discardCount}
             onChange={handleDiscardChange}
-            className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg"
+            className="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white"
           />
         </div>
         
         <div className="flex items-center justify-end">
           <button
             onClick={() => setIsSoundEnabled(!isSoundEnabled)}
-            className="sound-toggle p-2 text-gray-600 hover:text-blue-600"
+            className="p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
             aria-label={`${isSoundEnabled ? 'Disable' : 'Enable'} sound`}
           >
             {isSoundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
@@ -113,7 +113,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onBarbarianRoll }) => {
       <button
         onClick={handleRoll}
         disabled={isRolling}
-        className="roll-dice-btn w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow"
+        className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg shadow transition-colors"
       >
         {isRolling ? (
           <span className="flex items-center justify-center">
@@ -137,7 +137,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onBarbarianRoll }) => {
             <h3 className="font-medium">Roll History</h3>
             <button
               onClick={resetStats}
-              className="p-1.5 text-gray-600 hover:text-blue-600"
+              className="p-1.5 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
               title="Reset statistics"
             >
               <RotateCcw size={18} />
@@ -157,8 +157,6 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onBarbarianRoll }) => {
           </div>
         </div>
       )}
-
-      <GameEvents />
     </div>
   );
 };
