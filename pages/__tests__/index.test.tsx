@@ -1,21 +1,12 @@
 import { render, screen, fireEvent, act } from '@/test-utils';
 import Home from '../index';
 
-// Mock the Lucide icons
-jest.mock('lucide-react', () => ({
-  Users: () => <span data-testid="users-icon" />,
-  User: () => <span data-testid="user-icon" />,
-  Plus: () => <span data-testid="plus-icon" />,
-  Minus: () => <span data-testid="minus-icon" />,
-  Crown: () => <span data-testid="crown-icon" />,
-  Award: () => <span data-testid="award-icon" />,
-  ChevronRight: () => <span data-testid="chevron-right-icon" />,
-}));
-
 describe('Home', () => {
   beforeEach(() => {
     // Clear localStorage before each test
     localStorage.clear();
+    // Reset any mocks
+    jest.clearAllMocks();
   });
 
   it('starts with the StartScreen component', () => {
@@ -31,8 +22,8 @@ describe('Home', () => {
     fireEvent.click(startButton);
     
     // Should show GameScreen
-    expect(await screen.findByText(/roll the dice/i)).toBeInTheDocument();
-    expect(screen.getByText(/players/i)).toBeInTheDocument();
+    expect(await screen.findByText('Roll Dice (Press R)')).toBeInTheDocument();
+    expect(screen.getByText('Players')).toBeInTheDocument();
   });
 
   it('handles player turn progression', async () => {
@@ -42,8 +33,11 @@ describe('Home', () => {
     const startButton = screen.getByRole('button', { name: /start game/i });
     fireEvent.click(startButton);
     
+    // Wait for GameScreen
+    await screen.findByText('Roll Dice (Press R)');
+    
     // End current turn
-    const endTurnButton = await screen.findByText('End Turn');
+    const endTurnButton = screen.getByText('End Turn');
     fireEvent.click(endTurnButton);
     
     // Should update turn stats
@@ -57,8 +51,11 @@ describe('Home', () => {
     const startButton = screen.getByRole('button', { name: /start game/i });
     fireEvent.click(startButton);
     
+    // Wait for GameScreen
+    await screen.findByText('Roll Dice (Press R)');
+    
     // Roll dice
-    const rollButton = await screen.findByText(/roll dice/i, { exact: false });
+    const rollButton = screen.getByText('Roll Dice (Press R)');
     fireEvent.click(rollButton);
     
     await act(async () => {
@@ -66,7 +63,7 @@ describe('Home', () => {
     });
     
     // Check if stats are updated
-    expect(screen.getByText(/Rolls: 1/i)).toBeInTheDocument();
+    expect(screen.getByText('Total Rolls: 1')).toBeInTheDocument();
   });
 
   it('persists game state between renders', async () => {
@@ -76,13 +73,13 @@ describe('Home', () => {
     const startButton = screen.getByRole('button', { name: /start game/i });
     fireEvent.click(startButton);
     
-    // Wait for GameScreen to appear
-    await screen.findByText(/roll the dice/i);
+    // Wait for GameScreen
+    await screen.findByText('Roll Dice (Press R)');
     
     // Re-render component
     rerender(<Home />);
     
     // Game state should be maintained
-    expect(screen.getByText(/roll the dice/i)).toBeInTheDocument();
+    expect(screen.getByText('Roll Dice (Press R)')).toBeInTheDocument();
   });
 });
