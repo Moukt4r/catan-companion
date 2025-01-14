@@ -1,4 +1,4 @@
-export type SpecialDieFace = 'barbarian' | 'merchant' | 'politics' | 'science' | 'trade' | 'none';
+export type SpecialDieFace = 'barbarian' | 'merchant' | 'politics' | 'science';
 
 export interface DiceRoll {
   dice1: number;
@@ -10,17 +10,13 @@ export interface DiceRoll {
 export const SPECIAL_DIE_COLORS = {
   barbarian: 'bg-red-500',
   merchant: 'bg-yellow-400',
-  politics: 'bg-purple-500',
-  science: 'bg-green-500',
-  trade: 'bg-blue-500',
-  none: 'bg-gray-300',
+  politics: 'bg-green-500',
+  science: 'bg-blue-500',
 } as const;
 
 export const SPECIAL_DIE_ICONS = {
-  barbarian: '⚔️',
-  merchant: '💰',
-  politics: '👑',
-  science: '🧪',
-  trade: '🔄',
-  none: '⚪',
+  barbarian: '⚔️', // Barbarian (red)
+  merchant: '💰', // Merchant (yellow)
+  politics: '👑', // Politics (green)
+  science: '🧪', // Science (blue)
 } as const;
