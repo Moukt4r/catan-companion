@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Minus, User, Users } from 'lucide-react';
+import { Users, User, Plus, Minus } from 'lucide-react';
 import type { Player, PlayerColor } from '@/types/playerTypes';
 import { PLAYER_COLORS, createInitialStatistics } from '@/types/playerTypes';
 
@@ -84,6 +84,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onStartGame }) => {
                 onClick={() => adjustPlayerCount(-1)}
                 disabled={playerCount <= 2}
                 className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Decrease player count"
               >
                 <Minus size={20} />
               </button>
@@ -92,6 +93,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onStartGame }) => {
                 onClick={() => adjustPlayerCount(1)}
                 disabled={playerCount >= 6}
                 className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Increase player count"
               >
                 <Plus size={20} />
               </button>
@@ -135,3 +137,5 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onStartGame }) => {
     </div>
   );
 };
+
+export default StartScreen;
