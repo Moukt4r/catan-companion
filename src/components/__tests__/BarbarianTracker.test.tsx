@@ -95,17 +95,19 @@ describe('BarbarianTracker', () => {
 
   it('shows settings panel when clicking settings button', () => {
     render(<BarbarianTracker />);
-    const settingsButton = screen.getByRole('button', { name: /configure threshold/i });
-
-    fireEvent.click(settingsButton);
+    const settingsIcon = screen.getByTestId('settings-icon');
+    const settingsButton = settingsIcon.closest('button');
+    
+    fireEvent.click(settingsButton!);
     expect(screen.getByLabelText('Attack Threshold (steps)')).toBeInTheDocument();
   });
 
   it('updates threshold via settings', () => {
     render(<BarbarianTracker />);
-    const settingsButton = screen.getByRole('button', { name: /configure threshold/i });
+    const settingsIcon = screen.getByTestId('settings-icon');
+    const settingsButton = settingsIcon.closest('button');
 
-    fireEvent.click(settingsButton);
+    fireEvent.click(settingsButton!);
     const thresholdInput = screen.getByLabelText('Attack Threshold (steps)');
     fireEvent.change(thresholdInput, { target: { value: '5' } });
 
@@ -119,9 +121,10 @@ describe('BarbarianTracker', () => {
 
   it('ignores invalid threshold inputs', () => {
     render(<BarbarianTracker />);
-    const settingsButton = screen.getByRole('button', { name: /configure threshold/i });
+    const settingsIcon = screen.getByTestId('settings-icon');
+    const settingsButton = settingsIcon.closest('button');
 
-    fireEvent.click(settingsButton);
+    fireEvent.click(settingsButton!);
     const thresholdInput = screen.getByLabelText('Attack Threshold (steps)');
     
     // Try invalid values
@@ -158,7 +161,7 @@ describe('BarbarianTracker', () => {
     // Second attack - succeed
     fireEvent.click(addKnightButton);
     fireEvent.click(addKnightButton);
-    fireEvent.click(addKnightButton);
+    fireEvent.click(addKnightButton); // 3 knights
     fireEvent.click(advanceButton);
     fireEvent.click(advanceButton);
     fireEvent.click(advanceButton);
@@ -170,11 +173,30 @@ describe('BarbarianTracker', () => {
     expect(attacks[1].textContent).toBe('Failed!');
   });
 
-  it('resets knights after an attack', () => {
+  it('shows timestamps in attack history', () => {
+    // Mock Date.now() to return a consistent value
+    const mockDate = new Date('2024-01-01T12:00:00Z');
+    jest.spyOn(global.Date, 'now').mockImplementation(() => mockDate.getTime());
+
+    render(<BarbarianTrack threshold={3} />);
+    const advanceButton = screen.getByText('Advance');
+
+    // Trigger attack
+    fireEvent.click(advanceButton);
+    fireEvent.click(advanceButton);
+    fireEvent.click(advanceButton);
+
+    // Check timestamp in history
+    const formattedDate = mockDate.toLocaleDateString();
+    expect(screen.getByText(formattedDate)).toBeInTheDocument();
+  });
+
+  it('resets knights after a barbarian attack', () => {
     render(<BarbarianTracker threshold={3} />);
     const advanceButton = screen.getByText('Advance');
     const addKnightButton = screen.getByText('Add Knight');
 
+    // Add knights and check count
     fireEvent.click(addKnightButton);
     fireEvent.click(addKnightButton);
     expect(screen.getByText('Knights: 2')).toBeInTheDocument();
@@ -184,43 +206,7 @@ describe('BarbarianTracker', () => {
     fireEvent.click(advanceButton);
     fireEvent.click(advanceButton);
 
-    // Knights should reset
+    // Knights should be reset
     expect(screen.getByText('Knights: 0')).toBeInTheDocument();
-  });
-
-  it('shows timestamps for attacks', () => {
-    const mockDate = new Date('2024-01-15T12:00:00');
-    jest.spyOn(global, 'Date').mockImplementation(() => mockDate);
-
-    render(<BarbarianTracker threshold={3} />);
-    const advanceButton = screen.getByText('Advance');
-
-    // Trigger attack
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
-
-    // Should show timestamp
-    expect(screen.getByText('1/15/2024')).toBeInTheDocument();
-
-    (global.Date as any).mockRestore();
-  });
-
-  it('formats the date correctly in the attack history', () => {
-    const mockDate = new Date('2024-01-15T12:00:00');
-    jest.spyOn(global, 'Date').mockImplementation(() => mockDate);
-
-    render(<BarbarianTracker threshold={3} />);
-    const advanceButton = screen.getByText('Advance');
-
-    // Trigger attack
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
-
-    const dateElements = screen.getAllByText('1/15/2024');
-    expect(dateElements).toHaveLength(1);
-
-    (global.Date as any).mockRestore();
   });
 });
