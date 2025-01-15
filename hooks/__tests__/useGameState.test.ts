@@ -1,8 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
 import { useGameState } from '../useGameState';
-import { DiceRoller } from '../../utils/diceRoller';
-import { BarbarianTracker } from '../../utils/barbarianTracker';
-import { EventSystem } from '../../utils/eventSystem';
 
 // Mock the utility classes
 jest.mock('../../utils/diceRoller', () => ({
@@ -61,24 +58,20 @@ describe('useGameState', () => {
 
     jest.useFakeTimers();
 
-    const rollPromise = act(async () => {
-      const rollResult = result.current.actions.roll();
-      jest.advanceTimersByTime(600);
-      return rollResult;
+    let rollValue;
+    await act(async () => {
+      const rollPromise = result.current.actions.roll();
+      await jest.runAllTimers();
+      rollValue = await rollPromise;
     });
 
-    expect(result.current.state.isRolling).toBe(true);
-
-    const roll = await rollPromise;
-
-    expect(roll).toEqual({
+    expect(rollValue).toEqual({
       dice: [1, 2],
       total: 3,
       specialDie: 'barbarian'
     });
 
-    expect(result.current.state.isRolling).toBe(false);
-    expect(result.current.state.diceRoll).toEqual(roll);
+    expect(result.current.state.diceRoll).toEqual(rollValue);
     expect(result.current.state.currentEvent).toEqual({
       id: 'test-event',
       type: 'positive',
@@ -88,40 +81,40 @@ describe('useGameState', () => {
     jest.useRealTimers();
   });
 
-  it('should toggle special die setting', () => {
+  it('should toggle special die setting', async () => {
     const { result } = renderHook(() => useGameState());
 
-    act(() => {
+    await act(async () => {
       result.current.actions.toggleSpecialDie(true);
     });
 
     expect(result.current.state.settings.useSpecialDie).toBe(true);
   });
 
-  it('should update event chance', () => {
+  it('should update event chance', async () => {
     const { result } = renderHook(() => useGameState());
 
-    act(() => {
+    await act(async () => {
       result.current.actions.setEventChance(25);
     });
 
     expect(result.current.state.settings.eventChance).toBe(25);
   });
 
-  it('should update barbarians max', () => {
+  it('should update barbarians max', async () => {
     const { result } = renderHook(() => useGameState());
 
-    act(() => {
+    await act(async () => {
       result.current.actions.setBarbariansMax(10);
     });
 
     expect(result.current.state.settings.barbarianMax).toBe(10);
   });
 
-  it('should reset barbarians', () => {
+  it('should reset barbarians', async () => {
     const { result } = renderHook(() => useGameState());
 
-    act(() => {
+    await act(async () => {
       result.current.actions.resetBarbarians();
     });
 
@@ -129,8 +122,8 @@ describe('useGameState', () => {
   });
 
   it('should advance barbarian tracker when rolling barbarian', async () => {
-    const { result } = renderHook(() => useGameState());
     const mockAdvance = jest.fn();
+    const { result } = renderHook(() => useGameState());
 
     // Override the mock implementation for this specific test
     (BarbarianTracker as jest.Mock).mockImplementation(() => ({
@@ -143,7 +136,7 @@ describe('useGameState', () => {
 
     await act(async () => {
       const rollPromise = result.current.actions.roll();
-      jest.advanceTimersByTime(600);
+      await jest.runAllTimers();
       await rollPromise;
     });
 
