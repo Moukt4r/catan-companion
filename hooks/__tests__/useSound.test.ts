@@ -1,20 +1,18 @@
 import { renderHook } from '@testing-library/react';
 import { useSound } from '../useSound';
 
-// Mock Audio
 const mockPlay = jest.fn().mockImplementation(() => Promise.resolve());
 const mockPause = jest.fn();
 
-class MockAudio {
-  currentTime: number = 0;
-  play = mockPlay;
-  pause = mockPause;
+// Mock Audio implementation
+const mockAudio = jest.fn().mockImplementation((url: string) => ({
+  currentTime: 0,
+  play: mockPlay,
+  pause: mockPause
+}));
 
-  constructor(public src: string) {}
-}
-
-// Replace global Audio with mock
-(global as any).Audio = MockAudio;
+// Replace global Audio
+global.Audio = mockAudio;
 
 describe('useSound', () => {
   beforeEach(() => {
@@ -35,6 +33,7 @@ describe('useSound', () => {
     
     result.current.play();
     
+    expect(mockAudio).toHaveBeenCalledWith('test.mp3');
     expect(mockPlay).toHaveBeenCalled();
   });
 
@@ -44,36 +43,37 @@ describe('useSound', () => {
     result.current.play();
     result.current.play();
     
-    expect(MockAudio as jest.Mock).toHaveBeenCalledTimes(1);
+    expect(mockAudio).toHaveBeenCalledTimes(1);
   });
 
   it('should reset currentTime on play', () => {
     const { result } = renderHook(() => useSound('test.mp3'));
+    const audio = mockAudio.mock.results[0].value;
     
+    audio.currentTime = 10;
     result.current.play();
     
-    const audioInstance = (MockAudio as jest.Mock).mock.instances[0];
-    expect(audioInstance.currentTime).toBe(0);
+    expect(audio.currentTime).toBe(0);
   });
 
   it('should stop sound when stop is called', () => {
     const { result } = renderHook(() => useSound('test.mp3'));
+    const audio = mockAudio.mock.results[0].value;
     
     result.current.play();
     result.current.stop();
     
-    const audioInstance = (MockAudio as jest.Mock).mock.instances[0];
     expect(mockPause).toHaveBeenCalled();
-    expect(audioInstance.currentTime).toBe(0);
+    expect(audio.currentTime).toBe(0);
   });
 
   it('should handle play errors gracefully', async () => {
-    const error = new Error('Autoplay prevented');
-    mockPlay.mockRejectedValueOnce(error);
+    mockPlay.mockRejectedValueOnce(new Error('Autoplay prevented'));
     
     const { result } = renderHook(() => useSound('test.mp3'));
     
-    await expect(result.current.play()).resolves.toBeUndefined();
+    // Should not throw
+    await result.current.play();
   });
 
   it('should do nothing when stop is called before play', () => {
