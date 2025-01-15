@@ -95,19 +95,17 @@ describe('BarbarianTracker', () => {
 
   it('shows settings panel when clicking settings button', () => {
     render(<BarbarianTracker />);
-    const settingsIcon = screen.getByTestId('settings-icon');
-    const settingsButton = settingsIcon.closest('button');
-    
-    fireEvent.click(settingsButton!);
+    const settingsButton = screen.getByLabelText('Configure threshold');
+
+    fireEvent.click(settingsButton);
     expect(screen.getByLabelText('Attack Threshold (steps)')).toBeInTheDocument();
   });
 
   it('updates threshold via settings', () => {
     render(<BarbarianTracker />);
-    const settingsIcon = screen.getByTestId('settings-icon');
-    const settingsButton = settingsIcon.closest('button');
+    const settingsButton = screen.getByLabelText('Configure threshold');
 
-    fireEvent.click(settingsButton!);
+    fireEvent.click(settingsButton);
     const thresholdInput = screen.getByLabelText('Attack Threshold (steps)');
     fireEvent.change(thresholdInput, { target: { value: '5' } });
 
@@ -121,10 +119,9 @@ describe('BarbarianTracker', () => {
 
   it('ignores invalid threshold inputs', () => {
     render(<BarbarianTracker />);
-    const settingsIcon = screen.getByTestId('settings-icon');
-    const settingsButton = settingsIcon.closest('button');
+    const settingsButton = screen.getByLabelText('Configure threshold');
 
-    fireEvent.click(settingsButton!);
+    fireEvent.click(settingsButton);
     const thresholdInput = screen.getByLabelText('Attack Threshold (steps)');
     
     // Try invalid values
@@ -161,7 +158,7 @@ describe('BarbarianTracker', () => {
     // Second attack - succeed
     fireEvent.click(addKnightButton);
     fireEvent.click(addKnightButton);
-    fireEvent.click(addKnightButton); // 3 knights
+    fireEvent.click(addKnightButton);
     fireEvent.click(advanceButton);
     fireEvent.click(advanceButton);
     fireEvent.click(advanceButton);
@@ -173,30 +170,11 @@ describe('BarbarianTracker', () => {
     expect(attacks[1].textContent).toBe('Failed!');
   });
 
-  it('shows timestamps in attack history', () => {
-    // Mock Date.now() to return a consistent value
-    const mockDate = new Date('2024-01-01T12:00:00Z');
-    jest.spyOn(global.Date, 'now').mockImplementation(() => mockDate.getTime());
-
-    render(<BarbarianTrack threshold={3} />);
-    const advanceButton = screen.getByText('Advance');
-
-    // Trigger attack
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
-
-    // Check timestamp in history
-    const formattedDate = mockDate.toLocaleDateString();
-    expect(screen.getByText(formattedDate)).toBeInTheDocument();
-  });
-
-  it('resets knights after a barbarian attack', () => {
+  it('resets knights after an attack', () => {
     render(<BarbarianTracker threshold={3} />);
     const advanceButton = screen.getByText('Advance');
     const addKnightButton = screen.getByText('Add Knight');
 
-    // Add knights and check count
     fireEvent.click(addKnightButton);
     fireEvent.click(addKnightButton);
     expect(screen.getByText('Knights: 2')).toBeInTheDocument();
@@ -206,7 +184,37 @@ describe('BarbarianTracker', () => {
     fireEvent.click(advanceButton);
     fireEvent.click(advanceButton);
 
-    // Knights should be reset
+    // Knights should reset
     expect(screen.getByText('Knights: 0')).toBeInTheDocument();
+  });
+
+  it('shows attack history with correct timestamps', () => {
+    jest.useFakeTimers('modern');
+    jest.setSystemTime(new Date('2024-01-01T12:00:00'));
+
+    render(<BarbarianTracker threshold={3} />);
+    const advanceButton = screen.getByText('Advance');
+
+    // Trigger attack
+    fireEvent.click(advanceButton);
+    fireEvent.click(advanceButton);
+    fireEvent.click(advanceButton);
+
+    const date = screen.getByText('1/1/2024');
+    expect(date).toBeInTheDocument();
+
+    jest.useRealTimers();
+  });
+
+  it('displays progress bar correctly at max value', () => {
+    render(<BarbarianTracker threshold={3} />);
+    const advanceButton = screen.getByText('Advance');
+
+    // Advance to threshold - 1
+    fireEvent.click(advanceButton);
+    fireEvent.click(advanceButton);
+
+    const progressBar = document.querySelector('.bg-red-500');
+    expect(progressBar).toHaveStyle({ width: '66.66666666666667%' });
   });
 });
