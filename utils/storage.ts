@@ -54,9 +54,13 @@ export class StorageManager {
   }
 
   private async checkQuota(): Promise<boolean> {
-    if (navigator.storage && navigator.storage.estimate) {
-      const { quota, usage } = await navigator.storage.estimate();
-      return quota ? usage! < quota : true;
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        const { quota, usage } = await navigator.storage.estimate();
+        return quota ? usage! < quota : true;
+      }
+    } catch {
+      // If estimate fails, proceed with save attempt
     }
     return true;
   }
@@ -70,7 +74,7 @@ export class StorageManager {
     this.subscribers.forEach(callback => callback(state));
   }
 
-  public saveGameState = debounce(async (state: GameState): Promise<void> => {
+  public saveGameState = async (state: GameState): Promise<void> => {
     try {
       const hasQuota = await this.checkQuota();
       if (!hasQuota) {
@@ -95,7 +99,7 @@ export class StorageManager {
       }
       throw error;
     }
-  }, SAVE_DEBOUNCE_MS);
+  };
 
   private clearOldData(): void {
     try {
@@ -129,7 +133,8 @@ export class StorageManager {
       
       if (version < CURRENT_VERSION) {
         const migratedState = runMigrations(data, version);
-        this.saveGameState(migratedState);
+        // Don't block on save, but catch any errors
+        this.saveGameState(migratedState).catch(console.error);
         return migratedState;
       }
 
