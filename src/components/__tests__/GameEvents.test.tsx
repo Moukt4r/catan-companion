@@ -2,143 +2,148 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GameEvents } from '../GameEvents';
 
-// Mock lucide-react
+// Mock the Lucide icons
 jest.mock('lucide-react', () => ({
   Settings: () => <div data-testid="settings-icon" />,
-  History: () => <div data-testid="history-icon" />,
-  PieChart: () => <div data-testid="pie-chart-icon" />,
-  ChevronRight: () => <div data-testid="chevron-right-icon" />
+  CheckCircle2: () => <div data-testid="success-icon" />,
+  AlertTriangle: () => <div data-testid="warning-icon" />,
+  AlertCircle: () => <div data-testid="info-icon" />
 }));
 
 describe('GameEvents', () => {
-  const mockEvent = {
-    id: 'test-1',
-    type: 'positive' as const,
-    category: 'resource' as const,
-    severity: 'low',
-    title: 'Test Event',
-    description: 'Test event description'
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.spyOn(global.Math, 'random').mockReturnValue(0.1); // For predictable results
-  });
-
-  afterEach(() => {
-    jest.spyOn(global.Math, 'random').mockRestore();
-  });
-
-  it('renders initial state', () => {
+  it('renders initial state correctly', () => {
     render(<GameEvents />);
-    expect(screen.getByText('Event Chance:')).toBeInTheDocument();
-    expect(screen.getByRole('spinbutton')).toHaveValue(15); // Default value
+    
+    // Find settings button
+    const settingsButton = screen.getByTitle('Configure events');
+    expect(settingsButton).toBeInTheDocument();
+
+    // Default text should be visible
+    expect(screen.getByText(/chance to trigger a random event/)).toBeInTheDocument();
   });
 
-  it('shows current event when triggered', () => {
-    render(<GameEvents initialEvent={mockEvent} />);
-    expect(screen.getByText('Test Event')).toBeInTheDocument();
-    expect(screen.getByText('Test event description')).toBeInTheDocument();
-  });
-
-  it('updates event chance', () => {
+  it('shows settings panel when clicking settings button', () => {
     render(<GameEvents />);
-    const input = screen.getByRole('spinbutton');
-    fireEvent.change(input, { target: { value: '25' } });
-    expect(input).toHaveValue(25);
+    
+    const settingsButton = screen.getByTitle('Configure events');
+    fireEvent.click(settingsButton);
+    
+    // Settings panel elements should be visible
+    expect(screen.getByLabelText('Enable random events')).toBeInTheDocument();
+    expect(screen.getByText('Event Chance (0-100%)')).toBeInTheDocument();
+  });
+
+  it('updates event chance correctly', () => {
+    render(<GameEvents />);
+    
+    // Open settings
+    fireEvent.click(screen.getByTitle('Configure events'));
+    
+    // Find and update chance input
+    const chanceInput = screen.getByRole('spinbutton');
+    fireEvent.change(chanceInput, { target: { value: '25' } });
+    
+    // Check if display updates
+    expect(screen.getByText('25% chance to trigger a random event')).toBeInTheDocument();
+  });
+
+  it('handles events when triggered', () => {
+    // Mock random to always trigger event
+    const mockMath = Object.create(global.Math);
+    mockMath.random = () => 0.1;
+    global.Math = mockMath;
+
+    const ref = React.createRef<any>();
+    render(<GameEvents ref={ref} />);
+    
+    // Trigger event
+    ref.current.checkForEvent();
+    
+    // Verify event is displayed
+    expect(screen.getByText('Event!')).toBeInTheDocument();
+  });
+
+  it('maintains event history correctly', () => {
+    // Mock random to always trigger specific event index
+    const mockMath = Object.create(global.Math);
+    mockMath.random = () => 0.1;
+    global.Math = mockMath;
+
+    const ref = React.createRef<any>();
+    render(<GameEvents ref={ref} />);
+    
+    // Trigger multiple events
+    ref.current.checkForEvent();
+    ref.current.checkForEvent();
+    
+    // Show history
+    fireEvent.click(screen.getByText('Show History'));
+    
+    // History should be displayed
+    expect(screen.getAllByTestId('success-icon')).toHaveLength(2);
+  });
+
+  it('respects events enabled setting', () => {
+    const ref = React.createRef<any>();
+    render(<GameEvents ref={ref} />);
+    
+    // Open settings and disable events
+    fireEvent.click(screen.getByTitle('Configure events'));
+    fireEvent.click(screen.getByLabelText('Enable random events'));
+    
+    // Trigger event check
+    ref.current.checkForEvent();
+    
+    // No event should be displayed
+    expect(screen.queryByText('Event!')).not.toBeInTheDocument();
   });
 
   it('validates event chance input', () => {
     render(<GameEvents />);
+    
+    // Open settings
+    fireEvent.click(screen.getByTitle('Configure events'));
     const input = screen.getByRole('spinbutton');
     
     // Test invalid values
     fireEvent.change(input, { target: { value: '-5' } });
-    expect(input).toHaveValue(15); // Should keep default
-
-    fireEvent.change(input, { target: { value: '105' } });
-    expect(input).toHaveValue(15); // Should keep default
+    expect(screen.getByText('0% chance to trigger a random event')).toBeInTheDocument();
+    
+    fireEvent.change(input, { target: { value: '150' } });
+    expect(screen.getByText('100% chance to trigger a random event')).toBeInTheDocument();
   });
 
-  it('shows and hides event history', () => {
-    render(<GameEvents initialEvent={mockEvent} />);
+  it('auto-dismisses events after timeout', () => {
+    jest.useFakeTimers();
     
-    const historyButton = screen.getByTestId('history-icon');
-    fireEvent.click(historyButton);
+    const ref = React.createRef<any>();
+    render(<GameEvents ref={ref} />);
     
-    expect(screen.getByText('Event History')).toBeInTheDocument();
+    // Trigger event
+    ref.current.checkForEvent();
+    expect(screen.getByText('Event!')).toBeInTheDocument();
     
-    const closeButton = screen.getByRole('button', { name: /close history/i });
-    fireEvent.click(closeButton);
+    // Fast-forward time
+    jest.advanceTimersByTime(10000);
+    expect(screen.queryByText('Event!')).not.toBeInTheDocument();
     
-    expect(screen.queryByText('Event History')).not.toBeInTheDocument();
+    jest.useRealTimers();
   });
 
-  it('shows and hides event stats', () => {
-    render(<GameEvents initialEvent={mockEvent} />);
-    
-    const statsButton = screen.getByTestId('pie-chart-icon');
-    fireEvent.click(statsButton);
-    
-    expect(screen.getByText('Event Statistics')).toBeInTheDocument();
-    
-    const closeButton = screen.getByRole('button', { name: /close statistics/i });
-    fireEvent.click(closeButton);
-    
-    expect(screen.queryByText('Event Statistics')).not.toBeInTheDocument();
-  });
+  it('displays correct icons for event types', () => {
+    const mockMath = Object.create(global.Math);
+    let currentIndex = 0;
+    mockMath.random = () => {
+      // First call is for event trigger, second for event selection
+      return currentIndex++ === 0 ? 0.1 : 0;
+    };
+    global.Math = mockMath;
 
-  it('handles dismiss of current event', () => {
-    render(<GameEvents initialEvent={mockEvent} />);
+    const ref = React.createRef<any>();
+    render(<GameEvents ref={ref} />);
     
-    const dismissButton = screen.getByRole('button', { name: /dismiss/i });
-    fireEvent.click(dismissButton);
-    
-    expect(screen.queryByText('Test Event')).not.toBeInTheDocument();
-  });
-
-  it('maintains event history', () => {
-    render(<GameEvents initialEvent={mockEvent} />);
-    
-    // Dismiss current event
-    const dismissButton = screen.getByRole('button', { name: /dismiss/i });
-    fireEvent.click(dismissButton);
-    
-    // Check history
-    const historyButton = screen.getByTestId('history-icon');
-    fireEvent.click(historyButton);
-    
-    expect(screen.getByText('Test Event')).toBeInTheDocument();
-  });
-
-  it('shows event settings panel', () => {
-    render(<GameEvents />);
-    
-    const settingsButton = screen.getByTestId('settings-icon');
-    fireEvent.click(settingsButton);
-    
-    expect(screen.getByText('Event Settings')).toBeInTheDocument();
-    expect(screen.getByLabelText('Event Chance:')).toBeInTheDocument();
-  });
-
-  it('toggles auto-dismiss setting', () => {
-    render(<GameEvents />);
-    
-    const settingsButton = screen.getByTestId('settings-icon');
-    fireEvent.click(settingsButton);
-    
-    const autoDismissToggle = screen.getByRole('checkbox', { name: /auto-dismiss/i });
-    fireEvent.click(autoDismissToggle);
-    
-    expect(autoDismissToggle).toBeChecked();
-  });
-
-  it('shows event stats with no events', () => {
-    render(<GameEvents />);
-    
-    const statsButton = screen.getByTestId('pie-chart-icon');
-    fireEvent.click(statsButton);
-    
-    expect(screen.getByText('No events recorded yet')).toBeInTheDocument();
+    // Trigger events of different types
+    ref.current.checkForEvent(); // Should get positive event
+    expect(screen.getByTestId('success-icon')).toBeInTheDocument();
   });
 });
