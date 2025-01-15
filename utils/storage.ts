@@ -6,9 +6,11 @@ interface StorageState {
 }
 
 interface GameState {
-  // ... previous GameState interface ...
   version: number;
   lastSaved: number;
+  settings?: {
+    autoSave?: boolean;
+  };
 }
 
 const CURRENT_VERSION = 1;
@@ -36,7 +38,7 @@ const runMigrations = (state: any, fromVersion: number): GameState => {
   return currentState;
 };
 
-class StorageManager {
+export class StorageManager {
   private static instance: StorageManager;
   private subscribers: Set<(state: GameState) => void>;
 
@@ -88,7 +90,6 @@ class StorageManager {
       this.notifySubscribers(storageState.data);
     } catch (error) {
       console.error('Failed to save game state:', error);
-      // If it's a quota error, try to clear old data
       if (error instanceof Error && error.name === 'QuotaExceededError') {
         this.clearOldData();
       }
@@ -147,7 +148,6 @@ class StorageManager {
   public async importData(data: string): Promise<boolean> {
     try {
       const importedState = JSON.parse(data);
-      // Validate imported data
       if (!this.validateGameState(importedState)) {
         throw new Error('Invalid game state data');
       }
@@ -165,9 +165,7 @@ class StorageManager {
       typeof state === 'object' &&
       state !== null &&
       typeof state.version === 'number' &&
-      typeof state.lastSaved === 'number' &&
-      // Add more validation as needed
-      true
+      typeof state.lastSaved === 'number'
     );
   }
 
