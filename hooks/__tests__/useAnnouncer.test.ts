@@ -54,7 +54,7 @@ describe('useAnnouncer', () => {
   });
 
   it('should cleanup on unmount', () => {
-    const { unmount } = renderHook(() => useAnnouncer());
+    const { result, unmount } = renderHook(() => useAnnouncer());
 
     act(() => {
       result.current.announce('Test message');
