@@ -1,8 +1,11 @@
 import { renderHook, act } from '@testing-library/react';
 import { useGameState } from '../useGameState';
+import { DiceRoller } from '../../utils/diceRoller';
+import { BarbarianTracker } from '../../utils/barbarianTracker';
+import { EventSystem } from '../../utils/eventSystem';
 
 // Mock the utility classes
-jest.mock('../utils/diceRoller', () => ({
+jest.mock('../../utils/diceRoller', () => ({
   DiceRoller: jest.fn().mockImplementation(() => ({
     roll: jest.fn().mockReturnValue({ 
       dice: [1, 2], 
@@ -13,7 +16,7 @@ jest.mock('../utils/diceRoller', () => ({
   }))
 }));
 
-jest.mock('../utils/barbarianTracker', () => ({
+jest.mock('../../utils/barbarianTracker', () => ({
   BarbarianTracker: jest.fn().mockImplementation(() => ({
     advance: jest.fn(),
     setMaxProgress: jest.fn(),
@@ -21,7 +24,7 @@ jest.mock('../utils/barbarianTracker', () => ({
   }))
 }));
 
-jest.mock('../utils/eventSystem', () => ({
+jest.mock('../../utils/eventSystem', () => ({
   EventSystem: jest.fn().mockImplementation(() => ({
     checkForEvent: jest.fn().mockReturnValue({
       id: 'test-event',
