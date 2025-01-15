@@ -1,6 +1,10 @@
 import { renderHook, act } from '@testing-library/react';
 import { useGameState } from '../useGameState';
 
+const mockBarbarianAdvance = jest.fn();
+const mockBarbarianSetMax = jest.fn();
+const mockBarbarianReset = jest.fn();
+
 // Mock the utility classes
 jest.mock('../../utils/diceRoller', () => ({
   DiceRoller: jest.fn().mockImplementation(() => ({
@@ -15,9 +19,9 @@ jest.mock('../../utils/diceRoller', () => ({
 
 jest.mock('../../utils/barbarianTracker', () => ({
   BarbarianTracker: jest.fn().mockImplementation(() => ({
-    advance: jest.fn(),
-    setMaxProgress: jest.fn(),
-    reset: jest.fn()
+    advance: mockBarbarianAdvance,
+    setMaxProgress: mockBarbarianSetMax,
+    reset: mockBarbarianReset
   }))
 }));
 
@@ -109,6 +113,7 @@ describe('useGameState', () => {
     });
 
     expect(result.current.state.settings.barbarianMax).toBe(10);
+    expect(mockBarbarianSetMax).toHaveBeenCalledWith(10);
   });
 
   it('should reset barbarians', async () => {
@@ -119,18 +124,11 @@ describe('useGameState', () => {
     });
 
     expect(result.current.state.barbarianProgress).toBe(0);
+    expect(mockBarbarianReset).toHaveBeenCalled();
   });
 
   it('should advance barbarian tracker when rolling barbarian', async () => {
-    const mockAdvance = jest.fn();
     const { result } = renderHook(() => useGameState());
-
-    // Override the mock implementation for this specific test
-    (BarbarianTracker as jest.Mock).mockImplementation(() => ({
-      advance: mockAdvance,
-      setMaxProgress: jest.fn(),
-      reset: jest.fn()
-    }));
 
     jest.useFakeTimers();
 
@@ -140,7 +138,7 @@ describe('useGameState', () => {
       await rollPromise;
     });
 
-    expect(mockAdvance).toHaveBeenCalled();
+    expect(mockBarbarianAdvance).toHaveBeenCalled();
 
     jest.useRealTimers();
   });
