@@ -1,6 +1,12 @@
 import React from 'react';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { BarbarianTracker } from '../BarbarianTracker';
+
+// Mock lucide-react
+jest.mock('lucide-react', () => ({
+  Swords: () => <div data-testid="swords-icon" />,
+  Settings: () => <div data-testid="settings-icon" />
+}));
 
 // Mock Audio
 const mockPlay = jest.fn().mockImplementation(() => Promise.resolve());
@@ -89,7 +95,7 @@ describe('BarbarianTracker', () => {
 
   it('shows settings panel when clicking settings button', () => {
     render(<BarbarianTracker />);
-    const settingsButton = screen.getByTitle('Configure threshold');
+    const settingsButton = screen.getByRole('button', { name: /configure threshold/i });
 
     fireEvent.click(settingsButton);
     expect(screen.getByLabelText('Attack Threshold (steps)')).toBeInTheDocument();
@@ -97,7 +103,7 @@ describe('BarbarianTracker', () => {
 
   it('updates threshold via settings', () => {
     render(<BarbarianTracker />);
-    const settingsButton = screen.getByTitle('Configure threshold');
+    const settingsButton = screen.getByRole('button', { name: /configure threshold/i });
 
     fireEvent.click(settingsButton);
     const thresholdInput = screen.getByLabelText('Attack Threshold (steps)');
@@ -113,7 +119,7 @@ describe('BarbarianTracker', () => {
 
   it('ignores invalid threshold inputs', () => {
     render(<BarbarianTracker />);
-    const settingsButton = screen.getByTitle('Configure threshold');
+    const settingsButton = screen.getByRole('button', { name: /configure threshold/i });
 
     fireEvent.click(settingsButton);
     const thresholdInput = screen.getByLabelText('Attack Threshold (steps)');
@@ -180,5 +186,41 @@ describe('BarbarianTracker', () => {
 
     // Knights should reset
     expect(screen.getByText('Knights: 0')).toBeInTheDocument();
+  });
+
+  it('shows timestamps for attacks', () => {
+    const mockDate = new Date('2024-01-15T12:00:00');
+    jest.spyOn(global, 'Date').mockImplementation(() => mockDate);
+
+    render(<BarbarianTracker threshold={3} />);
+    const advanceButton = screen.getByText('Advance');
+
+    // Trigger attack
+    fireEvent.click(advanceButton);
+    fireEvent.click(advanceButton);
+    fireEvent.click(advanceButton);
+
+    // Should show timestamp
+    expect(screen.getByText('1/15/2024')).toBeInTheDocument();
+
+    (global.Date as any).mockRestore();
+  });
+
+  it('formats the date correctly in the attack history', () => {
+    const mockDate = new Date('2024-01-15T12:00:00');
+    jest.spyOn(global, 'Date').mockImplementation(() => mockDate);
+
+    render(<BarbarianTracker threshold={3} />);
+    const advanceButton = screen.getByText('Advance');
+
+    // Trigger attack
+    fireEvent.click(advanceButton);
+    fireEvent.click(advanceButton);
+    fireEvent.click(advanceButton);
+
+    const dateElements = screen.getAllByText('1/15/2024');
+    expect(dateElements).toHaveLength(1);
+
+    (global.Date as any).mockRestore();
   });
 });
