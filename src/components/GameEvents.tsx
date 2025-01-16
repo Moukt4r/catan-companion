@@ -74,7 +74,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialE
       if (Math.random() < eventChance) {
         const event = events[Math.floor(Math.random() * events.length)];
         setCurrentEvent(event);
-        setEventHistory(prev => [event, ...prev].slice(0, 10));
+        setEventHistory(prev => [event, ...prev]);
 
         // Auto-dismiss after 10 seconds
         setTimeout(() => {
@@ -85,14 +85,17 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialE
   }), [eventChance, isEventsEnabled, events]);
 
   // Function to get the appropriate icon based on event type
-  const getEventIcon = (type: EventType, index?: number) => {
-    const testId = index !== undefined ? `${type}-icon-${index}` : `${type}-icon`;
+  const getEventIcon = (type: EventType) => {
+    let testId = '';
     switch (type) {
       case 'positive':
+        testId = 'success-icon';
         return <CheckCircle2 data-testid={testId} className="text-green-500 dark:text-green-400" size={20} />;
       case 'negative':
+        testId = 'warning-icon';
         return <AlertTriangle data-testid={testId} className="text-red-500 dark:text-red-400" size={20} />;
       case 'neutral':
+        testId = 'info-icon';
         return <AlertCircle data-testid={testId} className="text-blue-500 dark:text-blue-400" size={20} />;
     }
   };
@@ -107,7 +110,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialE
             className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
             title="Configure events"
           >
-            <Settings size={16} data-testid="settings-icon" />
+            <Settings data-testid="settings-icon" size={16} />
           </button>
         </div>
         {eventHistory.length > 0 && (
@@ -144,8 +147,8 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialE
               id="eventChance"
               min="0"
               max="100"
-              value={eventChance * 100}
-              onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))}
+              value={Math.round(eventChance * 100)}
+              onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))} 
               className="block w-full px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg dark:text-white"
             />
           </div>
@@ -175,7 +178,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialE
               key={`${event.id}-${index}`}
               className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
             >
-              {getEventIcon(event.type, index)}
+              {getEventIcon(event.type)}
               <span>{event.description}</span>
             </div>
           ))}
@@ -184,7 +187,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialE
 
       {!currentEvent && !showHistory && eventHistory.length === 0 && isEventsEnabled && (
         <p className="text-gray-600 dark:text-gray-400 text-sm italic">
-          Each dice roll has a {(eventChance * 100).toFixed(0)}% chance to trigger a random event.
+          Each dice roll has a {Math.round(eventChance * 100)}% chance to trigger a random event.
         </p>
       )}
     </div>
