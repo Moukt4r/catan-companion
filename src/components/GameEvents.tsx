@@ -31,11 +31,6 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events =
     setCurrentEvent(prev => prev?.id === eventId ? null : prev);
   }, []);
 
-  const addEventToHistory = useCallback((event: GameEvent) => {
-    if (!event || !event.id) return;
-    setEventHistory(prev => [event, ...prev]);
-  }, []);
-
   useImperativeHandle(ref, () => ({
     checkForEvent: () => {
       if (!isEventsEnabled || events.length === 0) return;
@@ -52,7 +47,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events =
 
         // Set current event and add to history
         setCurrentEvent(selectedEvent);
-        addEventToHistory(selectedEvent);
+        setEventHistory(prev => [selectedEvent, ...prev]);
 
         // Set auto-dismiss timer
         const timerId = window.setTimeout(() => {
@@ -63,7 +58,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events =
         setDismissTimer(timerId);
       }
     }
-  }), [isEventsEnabled, eventChance, events, addEventToHistory, dismissEvent, dismissTimer]);
+  }), [isEventsEnabled, eventChance, events, dismissEvent, dismissTimer]);
 
   // Function to get the appropriate icon based on event type
   const getEventIcon = (type: EventType) => {
@@ -145,9 +140,16 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events =
         >
           <div className="flex items-center gap-2">
             {getEventIcon(currentEvent.type)}
-            <span className="font-medium">Event!</span>
+            <div>
+              <span className="font-medium">Event!</span>
+              <span 
+                data-testid={`current-event-text-${currentEvent.type}`}
+                className="ml-2 text-gray-600 dark:text-gray-300"
+              >
+                {currentEvent.description}
+              </span>
+            </div>
           </div>
-          <p className="mt-2 dark:text-gray-300">{currentEvent.description}</p>
         </div>
       )}
 
@@ -159,7 +161,9 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events =
               className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
             >
               {getEventIcon(event.type)}
-              <span>{event.description}</span>
+              <span data-testid={`history-event-${event.type}-${index}`}>
+                {event.description}
+              </span>
             </div>
           ))}
         </div>
