@@ -10,7 +10,7 @@ interface GameEvent {
   threshold?: number;
 }
 
-const EVENTS: GameEvent[] = [
+const DEFAULT_EVENTS: GameEvent[] = [
   // Positive Events
   { id: 1, type: 'positive', description: 'Trade winds are favorable! You may trade any resource 2:1 this turn.' },
   { id: 2, type: 'positive', description: 'Market Day! All players may make one free maritime trade.' },
@@ -54,8 +54,13 @@ export interface GameEventsRef {
   checkForEvent: () => void;
 }
 
-export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
-  const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
+interface GameEventsProps {
+  initialEvent?: GameEvent;
+  events?: GameEvent[];
+}
+
+export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialEvent, events = DEFAULT_EVENTS }, ref) => {
+  const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(initialEvent ?? null);
   const [eventHistory, setEventHistory] = useState<GameEvent[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -67,7 +72,7 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
       if (!isEventsEnabled) return;
 
       if (Math.random() < eventChance) {
-        const event = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+        const event = events[Math.floor(Math.random() * events.length)];
         setCurrentEvent(event);
         setEventHistory(prev => [event, ...prev].slice(0, 10));
 
@@ -77,16 +82,18 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
         }, 10000);
       }
     }
-  }), [eventChance, isEventsEnabled]);
+  }), [eventChance, isEventsEnabled, events]);
 
-  const getEventIcon = (type: EventType) => {
+  // Function to get the appropriate icon based on event type
+  const getEventIcon = (type: EventType, index?: number) => {
+    const testId = index !== undefined ? `${type}-icon-${index}` : `${type}-icon`;
     switch (type) {
       case 'positive':
-        return <CheckCircle2 className="text-green-500 dark:text-green-400" size={20} />;
+        return <CheckCircle2 data-testid={testId} className="text-green-500 dark:text-green-400" size={20} />;
       case 'negative':
-        return <AlertTriangle className="text-red-500 dark:text-red-400" size={20} />;
+        return <AlertTriangle data-testid={testId} className="text-red-500 dark:text-red-400" size={20} />;
       case 'neutral':
-        return <AlertCircle className="text-blue-500 dark:text-blue-400" size={20} />;
+        return <AlertCircle data-testid={testId} className="text-blue-500 dark:text-blue-400" size={20} />;
     }
   };
 
@@ -100,7 +107,7 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
             className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
             title="Configure events"
           >
-            <Settings size={16} />
+            <Settings size={16} data-testid="settings-icon" />
           </button>
         </div>
         {eventHistory.length > 0 && (
@@ -129,15 +136,16 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="eventChance" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Event Chance (0-100%)
             </label>
             <input
               type="number"
+              id="eventChance"
               min="0"
               max="100"
               value={eventChance * 100}
-              onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))} 
+              onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))}
               className="block w-full px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg dark:text-white"
             />
           </div>
@@ -167,7 +175,7 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
               key={`${event.id}-${index}`}
               className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
             >
-              {getEventIcon(event.type)}
+              {getEventIcon(event.type, index)}
               <span>{event.description}</span>
             </div>
           ))}
