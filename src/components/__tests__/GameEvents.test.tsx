@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { GameEvents, GameEventsRef } from '../GameEvents';
 
@@ -74,8 +74,10 @@ describe('GameEvents', () => {
       ref.current?.checkForEvent();
     });
 
-    // Event should be shown
-    expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
+    // Check event is displayed with the correct test IDs
+    const currentEvent = screen.getByTestId('current-event');
+    expect(currentEvent).toBeInTheDocument();
+    expect(within(currentEvent).getByText('Test Positive Event')).toBeInTheDocument();
     expect(screen.getByTestId('success-icon')).toBeInTheDocument();
   });
 
@@ -83,7 +85,6 @@ describe('GameEvents', () => {
     const ref = React.createRef<GameEventsRef>();
     const mockMath = Object.create(global.Math);
     
-    // Mock Math.random to always trigger event and select first event
     let calls = 0;
     mockMath.random = () => {
       calls++;
@@ -96,7 +97,7 @@ describe('GameEvents', () => {
     act(() => {
       ref.current?.checkForEvent();
     });
-
+    
     expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
     
     act(() => {
@@ -123,31 +124,30 @@ describe('GameEvents', () => {
     
     // Generate events
     act(() => {
-      ref.current?.checkForEvent(); // Should generate first event
+      ref.current?.checkForEvent(); // Generate first event
       jest.advanceTimersByTime(10000);
-      ref.current?.checkForEvent(); // Should generate second event
+      ref.current?.checkForEvent(); // Generate second event
     });
     
     // Show history
-    act(() => {
-      fireEvent.click(screen.getByText(/show history/i));
-    });
+    fireEvent.click(screen.getByText(/show history/i));
 
-    const events = screen.getAllByText(/Test .* Event/);
-    expect(events).toHaveLength(2);
+    // Check events in history
+    const history = screen.getByTestId('event-history');
+    expect(within(history).getByText('Test Neutral Event')).toBeInTheDocument();
+    expect(within(history).getByText('Test Positive Event')).toBeInTheDocument();
   });
 
   it('handles different event types', () => {
     const ref = React.createRef<GameEventsRef>();
     const mockMath = Object.create(global.Math);
     
-    // Mock Math.random to trigger all event types
+    // Mock Math.random to trigger events in sequence
     let calls = 0;
     mockMath.random = () => {
       calls++;
       if (calls % 2 === 1) return 0.1; // Trigger event
-      const eventIndex = Math.floor((calls - 2) / 2);
-      return eventIndex / testEvents.length; // Select events in sequence
+      return Math.floor((calls - 2) / 2) / testEvents.length; // Select events in sequence
     };
     global.Math = mockMath;
     
@@ -163,13 +163,17 @@ describe('GameEvents', () => {
     });
     
     // Show history
-    act(() => {
-      fireEvent.click(screen.getByText(/show history/i));
-    });
+    fireEvent.click(screen.getByText(/show history/i));
 
-    expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
-    expect(screen.getByText('Test Neutral Event')).toBeInTheDocument();
-    expect(screen.getByText('Test Negative Event')).toBeInTheDocument();
+    // Check history elements
+    const history = screen.getByTestId('event-history');
+    const historyItems = within(history).getAllByRole('generic');
+    expect(historyItems).toHaveLength(3);
+    
+    // Check each event type's icon is present
+    expect(screen.getByTestId('success-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('info-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('warning-icon')).toBeInTheDocument();
   });
 
   it('updates event chance correctly', () => {
@@ -202,6 +206,6 @@ describe('GameEvents', () => {
     });
     
     // No event should be shown
-    expect(screen.queryByText(/Test .* Event/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
   });
 });
