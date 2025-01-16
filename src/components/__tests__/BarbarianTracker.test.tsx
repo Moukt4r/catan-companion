@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { BarbarianTracker } from '../BarbarianTracker';
+import { BarbarianTracker } from '../../components/BarbarianTracker';
 import '@testing-library/jest-dom';
 
 // Mock lucide-react icons
@@ -17,6 +17,11 @@ describe('BarbarianTracker', () => {
         return Promise.resolve();
       }
     };
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('renders initial state', () => {
@@ -31,6 +36,7 @@ describe('BarbarianTracker', () => {
     
     act(() => {
       fireEvent.click(advanceButton);
+      jest.runAllTimers();
     });
     
     // Progress bar width should be about 14.29% (1/7)
@@ -44,6 +50,7 @@ describe('BarbarianTracker', () => {
     
     act(() => {
       fireEvent.click(addKnightButton);
+      jest.runAllTimers();
     });
     
     expect(screen.getByText('Knights: 1')).toBeInTheDocument();
@@ -55,6 +62,7 @@ describe('BarbarianTracker', () => {
     
     act(() => {
       fireEvent.click(settingsButton);
+      jest.runAllTimers();
     });
     
     expect(screen.getByLabelText(/attack threshold/i)).toBeInTheDocument();
@@ -66,11 +74,13 @@ describe('BarbarianTracker', () => {
     
     act(() => {
       fireEvent.click(settingsButton);
+      jest.runAllTimers();
     });
     
     const thresholdInput = screen.getByRole('spinbutton', { name: /attack threshold/i });
     act(() => {
       fireEvent.change(thresholdInput, { target: { value: '10' } });
+      jest.runAllTimers();
     });
     
     expect(thresholdInput).toHaveValue(10);
@@ -82,17 +92,20 @@ describe('BarbarianTracker', () => {
     
     act(() => {
       fireEvent.click(settingsButton);
+      jest.runAllTimers();
     });
     
     const thresholdInput = screen.getByRole('spinbutton', { name: /attack threshold/i });
     
     act(() => {
       fireEvent.change(thresholdInput, { target: { value: '-5' } });
+      jest.runAllTimers();
     });
     expect(thresholdInput).toHaveValue(7); // Default value
     
     act(() => {
       fireEvent.change(thresholdInput, { target: { value: '0' } });
+      jest.runAllTimers();
     });
     expect(thresholdInput).toHaveValue(7); // Default value
   });
@@ -103,6 +116,7 @@ describe('BarbarianTracker', () => {
     
     act(() => {
       ref.current?.advance();
+      jest.runAllTimers();
     });
     
     const progressBar = screen.getByRole('progressbar');
@@ -110,7 +124,6 @@ describe('BarbarianTracker', () => {
   });
 
   it('maintains attack history', () => {
-    jest.useFakeTimers();
     render(<BarbarianTracker defaultThreshold={7} />);
     const addKnightButton = screen.getByRole('button', { name: /add knight/i });
     const advanceButton = screen.getByRole('button', { name: /advance/i });
@@ -140,13 +153,11 @@ describe('BarbarianTracker', () => {
     }
     
     // Check history
-    expect(screen.getByText('Attack History')).toBeInTheDocument();
-    const failedAttack = screen.getByText('Failed!');
-    const successAttack = screen.getByText('Defended!');
-    expect(failedAttack).toBeInTheDocument();
-    expect(successAttack).toBeInTheDocument();
-    
-    jest.useRealTimers();
+    expect(screen.getByText(/attack history/i)).toBeInTheDocument();
+    const failedText = screen.getAllByText(/failed!/i);
+    const defendedText = screen.getAllByText(/defended!/i);
+    expect(failedText).toHaveLength(1);
+    expect(defendedText).toHaveLength(1);
   });
 
   it('displays progress bar correctly at max value', () => {
@@ -156,6 +167,7 @@ describe('BarbarianTracker', () => {
     act(() => {
       fireEvent.click(advanceButton);
       fireEvent.click(advanceButton);
+      jest.runAllTimers();
     });
     
     const progressBar = screen.getByRole('progressbar');
