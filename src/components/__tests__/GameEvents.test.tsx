@@ -16,11 +16,23 @@ jest.useFakeTimers();
 
 describe('GameEvents', () => {
   // Mock data for testing
-  const mockEvent = {
-    id: 1,
-    type: 'positive' as const,
-    description: 'Test event description'
-  };
+  const testEvents = [
+    { 
+      id: 1, 
+      type: 'positive' as const, 
+      description: 'Trade winds are favorable! You may trade any resource 2:1 this turn.'
+    },
+    { 
+      id: 2, 
+      type: 'neutral' as const, 
+      description: 'Political Reform! Politics cards may be purchased for 2 resources.'
+    },
+    { 
+      id: 3, 
+      type: 'negative' as const, 
+      description: 'Market Crash! Commodity trades are suspended this round.'
+    }
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -68,7 +80,7 @@ describe('GameEvents', () => {
     mockRandom.mockReturnValueOnce(0.1); // Trigger event
     mockRandom.mockReturnValueOnce(0); // Select first event
     
-    render(<GameEvents ref={ref} />);
+    render(<GameEvents ref={ref} events={testEvents} />);
     
     // Trigger event check
     act(() => {
@@ -76,7 +88,7 @@ describe('GameEvents', () => {
     });
     
     // Verify event is displayed
-    expect(screen.getByText('Test event description')).toBeInTheDocument();
+    expect(screen.getByText(testEvents[0].description)).toBeInTheDocument();
     expect(screen.getByTestId('success-icon')).toBeInTheDocument(); // Positive event icon
     
     // Clean up
@@ -119,7 +131,7 @@ describe('GameEvents', () => {
     mockRandom.mockReturnValueOnce(0.1); // Trigger event
     mockRandom.mockReturnValueOnce(0); // Select first event
     
-    render(<GameEvents ref={ref} />);
+    render(<GameEvents ref={ref} events={testEvents} />);
     
     // Trigger event
     act(() => {
@@ -127,7 +139,7 @@ describe('GameEvents', () => {
     });
     
     // Verify event is shown
-    expect(screen.getByText('Test event description')).toBeInTheDocument();
+    expect(screen.getByText(testEvents[0].description)).toBeInTheDocument();
     
     // Fast-forward timers
     act(() => {
@@ -135,7 +147,7 @@ describe('GameEvents', () => {
     });
     
     // Verify event is dismissed
-    expect(screen.queryByText('Test event description')).not.toBeInTheDocument();
+    expect(screen.queryByText(testEvents[0].description)).not.toBeInTheDocument();
     
     // Clean up
     mockRandom.mockRestore();
@@ -152,7 +164,7 @@ describe('GameEvents', () => {
       .mockReturnValueOnce(0.1) // Trigger event
       .mockReturnValueOnce(0); // Select first event again
     
-    render(<GameEvents ref={ref} />);
+    render(<GameEvents ref={ref} events={testEvents} />);
     
     // Trigger multiple events
     act(() => {
@@ -166,7 +178,7 @@ describe('GameEvents', () => {
     fireEvent.click(historyButton);
     
     // Verify events are in history
-    const historyItems = screen.getAllByText('Test event description');
+    const historyItems = screen.getAllByText(testEvents[0].description);
     expect(historyItems.length).toBe(2);
     
     // Clean up
@@ -182,11 +194,11 @@ describe('GameEvents', () => {
       .mockReturnValueOnce(0.1) // Trigger event
       .mockReturnValueOnce(0) // Select first event (positive)
       .mockReturnValueOnce(0.1) // Trigger event
-      .mockReturnValueOnce(0.5) // Select middle event (neutral)
+      .mockReturnValueOnce(1) // Select second event (neutral)
       .mockReturnValueOnce(0.1) // Trigger event
-      .mockReturnValueOnce(0.9); // Select last event (negative)
+      .mockReturnValueOnce(2); // Select third event (negative)
     
-    render(<GameEvents ref={ref} />);
+    render(<GameEvents ref={ref} events={testEvents} />);
     
     // Trigger events
     act(() => {
@@ -201,9 +213,9 @@ describe('GameEvents', () => {
     fireEvent.click(screen.getByText(/show history/i));
     
     // Verify different event types are shown
-    expect(screen.getByTestId('success-icon')).toBeInTheDocument();
-    expect(screen.getByTestId('info-icon')).toBeInTheDocument();
-    expect(screen.getByTestId('warning-icon')).toBeInTheDocument();
+    expect(screen.getAllByTestId('success-icon')).toHaveLength(1);
+    expect(screen.getAllByTestId('info-icon')).toHaveLength(1);
+    expect(screen.getAllByTestId('warning-icon')).toHaveLength(1);
     
     // Clean up
     mockRandom.mockRestore();
