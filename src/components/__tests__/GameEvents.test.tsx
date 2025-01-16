@@ -14,209 +14,194 @@ jest.mock('lucide-react', () => ({
 // Mock the setTimeout and clearTimeout functions
 jest.useFakeTimers();
 
+const testEvents = [
+  { id: 1, type: 'positive' as const, description: 'Test Positive Event' },
+  { id: 2, type: 'neutral' as const, description: 'Test Neutral Event' },
+  { id: 3, type: 'negative' as const, description: 'Test Negative Event' }
+];
+
 describe('GameEvents', () => {
-  // Mock data for testing
-  const testEvents = [
-    { 
-      id: 1, 
-      type: 'positive' as const, 
-      description: 'Test Positive Event'
-    },
-    { 
-      id: 2, 
-      type: 'neutral' as const, 
-      description: 'Test Neutral Event'
-    },
-    { 
-      id: 3, 
-      type: 'negative' as const, 
-      description: 'Test Negative Event'
-    }
-  ];
+  let originalMath: Math;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    originalMath = global.Math;
     jest.clearAllTimers();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    global.Math = originalMath;
   });
 
   it('renders initial state correctly', () => {
     render(<GameEvents events={testEvents} />);
     
-    // Check component title
     expect(screen.getByText('Game Events')).toBeInTheDocument();
-    
-    // Check settings button exists
     expect(screen.getByTitle('Configure events')).toBeInTheDocument();
-    
-    // Check initial text is shown
     expect(screen.getByText(/15% chance to trigger/i)).toBeInTheDocument();
   });
 
   it('shows settings panel when clicked', () => {
     render(<GameEvents events={testEvents} />);
     
-    // Click settings button
     fireEvent.click(screen.getByTitle('Configure events'));
     
-    // Check settings panel elements
-    expect(screen.getByText('Enable random events')).toBeInTheDocument();
+    expect(screen.getByLabelText('Enable random events')).toBeInTheDocument();
     expect(screen.getByLabelText('Event Chance (0-100%)')).toBeInTheDocument();
     
-    // Check inputs
     const checkbox = screen.getByRole('checkbox', { name: /enable random events/i });
     expect(checkbox).toBeChecked();
     
     const chanceInput = screen.getByRole('spinbutton');
-    expect(chanceInput).toHaveValue(15); // Default 15%
+    expect(chanceInput).toHaveValue(15);
   });
 
   it('handles event triggering correctly', () => {
     const ref = React.createRef<GameEventsRef>();
+    const mockMath = Object.create(global.Math);
     
-    // Mock Math.random
-    const mockRandom = jest.spyOn(Math, 'random');
-    mockRandom.mockReturnValueOnce(0.1); // Trigger event
-    mockRandom.mockReturnValueOnce(0); // Select first event
+    // Mock Math.random to always trigger event and select first event
+    let calls = 0;
+    mockMath.random = () => {
+      calls++;
+      return calls === 1 ? 0.1 : 0; // First call triggers event, second call selects first event
+    };
+    global.Math = mockMath;
     
     render(<GameEvents ref={ref} events={testEvents} />);
     
-    // Trigger event check
     act(() => {
       ref.current?.checkForEvent();
-      jest.runAllTimers(); // Run any pending timers
     });
-    
-    // Verify event is displayed
+
+    // Event should be shown
     expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
     expect(screen.getByTestId('success-icon')).toBeInTheDocument();
+  });
+
+  it('auto-dismisses events after timeout', () => {
+    const ref = React.createRef<GameEventsRef>();
+    const mockMath = Object.create(global.Math);
     
-    // Clean up
-    mockRandom.mockRestore();
+    // Mock Math.random to always trigger event and select first event
+    let calls = 0;
+    mockMath.random = () => {
+      calls++;
+      return calls === 1 ? 0.1 : 0;
+    };
+    global.Math = mockMath;
+    
+    render(<GameEvents ref={ref} events={testEvents} />);
+    
+    act(() => {
+      ref.current?.checkForEvent();
+    });
+
+    expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
+    
+    act(() => {
+      jest.advanceTimersByTime(10000);
+    });
+    
+    expect(screen.queryByText('Test Positive Event')).not.toBeInTheDocument();
+  });
+
+  it('maintains event history', () => {
+    const ref = React.createRef<GameEventsRef>();
+    const mockMath = Object.create(global.Math);
+    
+    // Mock Math.random to trigger events in sequence
+    let calls = 0;
+    mockMath.random = () => {
+      calls++;
+      if (calls % 2 === 1) return 0.1; // Trigger event
+      return Math.floor((calls - 2) / 2) / testEvents.length; // Select events in sequence
+    };
+    global.Math = mockMath;
+    
+    render(<GameEvents ref={ref} events={testEvents} />);
+    
+    // Generate events
+    act(() => {
+      ref.current?.checkForEvent(); // Should generate first event
+      jest.advanceTimersByTime(10000);
+      ref.current?.checkForEvent(); // Should generate second event
+    });
+    
+    // Show history
+    act(() => {
+      fireEvent.click(screen.getByText(/show history/i));
+    });
+
+    const events = screen.getAllByText(/Test .* Event/);
+    expect(events).toHaveLength(2);
+  });
+
+  it('handles different event types', () => {
+    const ref = React.createRef<GameEventsRef>();
+    const mockMath = Object.create(global.Math);
+    
+    // Mock Math.random to trigger all event types
+    let calls = 0;
+    mockMath.random = () => {
+      calls++;
+      if (calls % 2 === 1) return 0.1; // Trigger event
+      const eventIndex = Math.floor((calls - 2) / 2);
+      return eventIndex / testEvents.length; // Select events in sequence
+    };
+    global.Math = mockMath;
+    
+    render(<GameEvents ref={ref} events={testEvents} />);
+    
+    // Generate all event types
+    act(() => {
+      ref.current?.checkForEvent(); // Generate positive
+      jest.advanceTimersByTime(10000);
+      ref.current?.checkForEvent(); // Generate neutral
+      jest.advanceTimersByTime(10000);
+      ref.current?.checkForEvent(); // Generate negative
+    });
+    
+    // Show history
+    act(() => {
+      fireEvent.click(screen.getByText(/show history/i));
+    });
+
+    expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
+    expect(screen.getByText('Test Neutral Event')).toBeInTheDocument();
+    expect(screen.getByText('Test Negative Event')).toBeInTheDocument();
   });
 
   it('updates event chance correctly', () => {
     render(<GameEvents events={testEvents} />);
     
-    // Open settings
     fireEvent.click(screen.getByTitle('Configure events'));
     
-    // Change event chance
-    const chanceInput = screen.getByRole('spinbutton');
+    const chanceInput = screen.getByLabelText('Event Chance (0-100%)');
     fireEvent.change(chanceInput, { target: { value: '25' } });
     
-    // Check if the text updates
     expect(screen.getByText(/25% chance to trigger/i)).toBeInTheDocument();
   });
 
   it('handles event disabling', () => {
-    render(<GameEvents events={testEvents} />);
+    const ref = React.createRef<GameEventsRef>();
+    const mockMath = Object.create(global.Math);
+    mockMath.random = () => 0.1; // Always try to trigger
+    global.Math = mockMath;
     
-    // Open settings
-    fireEvent.click(screen.getByTitle('Configure events'));
+    render(<GameEvents ref={ref} events={testEvents} />);
     
     // Disable events
-    const checkbox = screen.getByRole('checkbox', { name: /enable random events/i });
+    fireEvent.click(screen.getByTitle('Configure events'));
+    const checkbox = screen.getByLabelText('Enable random events');
     fireEvent.click(checkbox);
     
-    // Check if checkbox is unchecked
-    expect(checkbox).not.toBeChecked();
-  });
-
-  it('auto-dismisses events after timeout', () => {
-    const ref = React.createRef<GameEventsRef>();
-    
-    // Mock Math.random
-    const mockRandom = jest.spyOn(Math, 'random');
-    mockRandom.mockReturnValueOnce(0.1); // Trigger event
-    mockRandom.mockReturnValueOnce(0); // Select first event
-    
-    render(<GameEvents ref={ref} events={testEvents} />);
-    
-    // Trigger event
+    // Try to trigger event
     act(() => {
       ref.current?.checkForEvent();
-      jest.runOnlyPendingTimers(); // Run only pending timers
     });
     
-    // Verify event is shown
-    expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
-    
-    // Fast-forward timers
-    act(() => {
-      jest.advanceTimersByTime(10000);
-    });
-    
-    // Verify event is dismissed
-    expect(screen.queryByText('Test Positive Event')).not.toBeInTheDocument();
-    
-    // Clean up
-    mockRandom.mockRestore();
-  });
-
-  it('maintains event history', () => {
-    const ref = React.createRef<GameEventsRef>();
-    
-    // Mock Math.random
-    const mockRandom = jest.spyOn(Math, 'random');
-    mockRandom
-      .mockReturnValueOnce(0.1) // Trigger event
-      .mockReturnValueOnce(0) // Select first event
-      .mockReturnValueOnce(0.1) // Trigger event
-      .mockReturnValueOnce(1); // Select second event
-    
-    render(<GameEvents ref={ref} events={testEvents} />);
-    
-    // Trigger multiple events
-    act(() => {
-      ref.current?.checkForEvent();
-      jest.advanceTimersByTime(10000);
-      ref.current?.checkForEvent();
-    });
-    
-    // Show history
-    const historyButton = screen.getByText(/show history/i);
-    fireEvent.click(historyButton);
-    
-    // Verify events are in history
-    expect(screen.getAllByText(/Test .* Event/)).toHaveLength(2);
-    
-    // Clean up
-    mockRandom.mockRestore();
-  });
-
-  it('handles different event types', () => {
-    const ref = React.createRef<GameEventsRef>();
-    
-    // Mock Math.random
-    const mockRandom = jest.spyOn(Math, 'random');
-    mockRandom
-      .mockReturnValueOnce(0.1) // Trigger event
-      .mockReturnValueOnce(0) // Select first event (positive)
-      .mockReturnValueOnce(0.1) // Trigger event
-      .mockReturnValueOnce(1) // Select second event (neutral)
-      .mockReturnValueOnce(0.1) // Trigger event
-      .mockReturnValueOnce(2); // Select third event (negative)
-    
-    render(<GameEvents ref={ref} events={testEvents} />);
-    
-    // Trigger events
-    act(() => {
-      ref.current?.checkForEvent(); // Positive
-      jest.advanceTimersByTime(10000);
-      ref.current?.checkForEvent(); // Neutral
-      jest.advanceTimersByTime(10000);
-      ref.current?.checkForEvent(); // Negative
-    });
-    
-    // Show history
-    fireEvent.click(screen.getByText(/show history/i));
-    
-    // Verify different event types are shown
-    expect(screen.getByText('Test Negative Event')).toBeInTheDocument();
-    expect(screen.getByText('Test Neutral Event')).toBeInTheDocument();
-    expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
-    
-    // Clean up
-    mockRandom.mockRestore();
+    // No event should be shown
+    expect(screen.queryByText(/Test .* Event/)).not.toBeInTheDocument();
   });
 });
