@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, Settings } from 'lucide-react';
 
 type EventType = 'positive' | 'negative' | 'neutral';
@@ -7,96 +7,58 @@ interface GameEvent {
   id: number;
   type: EventType;
   description: string;
-  threshold?: number;
 }
-
-const DEFAULT_EVENTS: GameEvent[] = [
-  // Positive Events
-  { id: 1, type: 'positive', description: 'Trade winds are favorable! You may trade any resource 2:1 this turn.' },
-  { id: 2, type: 'positive', description: 'Market Day! All players may make one free maritime trade.' },
-  { id: 3, type: 'positive', description: 'Merchant Fleet arrives! Harbor fees are waived this round.' },
-  { id: 4, type: 'positive', description: 'Golden Age! All cities produce one additional resource.' },
-  { id: 5, type: 'positive', description: 'Cultural Exchange! Free development card for the player with the least victory points.' },
-  { id: 6, type: 'positive', description: 'Innovation! Science improvements cost 1 less resource this turn.' },
-  { id: 7, type: 'positive', description: 'Political Stability! Politics actions are free this round.' },
-  { id: 8, type: 'positive', description: 'Resource Boom! Double production on your next resource roll.' },
-  { id: 9, type: 'positive', description: 'Trade Treaty! You may trade with the bank at 3:1 this turn.' },
-  { id: 10, type: 'positive', description: 'Prosperous Times! Draw a progress card of your choice.' },
-  
-  // Negative Events
-  { id: 11, type: 'negative', description: 'Storm Damage! Cities produce no resources until repaired.' },
-  { id: 12, type: 'negative', description: 'Plague! Lose one knight unless you discard a commodity.' },
-  { id: 13, type: 'negative', description: 'Civil Unrest! Cannot use politics cards this round.' },
-  { id: 14, type: 'negative', description: 'Trade Embargo! No maritime trade this turn.' },
-  { id: 15, type: 'negative', description: 'Resource Shortage! All players must discard one resource of their choice.' },
-  { id: 16, type: 'negative', description: 'Market Crash! Commodity trades are suspended this round.' },
-  { id: 17, type: 'negative', description: 'Barbarian Raid! Knights must be activated to defend cities.' },
-  { id: 18, type: 'negative', description: 'Scientific Setback! Science improvements cost 1 extra resource.' },
-  { id: 19, type: 'negative', description: 'Political Turmoil! Cannot play politics cards this turn.' },
-  { id: 20, type: 'negative', description: 'Resource Tax! Pay one resource for each city you own.' },
-  
-  // Neutral Events
-  { id: 21, type: 'neutral', description: 'Market Fluctuation! All players may renegotiate one trade.' },
-  { id: 22, type: 'neutral', description: 'Diplomatic Mission! Player with the most politics cards reveals one.' },
-  { id: 23, type: 'neutral', description: 'Scientific Discovery! Science advancements can be purchased in any order.' },
-  { id: 24, type: 'neutral', description: 'Trade Routes Shift! Harbor placement rules are ignored this turn.' },
-  { id: 25, type: 'neutral', description: 'Cultural Festival! Players may exchange progress cards.' },
-  { id: 26, type: 'neutral', description: 'Resource Exchange! Players may swap resources at will.' },
-  { id: 27, type: 'neutral', description: 'Knowledge Sharing! Science cards may be traded this turn.' },
-  { id: 28, type: 'neutral', description: 'Political Reform! Politics cards may be purchased for 2 resources.' },
-  { id: 29, type: 'neutral', description: 'Trade Council! Players vote on new trade rules.' },
-  { id: 30, type: 'neutral', description: 'Merchant Visit! Special trades available next turn.' }
-];
-
-const DEFAULT_EVENT_CHANCE = 0.15; // 15% chance by default
 
 export interface GameEventsRef {
   checkForEvent: () => void;
 }
 
 interface GameEventsProps {
-  initialEvent?: GameEvent;
   events?: GameEvent[];
+  initialEvent?: GameEvent;
 }
 
-export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialEvent, events = DEFAULT_EVENTS }, ref) => {
+export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events = [], initialEvent }, ref) => {
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(initialEvent ?? null);
-  const [eventHistory, setEventHistory] = useState<GameEvent[]>([]);
+  const [eventHistory, setEventHistory] = useState<GameEvent[]>(initialEvent ? [initialEvent] : []);
   const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [eventChance, setEventChance] = useState(DEFAULT_EVENT_CHANCE);
+  const [eventChance, setEventChance] = useState(0.15); // 15% chance by default
   const [isEventsEnabled, setIsEventsEnabled] = useState(true);
+
+  const addEventToHistory = useCallback((event: GameEvent) => {
+    if (!event || !event.id) return;
+    setEventHistory(prev => [event, ...prev]);
+  }, []);
 
   useImperativeHandle(ref, () => ({
     checkForEvent: () => {
-      if (!isEventsEnabled) return;
+      if (!isEventsEnabled || events.length === 0) return;
 
       if (Math.random() < eventChance) {
-        const event = events[Math.floor(Math.random() * events.length)];
-        setCurrentEvent(event);
-        setEventHistory(prev => [event, ...prev]);
+        const selectedEvent = events[Math.floor(Math.random() * events.length)];
+        if (selectedEvent) {
+          setCurrentEvent(selectedEvent);
+          addEventToHistory(selectedEvent);
 
-        // Auto-dismiss after 10 seconds
-        setTimeout(() => {
-          setCurrentEvent(null);
-        }, 10000);
+          // Auto-dismiss after 10 seconds
+          setTimeout(() => {
+            setCurrentEvent(null);
+          }, 10000);
+        }
       }
     }
-  }), [eventChance, isEventsEnabled, events]);
+  }), [isEventsEnabled, eventChance, events, addEventToHistory]);
 
   // Function to get the appropriate icon based on event type
   const getEventIcon = (type: EventType) => {
-    let testId = '';
     switch (type) {
       case 'positive':
-        testId = 'success-icon';
-        return <CheckCircle2 data-testid={testId} className="text-green-500 dark:text-green-400" size={20} />;
+        return <CheckCircle2 data-testid="success-icon" className="text-green-500 dark:text-green-400" size={20} />;
       case 'negative':
-        testId = 'warning-icon';
-        return <AlertTriangle data-testid={testId} className="text-red-500 dark:text-red-400" size={20} />;
+        return <AlertTriangle data-testid="warning-icon" className="text-red-500 dark:text-red-400" size={20} />;
       case 'neutral':
-        testId = 'info-icon';
-        return <AlertCircle data-testid={testId} className="text-blue-500 dark:text-blue-400" size={20} />;
+        return <AlertCircle data-testid="info-icon" className="text-blue-500 dark:text-blue-400" size={20} />;
     }
   };
 
@@ -110,7 +72,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialE
             className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
             title="Configure events"
           >
-            <Settings data-testid="settings-icon" size={16} />
+            <Settings size={16} data-testid="settings-icon" />
           </button>
         </div>
         {eventHistory.length > 0 && (
@@ -148,7 +110,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialE
               min="0"
               max="100"
               value={Math.round(eventChance * 100)}
-              onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))} 
+              onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))}
               className="block w-full px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg dark:text-white"
             />
           </div>
@@ -162,6 +124,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialE
             currentEvent.type === 'negative' ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500' :
             'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
           }`}
+          data-testid="current-event"
         >
           <div className="flex items-center gap-2">
             {getEventIcon(currentEvent.type)}
@@ -172,8 +135,8 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ initialE
       )}
 
       {showHistory && eventHistory.length > 0 && (
-        <div className="space-y-2">
-          {eventHistory.map((event, index) => (
+        <div className="space-y-2" data-testid="event-history">
+          {eventHistory.map((event, index) => event && (
             <div
               key={`${event.id}-${index}`}
               className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
