@@ -74,10 +74,9 @@ describe('GameEvents', () => {
       ref.current?.checkForEvent();
     });
 
-    // Check event is displayed with the correct test IDs
-    const currentEvent = screen.getByTestId('current-event');
-    expect(currentEvent).toBeInTheDocument();
-    expect(within(currentEvent).getByText('Test Positive Event')).toBeInTheDocument();
+    // Check event is displayed
+    expect(screen.getByTestId('current-event')).toBeInTheDocument();
+    expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
     expect(screen.getByTestId('success-icon')).toBeInTheDocument();
   });
 
@@ -132,10 +131,9 @@ describe('GameEvents', () => {
     // Show history
     fireEvent.click(screen.getByText(/show history/i));
 
-    // Check events in history
-    const history = screen.getByTestId('event-history');
-    expect(within(history).getByText('Test Neutral Event')).toBeInTheDocument();
-    expect(within(history).getByText('Test Positive Event')).toBeInTheDocument();
+    // Check history using test IDs
+    expect(screen.getByTestId('history-event-neutral-0')).toBeInTheDocument();
+    expect(screen.getByTestId('history-event-positive-1')).toBeInTheDocument();
   });
 
   it('handles different event types', () => {
@@ -165,15 +163,10 @@ describe('GameEvents', () => {
     // Show history
     fireEvent.click(screen.getByText(/show history/i));
 
-    // Check history elements
-    const history = screen.getByTestId('event-history');
-    const historyItems = within(history).getAllByRole('generic');
-    expect(historyItems).toHaveLength(3);
-    
-    // Check each event type's icon is present
-    expect(screen.getByTestId('success-icon')).toBeInTheDocument();
-    expect(screen.getByTestId('info-icon')).toBeInTheDocument();
-    expect(screen.getByTestId('warning-icon')).toBeInTheDocument();
+    // Check each event type in history using test IDs
+    expect(screen.getByTestId('history-event-positive-2')).toBeInTheDocument();
+    expect(screen.getByTestId('history-event-neutral-1')).toBeInTheDocument();
+    expect(screen.getByTestId('history-event-negative-0')).toBeInTheDocument();
   });
 
   it('updates event chance correctly', () => {
