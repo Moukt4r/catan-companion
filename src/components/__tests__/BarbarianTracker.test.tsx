@@ -30,71 +30,87 @@ describe('BarbarianTracker', () => {
 
   it('advances progress when clicking advance button', () => {
     render(<BarbarianTracker threshold={7} />);
-    
-    // Test exact value (with approximate comparison)
     const advanceButton = screen.getByRole('button', { name: 'Advance' });
-    fireEvent.click(advanceButton);
     
+    act(() => {
+      fireEvent.click(advanceButton);
+    });
+    
+    // Test exact width with calculated value
     const progressBar = document.querySelector('.bg-red-500') as HTMLElement;
-    const width = parseFloat(progressBar.style.width);
-    expect(width).toBeCloseTo(14.2857, 3); // 1/7 ≈ 14.2857%
+    expect(progressBar.style.width).toBe('14.285714285714285%');
   });
 
   it('adds knights when clicking add knight button', () => {
     render(<BarbarianTracker />);
     const addKnightButton = screen.getByRole('button', { name: 'Add Knight' });
     
-    fireEvent.click(addKnightButton);
+    act(() => {
+      fireEvent.click(addKnightButton);
+    });
     expect(screen.getByText('Knights: 1')).toBeInTheDocument();
     
-    fireEvent.click(addKnightButton);
+    act(() => {
+      fireEvent.click(addKnightButton);
+    });
     expect(screen.getByText('Knights: 2')).toBeInTheDocument();
   });
 
   it('shows settings panel when clicking settings button', () => {
     render(<BarbarianTracker />);
-    const settingsButton = screen.getByTitle('Configure threshold');
-
-    fireEvent.click(settingsButton);
-    expect(screen.getByText('Attack Threshold (steps)')).toBeInTheDocument();
+    const settingsButton = screen.getByTestId('settings-icon').closest('button') as HTMLElement;
+    
+    act(() => {
+      fireEvent.click(settingsButton);
+    });
+    
+    expect(screen.getByLabelText('Attack Threshold (steps)')).toBeInTheDocument();
   });
 
   it('updates threshold via settings', () => {
     render(<BarbarianTracker />);
+    const settingsButton = screen.getByTestId('settings-icon').closest('button') as HTMLElement;
     
-    // Open settings
-    const settingsButton = screen.getByTitle('Configure threshold');
-    fireEvent.click(settingsButton);
+    act(() => {
+      fireEvent.click(settingsButton);
+    });
+    
+    const thresholdInput = screen.getByLabelText('Attack Threshold (steps)') as HTMLInputElement;
+    act(() => {
+      fireEvent.change(thresholdInput, { target: { value: '5' } });
+    });
 
-    // Update threshold
-    const thresholdInput = screen.getByLabelText('Attack Threshold (steps)');
-    fireEvent.change(thresholdInput, { target: { value: '5' } });
-
-    // Verify new threshold
+    // Test progress with new threshold
     const advanceButton = screen.getByRole('button', { name: 'Advance' });
-    fireEvent.click(advanceButton);
+    act(() => {
+      fireEvent.click(advanceButton);
+    });
 
     const progressBar = document.querySelector('.bg-red-500') as HTMLElement;
-    const width = parseFloat(progressBar.style.width);
-    expect(width).toBeCloseTo(20, 3); // 1/5 = 20%
+    expect(progressBar.style.width).toBe('20%');
   });
 
   it('ignores invalid threshold inputs', () => {
     render(<BarbarianTracker />);
+    const settingsButton = screen.getByTestId('settings-icon').closest('button') as HTMLElement;
     
-    // Open settings
-    const settingsButton = screen.getByTitle('Configure threshold');
-    fireEvent.click(settingsButton);
+    act(() => {
+      fireEvent.click(settingsButton);
+    });
 
-    const thresholdInput = screen.getByLabelText('Attack Threshold (steps)');
+    const thresholdInput = screen.getByLabelText('Attack Threshold (steps)') as HTMLInputElement;
     
     // Test negative value
-    fireEvent.change(thresholdInput, { target: { value: '-1' } });
-    expect(thresholdInput).toHaveValue(7); // Default value remains
+    act(() => {
+      fireEvent.change(thresholdInput, { target: { value: '-1' } });
+    });
+    expect(thresholdInput.value).toBe('7'); // Default value remains
 
     // Test non-numeric value
-    fireEvent.change(thresholdInput, { target: { value: 'abc' } });
-    expect(thresholdInput).toHaveValue(7);
+    act(() => {
+      fireEvent.change(thresholdInput, { target: { value: 'abc' } });
+    });
+    expect(thresholdInput.value).toBe('7');
   });
 
   it('triggers barbarian attack at threshold', () => {
@@ -102,15 +118,17 @@ describe('BarbarianTracker', () => {
     const advanceButton = screen.getByRole('button', { name: 'Advance' });
     
     // Advance to threshold
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
+    act(() => {
+      fireEvent.click(advanceButton);
+      fireEvent.click(advanceButton);
+      fireEvent.click(advanceButton);
+    });
 
     // Should trigger attack
     expect(mockAudio).toHaveBeenCalledWith('/barbarian-attack.mp3');
     expect(mockPlay).toHaveBeenCalled();
 
-    // Should show in attack history
+    // Should show in history
     expect(screen.getByText('Failed!')).toBeInTheDocument();
   });
 
@@ -120,16 +138,19 @@ describe('BarbarianTracker', () => {
     const advanceButton = screen.getByRole('button', { name: 'Advance' });
 
     // Add enough knights
-    fireEvent.click(addKnightButton);
-    fireEvent.click(addKnightButton);
-    fireEvent.click(addKnightButton);
+    act(() => {
+      fireEvent.click(addKnightButton);
+      fireEvent.click(addKnightButton);
+      fireEvent.click(addKnightButton);
+    });
 
     // Trigger attack
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
+    act(() => {
+      fireEvent.click(advanceButton);
+      fireEvent.click(advanceButton);
+      fireEvent.click(advanceButton);
+    });
 
-    // Should show successful defense
     expect(screen.getByText('Defended!')).toBeInTheDocument();
   });
 
@@ -139,13 +160,14 @@ describe('BarbarianTracker', () => {
     const advanceButton = screen.getByRole('button', { name: 'Advance' });
 
     // Add knights and trigger attack
-    fireEvent.click(addKnightButton);
-    fireEvent.click(addKnightButton);
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
+    act(() => {
+      fireEvent.click(addKnightButton);
+      fireEvent.click(addKnightButton);
+      fireEvent.click(advanceButton);
+      fireEvent.click(advanceButton);
+      fireEvent.click(advanceButton);
+    });
 
-    // Knights should reset
     expect(screen.getByText('Knights: 0')).toBeInTheDocument();
   });
 
@@ -158,8 +180,7 @@ describe('BarbarianTracker', () => {
     });
 
     const progressBar = document.querySelector('.bg-red-500') as HTMLElement;
-    const width = parseFloat(progressBar.style.width);
-    expect(width).toBeCloseTo(20, 3); // 1/5 = 20%
+    expect(progressBar.style.width).toBe('20%');
   });
 
   it('maintains attack history', () => {
@@ -167,11 +188,12 @@ describe('BarbarianTracker', () => {
     const advanceButton = screen.getByRole('button', { name: 'Advance' });
 
     // Trigger multiple attacks
-    for (let i = 0; i < 6; i++) {
-      fireEvent.click(advanceButton);
-    }
+    act(() => {
+      for (let i = 0; i < 6; i++) {
+        fireEvent.click(advanceButton);
+      }
+    });
 
-    // Should show attack history
     expect(screen.getByText('Attack History')).toBeInTheDocument();
     const failedAttacks = screen.getAllByText('Failed!');
     expect(failedAttacks.length).toBe(2); // Two complete attacks
@@ -182,11 +204,12 @@ describe('BarbarianTracker', () => {
     const advanceButton = screen.getByRole('button', { name: 'Advance' });
 
     // Advance twice (2/3 progress)
-    fireEvent.click(advanceButton);
-    fireEvent.click(advanceButton);
+    act(() => {
+      fireEvent.click(advanceButton);
+      fireEvent.click(advanceButton);
+    });
 
     const progressBar = document.querySelector('.bg-red-500') as HTMLElement;
-    const width = parseFloat(progressBar.style.width);
-    expect(width).toBeCloseTo(66.6667, 3); // 2/3 ≈ 66.6667%
+    expect(progressBar.style.width).toBe('66.66666666666666%');
   });
 });
