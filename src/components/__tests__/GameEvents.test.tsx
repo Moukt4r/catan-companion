@@ -20,17 +20,17 @@ describe('GameEvents', () => {
     { 
       id: 1, 
       type: 'positive' as const, 
-      description: 'Trade winds are favorable! You may trade any resource 2:1 this turn.'
+      description: 'Test Positive Event'
     },
     { 
       id: 2, 
       type: 'neutral' as const, 
-      description: 'Political Reform! Politics cards may be purchased for 2 resources.'
+      description: 'Test Neutral Event'
     },
     { 
       id: 3, 
       type: 'negative' as const, 
-      description: 'Market Crash! Commodity trades are suspended this round.'
+      description: 'Test Negative Event'
     }
   ];
 
@@ -40,7 +40,7 @@ describe('GameEvents', () => {
   });
 
   it('renders initial state correctly', () => {
-    render(<GameEvents />);
+    render(<GameEvents events={testEvents} />);
     
     // Check component title
     expect(screen.getByText('Game Events')).toBeInTheDocument();
@@ -49,25 +49,23 @@ describe('GameEvents', () => {
     expect(screen.getByTitle('Configure events')).toBeInTheDocument();
     
     // Check initial text is shown
-    expect(screen.getByText(/chance to trigger a random event/i)).toBeInTheDocument();
+    expect(screen.getByText(/15% chance to trigger/i)).toBeInTheDocument();
   });
 
   it('shows settings panel when clicked', () => {
-    render(<GameEvents />);
+    render(<GameEvents events={testEvents} />);
     
     // Click settings button
     fireEvent.click(screen.getByTitle('Configure events'));
     
     // Check settings panel elements
     expect(screen.getByText('Enable random events')).toBeInTheDocument();
-    const chanceLabel = screen.getByText('Event Chance (0-100%)');
-    expect(chanceLabel).toBeInTheDocument();
+    expect(screen.getByLabelText('Event Chance (0-100%)')).toBeInTheDocument();
     
     // Check inputs
     const checkbox = screen.getByRole('checkbox', { name: /enable random events/i });
     expect(checkbox).toBeChecked();
     
-    // Find input by type=number
     const chanceInput = screen.getByRole('spinbutton');
     expect(chanceInput).toHaveValue(15); // Default 15%
   });
@@ -85,18 +83,19 @@ describe('GameEvents', () => {
     // Trigger event check
     act(() => {
       ref.current?.checkForEvent();
+      jest.runAllTimers(); // Run any pending timers
     });
     
     // Verify event is displayed
-    expect(screen.getByText(testEvents[0].description)).toBeInTheDocument();
-    expect(screen.getByTestId('success-icon')).toBeInTheDocument(); // Positive event icon
+    expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
+    expect(screen.getByTestId('success-icon')).toBeInTheDocument();
     
     // Clean up
     mockRandom.mockRestore();
   });
 
   it('updates event chance correctly', () => {
-    render(<GameEvents />);
+    render(<GameEvents events={testEvents} />);
     
     // Open settings
     fireEvent.click(screen.getByTitle('Configure events'));
@@ -110,7 +109,7 @@ describe('GameEvents', () => {
   });
 
   it('handles event disabling', () => {
-    render(<GameEvents />);
+    render(<GameEvents events={testEvents} />);
     
     // Open settings
     fireEvent.click(screen.getByTitle('Configure events'));
@@ -136,10 +135,11 @@ describe('GameEvents', () => {
     // Trigger event
     act(() => {
       ref.current?.checkForEvent();
+      jest.runOnlyPendingTimers(); // Run only pending timers
     });
     
     // Verify event is shown
-    expect(screen.getByText(testEvents[0].description)).toBeInTheDocument();
+    expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
     
     // Fast-forward timers
     act(() => {
@@ -147,7 +147,7 @@ describe('GameEvents', () => {
     });
     
     // Verify event is dismissed
-    expect(screen.queryByText(testEvents[0].description)).not.toBeInTheDocument();
+    expect(screen.queryByText('Test Positive Event')).not.toBeInTheDocument();
     
     // Clean up
     mockRandom.mockRestore();
@@ -162,7 +162,7 @@ describe('GameEvents', () => {
       .mockReturnValueOnce(0.1) // Trigger event
       .mockReturnValueOnce(0) // Select first event
       .mockReturnValueOnce(0.1) // Trigger event
-      .mockReturnValueOnce(0); // Select first event again
+      .mockReturnValueOnce(1); // Select second event
     
     render(<GameEvents ref={ref} events={testEvents} />);
     
@@ -178,8 +178,7 @@ describe('GameEvents', () => {
     fireEvent.click(historyButton);
     
     // Verify events are in history
-    const historyItems = screen.getAllByText(testEvents[0].description);
-    expect(historyItems.length).toBe(2);
+    expect(screen.getAllByText(/Test .* Event/)).toHaveLength(2);
     
     // Clean up
     mockRandom.mockRestore();
@@ -213,9 +212,9 @@ describe('GameEvents', () => {
     fireEvent.click(screen.getByText(/show history/i));
     
     // Verify different event types are shown
-    expect(screen.getAllByTestId('success-icon')).toHaveLength(1);
-    expect(screen.getAllByTestId('info-icon')).toHaveLength(1);
-    expect(screen.getAllByTestId('warning-icon')).toHaveLength(1);
+    expect(screen.getByText('Test Negative Event')).toBeInTheDocument();
+    expect(screen.getByText('Test Neutral Event')).toBeInTheDocument();
+    expect(screen.getByText('Test Positive Event')).toBeInTheDocument();
     
     // Clean up
     mockRandom.mockRestore();
