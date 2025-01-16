@@ -25,6 +25,11 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events =
   const [showSettings, setShowSettings] = useState(false);
   const [eventChance, setEventChance] = useState(0.15); // 15% chance by default
   const [isEventsEnabled, setIsEventsEnabled] = useState(true);
+  const [dismissTimer, setDismissTimer] = useState<number | null>(null);
+
+  const dismissEvent = useCallback((eventId: number) => {
+    setCurrentEvent(prev => prev?.id === eventId ? null : prev);
+  }, []);
 
   const addEventToHistory = useCallback((event: GameEvent) => {
     if (!event || !event.id) return;
@@ -37,18 +42,28 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events =
 
       if (Math.random() < eventChance) {
         const selectedEvent = events[Math.floor(Math.random() * events.length)];
-        if (selectedEvent) {
-          setCurrentEvent(selectedEvent);
-          addEventToHistory(selectedEvent);
+        if (!selectedEvent) return;
 
-          // Auto-dismiss after 10 seconds
-          setTimeout(() => {
-            setCurrentEvent(null);
-          }, 10000);
+        // Clear any existing timer
+        if (dismissTimer) {
+          window.clearTimeout(dismissTimer);
+          setDismissTimer(null);
         }
+
+        // Set current event and add to history
+        setCurrentEvent(selectedEvent);
+        addEventToHistory(selectedEvent);
+
+        // Set auto-dismiss timer
+        const timerId = window.setTimeout(() => {
+          dismissEvent(selectedEvent.id);
+          setDismissTimer(null);
+        }, 10000);
+        
+        setDismissTimer(timerId);
       }
     }
-  }), [isEventsEnabled, eventChance, events, addEventToHistory]);
+  }), [isEventsEnabled, eventChance, events, addEventToHistory, dismissEvent, dismissTimer]);
 
   // Function to get the appropriate icon based on event type
   const getEventIcon = (type: EventType) => {
@@ -94,6 +109,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events =
               checked={isEventsEnabled}
               onChange={(e) => setIsEventsEnabled(e.target.checked)}
               className="h-4 w-4 text-blue-600 rounded border-gray-300"
+              aria-label="Enable random events"
             />
             <label htmlFor="eventsEnabled" className="text-sm font-medium dark:text-gray-300">
               Enable random events
@@ -112,6 +128,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events =
               value={Math.round(eventChance * 100)}
               onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))}
               className="block w-full px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg dark:text-white"
+              aria-label="Event Chance (0-100%)"
             />
           </div>
         </div>
@@ -136,7 +153,7 @@ export const GameEvents = forwardRef<GameEventsRef, GameEventsProps>(({ events =
 
       {showHistory && eventHistory.length > 0 && (
         <div className="space-y-2" data-testid="event-history">
-          {eventHistory.map((event, index) => event && (
+          {eventHistory.map((event, index) => (
             <div
               key={`${event.id}-${index}`}
               className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
