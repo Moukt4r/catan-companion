@@ -3,6 +3,14 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { GameEvents, GameEventsRef } from '../GameEvents';
 
+// Mock the Lucide React icons
+jest.mock('lucide-react', () => ({
+  CheckCircle2: () => <div data-testid="success-icon">Success</div>,
+  AlertTriangle: () => <div data-testid="warning-icon">Warning</div>,
+  AlertCircle: () => <div data-testid="info-icon">Info</div>,
+  Settings: () => <div data-testid="settings-icon">Settings</div>
+}));
+
 // Mock the setTimeout and clearTimeout functions
 jest.useFakeTimers();
 
@@ -40,23 +48,27 @@ describe('GameEvents', () => {
     
     // Check settings panel elements
     expect(screen.getByText('Enable random events')).toBeInTheDocument();
-    expect(screen.getByText('Event Chance (0-100%)')).toBeInTheDocument();
+    const chanceLabel = screen.getByText('Event Chance (0-100%)');
+    expect(chanceLabel).toBeInTheDocument();
     
     // Check inputs
     const checkbox = screen.getByRole('checkbox', { name: /enable random events/i });
     expect(checkbox).toBeChecked();
     
+    // Find input by type=number
     const chanceInput = screen.getByRole('spinbutton');
     expect(chanceInput).toHaveValue(15); // Default 15%
   });
 
   it('handles event triggering correctly', () => {
     const ref = React.createRef<GameEventsRef>();
-    render(<GameEvents ref={ref} />);
     
-    // Force an event to trigger (mock Math.random)
+    // Mock Math.random
     const mockRandom = jest.spyOn(Math, 'random');
-    mockRandom.mockReturnValue(0.1); // Below default 15% threshold
+    mockRandom.mockReturnValueOnce(0.1); // Trigger event
+    mockRandom.mockReturnValueOnce(0); // Select first event
+    
+    render(<GameEvents ref={ref} />);
     
     // Trigger event check
     act(() => {
@@ -64,7 +76,8 @@ describe('GameEvents', () => {
     });
     
     // Verify event is displayed
-    expect(screen.getByText(/event!/i)).toBeInTheDocument();
+    expect(screen.getByText('Test event description')).toBeInTheDocument();
+    expect(screen.getByTestId('success-icon')).toBeInTheDocument(); // Positive event icon
     
     // Clean up
     mockRandom.mockRestore();
@@ -77,8 +90,8 @@ describe('GameEvents', () => {
     fireEvent.click(screen.getByTitle('Configure events'));
     
     // Change event chance
-    const input = screen.getByRole('spinbutton');
-    fireEvent.change(input, { target: { value: '25' } });
+    const chanceInput = screen.getByRole('spinbutton');
+    fireEvent.change(chanceInput, { target: { value: '25' } });
     
     // Check if the text updates
     expect(screen.getByText(/25% chance to trigger/i)).toBeInTheDocument();
@@ -100,18 +113,21 @@ describe('GameEvents', () => {
 
   it('auto-dismisses events after timeout', () => {
     const ref = React.createRef<GameEventsRef>();
+    
+    // Mock Math.random
+    const mockRandom = jest.spyOn(Math, 'random');
+    mockRandom.mockReturnValueOnce(0.1); // Trigger event
+    mockRandom.mockReturnValueOnce(0); // Select first event
+    
     render(<GameEvents ref={ref} />);
     
     // Trigger event
-    const mockRandom = jest.spyOn(Math, 'random');
-    mockRandom.mockReturnValue(0.1);
-    
     act(() => {
       ref.current?.checkForEvent();
     });
     
     // Verify event is shown
-    expect(screen.getByText(/event!/i)).toBeInTheDocument();
+    expect(screen.getByText('Test event description')).toBeInTheDocument();
     
     // Fast-forward timers
     act(() => {
@@ -119,7 +135,7 @@ describe('GameEvents', () => {
     });
     
     // Verify event is dismissed
-    expect(screen.queryByText(/event!/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Test event description')).not.toBeInTheDocument();
     
     // Clean up
     mockRandom.mockRestore();
@@ -127,12 +143,18 @@ describe('GameEvents', () => {
 
   it('maintains event history', () => {
     const ref = React.createRef<GameEventsRef>();
+    
+    // Mock Math.random
+    const mockRandom = jest.spyOn(Math, 'random');
+    mockRandom
+      .mockReturnValueOnce(0.1) // Trigger event
+      .mockReturnValueOnce(0) // Select first event
+      .mockReturnValueOnce(0.1) // Trigger event
+      .mockReturnValueOnce(0); // Select first event again
+    
     render(<GameEvents ref={ref} />);
     
     // Trigger multiple events
-    const mockRandom = jest.spyOn(Math, 'random');
-    mockRandom.mockReturnValue(0.1);
-    
     act(() => {
       ref.current?.checkForEvent();
       jest.advanceTimersByTime(10000);
@@ -140,12 +162,12 @@ describe('GameEvents', () => {
     });
     
     // Show history
-    const historyButton = screen.getByRole('button', { name: /show history/i });
+    const historyButton = screen.getByText(/show history/i);
     fireEvent.click(historyButton);
     
     // Verify events are in history
-    const historyItems = screen.getAllByText(/event!/i);
-    expect(historyItems.length).toBeGreaterThan(0);
+    const historyItems = screen.getAllByText('Test event description');
+    expect(historyItems.length).toBe(2);
     
     // Clean up
     mockRandom.mockRestore();
@@ -153,9 +175,8 @@ describe('GameEvents', () => {
 
   it('handles different event types', () => {
     const ref = React.createRef<GameEventsRef>();
-    render(<GameEvents ref={ref} />);
     
-    // Test positive event
+    // Mock Math.random
     const mockRandom = jest.spyOn(Math, 'random');
     mockRandom
       .mockReturnValueOnce(0.1) // Trigger event
@@ -164,6 +185,8 @@ describe('GameEvents', () => {
       .mockReturnValueOnce(0.5) // Select middle event (neutral)
       .mockReturnValueOnce(0.1) // Trigger event
       .mockReturnValueOnce(0.9); // Select last event (negative)
+    
+    render(<GameEvents ref={ref} />);
     
     // Trigger events
     act(() => {
@@ -175,10 +198,12 @@ describe('GameEvents', () => {
     });
     
     // Show history
-    fireEvent.click(screen.getByRole('button', { name: /show history/i }));
+    fireEvent.click(screen.getByText(/show history/i));
     
     // Verify different event types are shown
-    expect(screen.getAllByText(/event!/i).length).toBe(3);
+    expect(screen.getByTestId('success-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('info-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('warning-icon')).toBeInTheDocument();
     
     // Clean up
     mockRandom.mockRestore();
