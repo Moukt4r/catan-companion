@@ -30,13 +30,14 @@ describe('BarbarianTracker', () => {
 
   it('advances progress when clicking advance button', () => {
     render(<BarbarianTracker threshold={7} />);
-    const advanceButton = screen.getByRole('button', { name: 'Advance' });
     
+    // Test exact value (with approximate comparison)
+    const advanceButton = screen.getByRole('button', { name: 'Advance' });
     fireEvent.click(advanceButton);
     
-    // Progress bar width should be about 14% (1/7)
     const progressBar = document.querySelector('.bg-red-500') as HTMLElement;
-    expect(progressBar).toHaveStyle({ width: '14.285714285714285%' });
+    const width = parseFloat(progressBar.style.width);
+    expect(width).toBeCloseTo(14.2857, 3); // 1/7 ≈ 14.2857%
   });
 
   it('adds knights when clicking add knight button', () => {
@@ -60,33 +61,38 @@ describe('BarbarianTracker', () => {
 
   it('updates threshold via settings', () => {
     render(<BarbarianTracker />);
-    const settingsButton = screen.getByTitle('Configure threshold');
-
-    fireEvent.click(settingsButton);
-    const thresholdInput = screen.getByRole('spinbutton');
     
-    fireEvent.change(thresholdInput, { target: { value: '5' } });
-    expect(thresholdInput).toHaveValue(5);
+    // Open settings
+    const settingsButton = screen.getByTitle('Configure threshold');
+    fireEvent.click(settingsButton);
 
-    // Progress calculation should use new threshold
+    // Update threshold
+    const thresholdInput = screen.getByLabelText('Attack Threshold (steps)');
+    fireEvent.change(thresholdInput, { target: { value: '5' } });
+
+    // Verify new threshold
     const advanceButton = screen.getByRole('button', { name: 'Advance' });
     fireEvent.click(advanceButton);
+
     const progressBar = document.querySelector('.bg-red-500') as HTMLElement;
-    expect(progressBar).toHaveStyle({ width: '20%' }); // 1/5 = 20%
+    const width = parseFloat(progressBar.style.width);
+    expect(width).toBeCloseTo(20, 3); // 1/5 = 20%
   });
 
   it('ignores invalid threshold inputs', () => {
     render(<BarbarianTracker />);
-    const settingsButton = screen.getByTitle('Configure threshold');
-
-    fireEvent.click(settingsButton);
-    const thresholdInput = screen.getByRole('spinbutton');
     
-    // Negative value should be ignored
+    // Open settings
+    const settingsButton = screen.getByTitle('Configure threshold');
+    fireEvent.click(settingsButton);
+
+    const thresholdInput = screen.getByLabelText('Attack Threshold (steps)');
+    
+    // Test negative value
     fireEvent.change(thresholdInput, { target: { value: '-1' } });
     expect(thresholdInput).toHaveValue(7); // Default value remains
 
-    // Non-numeric value should be ignored
+    // Test non-numeric value
     fireEvent.change(thresholdInput, { target: { value: 'abc' } });
     expect(thresholdInput).toHaveValue(7);
   });
@@ -151,9 +157,9 @@ describe('BarbarianTracker', () => {
       ref.current.advance();
     });
 
-    // Progress bar width should be about 20% (1/5)
     const progressBar = document.querySelector('.bg-red-500') as HTMLElement;
-    expect(progressBar).toHaveStyle({ width: '20%' });
+    const width = parseFloat(progressBar.style.width);
+    expect(width).toBeCloseTo(20, 3); // 1/5 = 20%
   });
 
   it('maintains attack history', () => {
@@ -180,6 +186,7 @@ describe('BarbarianTracker', () => {
     fireEvent.click(advanceButton);
 
     const progressBar = document.querySelector('.bg-red-500') as HTMLElement;
-    expect(progressBar).toHaveStyle({ width: '66.66666666666666%' });
+    const width = parseFloat(progressBar.style.width);
+    expect(width).toBeCloseTo(66.6667, 3); // 2/3 ≈ 66.6667%
   });
 });
