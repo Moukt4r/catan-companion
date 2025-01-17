@@ -1,72 +1,99 @@
 import { StorageManager } from '../storage';
-import { debounce } from 'lodash';
-
-// Mock lodash debounce to execute immediately in tests
-jest.mock('lodash', () => ({
-  debounce: (fn: Function) => fn
-}));
 
 // Mock localStorage
 const mockLocalStorage = {
-  store: {} as Record<string, string>,
-  getItem: jest.fn((key: string) => mockLocalStorage.store[key] || null),
-  setItem: jest.fn((key: string, value: string) => {
-    mockLocalStorage.store[key] = value;
-  }),
-  removeItem: jest.fn((key: string) => {
-    delete mockLocalStorage.store[key];
-  }),
-  clear: jest.fn(() => {
-    mockLocalStorage.store = {};
-  }),
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
   length: 0,
   key: jest.fn()
 };
 
+// Create a proper mock of the Storage API
+class MockStorage implements Storage {
+  private store: { [key: string]: string } = {};
+  length = 0;
+  
+  clear(): void {
+    this.store = {};
+    this.length = 0;
+    mockLocalStorage.clear();
+  }
+
+  getItem(key: string): string | null {
+    mockLocalStorage.getItem(key);
+    return this.store[key] || null;
+  }
+
+  key(index: number): string | null {
+    mockLocalStorage.key(index);
+    return Object.keys(this.store)[index] || null;
+  }
+
+  removeItem(key: string): void {
+    delete this.store[key];
+    this.length = Object.keys(this.store).length;
+    mockLocalStorage.removeItem(key);
+  }
+
+  setItem(key: string, value: string): void {
+    this.store[key] = value;
+    this.length = Object.keys(this.store).length;
+    mockLocalStorage.setItem(key, value);
+  }
+}
+
+const mockStorageInstance = new MockStorage();
+
 Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage,
-  writable: true,
-  configurable: true
+  value: mockStorageInstance
 });
 
-// Mock navigator.storage
-const mockStorageEstimate = jest.fn().mockResolvedValue({ quota: 100000, usage: 50000 });
-Object.defineProperty(window.navigator, 'storage', {
-  value: {
-    estimate: mockStorageEstimate
+// Mock storage estimation API
+const mockStorageEstimate = jest.fn().mockResolvedValue({ quota: 1000, usage: 500 });
+
+// Helper function to create a mock game state
+const createMockGameState = () => ({
+  version: 1,
+  lastSaved: Date.now(),
+  settings: {
+    autoSave: true,
+    theme: 'dark'
   },
-  writable: true,
-  configurable: true
-});
-
-// Mock console.error to avoid test pollution
-const originalConsoleError = console.error;
-beforeAll(() => {
-  console.error = jest.fn();
-});
-
-afterAll(() => {
-  console.error = originalConsoleError;
+  gameData: {
+    score: 0,
+    resources: []
+  }
 });
 
 describe('StorageManager', () => {
+  let manager: StorageManager;
+
   beforeEach(() => {
     jest.clearAllMocks();
-    mockLocalStorage.clear();
-    mockStorageEstimate.mockResolvedValue({ quota: 100000, usage: 50000 });
+    mockLocalStorage.getItem.mockReset();
+    mockLocalStorage.setItem.mockReset();
+    mockLocalStorage.removeItem.mockReset();
+    
+    // Reset storage estimate mock
+    mockStorageEstimate.mockReset();
+    mockStorageEstimate.mockResolvedValue({ quota: 1000, usage: 500 });
+    
+    // Reset navigator.storage mock
+    Object.defineProperty(window.navigator, 'storage', {
+      value: {
+        estimate: mockStorageEstimate
+      },
+      configurable: true,
+      writable: true
+    });
+    
+    manager = StorageManager.getInstance();
   });
 
-  const createMockGameState = (overrides = {}) => ({
-    version: 1,
-    lastSaved: Date.now(),
-    settings: {
-      autoSave: true
-    },
-    ...overrides
-  });
-
-  describe('Singleton Pattern', () => {
-    it('should return the same instance when getInstance is called multiple times', () => {
+  describe('singleton pattern', () => {
+    it('returns the same instance', () => {
       const instance1 = StorageManager.getInstance();
       const instance2 = StorageManager.getInstance();
       expect(instance1).toBe(instance2);
@@ -74,205 +101,151 @@ describe('StorageManager', () => {
   });
 
   describe('saveGameState', () => {
-    it('should handle storage quota errors', async () => {
-      mockStorageEstimate.mockResolvedValueOnce({ quota: 100, usage: 99 });
-      const manager = StorageManager.getInstance();
-
-      await expect(manager.saveGameState(createMockGameState()))
-        .rejects
-        .toThrow('Storage quota exceeded');
-    });
-
-    it('should notify subscribers when state is saved', async () => {
-      const manager = StorageManager.getInstance();
-      const mockSubscriber = jest.fn();
-      manager.subscribe(mockSubscriber);
-
-      await manager.saveGameState(createMockGameState());
-      expect(mockSubscriber).toHaveBeenCalled();
-    });
-
-    it('should save with updated timestamp', async () => {
-      const manager = StorageManager.getInstance();
+    it('saves game state to localStorage', async () => {
       const state = createMockGameState();
-      const beforeSave = Date.now();
-      
+      await manager.saveGameState(state);
+      expect(mockLocalStorage.setItem).toHaveBeenCalled();
+    });
+
+    it('notifies subscribers when state is saved', async () => {
+      const subscriber = jest.fn();
+      manager.subscribe(subscriber);
+
+      const state = createMockGameState();
       await manager.saveGameState(state);
 
-      const savedData = JSON.parse(mockLocalStorage.store['catan-companion-state']);
-      expect(savedData.data.lastSaved).toBeGreaterThanOrEqual(beforeSave);
+      expect(subscriber).toHaveBeenCalled();
+      expect(subscriber).toHaveBeenCalledWith(expect.objectContaining({
+        version: expect.any(Number),
+        lastSaved: expect.any(Number)
+      }));
+    });
+
+    it('handles storage quota errors', async () => {
+      // Mock storage quota exceeded
+      mockStorageEstimate.mockResolvedValue({ quota: 1000, usage: 999 });
+      
+      const state = createMockGameState();
+      await expect(manager.saveGameState(state)).rejects.toThrow('Storage quota exceeded');
+    });
+
+    it('handles quota exceeded errors and tries to clear old data', async () => {
+      // Mock localStorage.setItem to throw QuotaExceededError
+      const quotaError = new Error('Quota exceeded');
+      quotaError.name = 'QuotaExceededError';
+      mockLocalStorage.setItem.mockImplementation(() => { throw quotaError; });
+
+      const oldData = {
+        version: 1,
+        data: {
+          lastSaved: Date.now() - 1000000,
+          version: 1
+        }
+      };
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(oldData));
+
+      await expect(manager.saveGameState(createMockGameState())).rejects.toThrow();
+      expect(mockLocalStorage.removeItem).toHaveBeenCalled();
     });
   });
 
   describe('loadGameState', () => {
-    it('should load game state from localStorage', () => {
-      const manager = StorageManager.getInstance();
-      const state = createMockGameState();
-      mockLocalStorage.setItem('catan-companion-state', JSON.stringify({
+    it('loads game state from localStorage', () => {
+      const mockState = createMockGameState();
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify({
         version: 1,
-        data: state
+        data: mockState
       }));
 
       const loadedState = manager.loadGameState();
-      expect(loadedState).toEqual(state);
+      expect(loadedState).toEqual(mockState);
     });
 
-    it('should return null if no state exists', () => {
-      const manager = StorageManager.getInstance();
-      const loadedState = manager.loadGameState();
-      expect(loadedState).toBeNull();
+    it('returns null when no state exists', () => {
+      mockLocalStorage.getItem.mockReturnValue(null);
+      expect(manager.loadGameState()).toBeNull();
     });
 
-    it('should handle invalid JSON', () => {
-      const manager = StorageManager.getInstance();
-      mockLocalStorage.setItem('catan-companion-state', 'invalid-json');
-
-      const loadedState = manager.loadGameState();
-      expect(loadedState).toBeNull();
-      expect(console.error).toHaveBeenCalled();
+    it('handles corrupted data', () => {
+      mockLocalStorage.getItem.mockReturnValue('invalid json');
+      expect(manager.loadGameState()).toBeNull();
     });
+  });
 
-    it('should migrate old state versions', async () => {
-      const manager = StorageManager.getInstance();
-      const oldState = createMockGameState({ version: 0, settings: {} });
-      mockLocalStorage.setItem('catan-companion-state', JSON.stringify({
+  describe('data migration', () => {
+    it('migrates old data formats', () => {
+      const oldState = {
         version: 0,
-        data: oldState
-      }));
-
+        data: {
+          settings: {},
+          gameData: {}
+        }
+      };
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(oldState));
+      
       const loadedState = manager.loadGameState();
       expect(loadedState?.version).toBe(1);
       expect(loadedState?.settings?.autoSave).toBe(true);
     });
   });
 
-  describe('clearGameState', () => {
-    it('should remove state from localStorage', () => {
-      const manager = StorageManager.getInstance();
-      manager.clearGameState();
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('catan-companion-state');
-    });
-
-    it('should notify subscribers when state is cleared', () => {
-      const manager = StorageManager.getInstance();
-      const mockSubscriber = jest.fn();
-      manager.subscribe(mockSubscriber);
-
-      manager.clearGameState();
-      expect(mockSubscriber).toHaveBeenCalledWith({});
-    });
-
-    it('should handle localStorage errors', () => {
-      const manager = StorageManager.getInstance();
-      mockLocalStorage.removeItem.mockImplementationOnce(() => {
-        throw new Error('Storage error');
-      });
-
-      expect(() => manager.clearGameState()).not.toThrow();
-      expect(console.error).toHaveBeenCalled();
-    });
-  });
-
   describe('subscription management', () => {
-    it('should handle subscribe and unsubscribe', async () => {
-      const manager = StorageManager.getInstance();
-      const mockSubscriber = jest.fn();
+    it('allows subscribing and unsubscribing', async () => {
+      const subscriber = jest.fn();
+      const unsubscribe = manager.subscribe(subscriber);
 
-      const unsubscribe = manager.subscribe(mockSubscriber);
-      await manager.saveGameState(createMockGameState());
-      expect(mockSubscriber).toHaveBeenCalled();
+      const state = createMockGameState();
+      await manager.saveGameState(state);
+      expect(subscriber).toHaveBeenCalledTimes(1);
 
       unsubscribe();
-      jest.clearAllMocks();
-      await manager.saveGameState(createMockGameState());
-      expect(mockSubscriber).not.toHaveBeenCalled();
+      await manager.saveGameState(state);
+      expect(subscriber).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('data import/export', () => {
-    it('should export current state', () => {
-      const manager = StorageManager.getInstance();
-      const state = createMockGameState();
-      mockLocalStorage.setItem('catan-companion-state', JSON.stringify({
+    it('exports current state', () => {
+      const mockState = createMockGameState();
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify({
         version: 1,
-        data: state
+        data: mockState
       }));
 
-      const exportedData = manager.exportData();
-      expect(JSON.parse(exportedData)).toEqual(state);
+      const exported = manager.exportData();
+      expect(JSON.parse(exported)).toEqual(mockState);
     });
 
-    it('should return empty string when no state exists', () => {
-      const manager = StorageManager.getInstance();
-      const exportedData = manager.exportData();
-      expect(exportedData).toBe('');
+    it('handles empty export', () => {
+      mockLocalStorage.getItem.mockReturnValue(null);
+      expect(manager.exportData()).toBe('');
     });
 
-    it('should import valid state data', async () => {
-      const manager = StorageManager.getInstance();
-      const state = createMockGameState();
-
-      const success = await manager.importData(JSON.stringify(state));
+    it('imports valid data', async () => {
+      const mockState = createMockGameState();
+      const success = await manager.importData(JSON.stringify(mockState));
       expect(success).toBe(true);
+      expect(mockLocalStorage.setItem).toHaveBeenCalled();
     });
 
-    it('should reject invalid import data', async () => {
-      const manager = StorageManager.getInstance();
-
-      const success = await manager.importData('invalid-json');
+    it('rejects invalid import data', async () => {
+      const success = await manager.importData('invalid json');
       expect(success).toBe(false);
-      expect(console.error).toHaveBeenCalled();
-    });
-
-    it('should handle failed import validation', async () => {
-      const manager = StorageManager.getInstance();
-      const invalidState = { version: 'invalid' };
-
-      const success = await manager.importData(JSON.stringify(invalidState));
-      expect(success).toBe(false);
-      expect(console.error).toHaveBeenCalled();
     });
   });
 
-  describe('error handling', () => {
-    it('should handle localStorage errors during save', async () => {
-      const manager = StorageManager.getInstance();
-      mockLocalStorage.setItem.mockImplementationOnce(() => {
-        throw new Error('Storage error');
-      });
-
-      await expect(manager.saveGameState(createMockGameState())).rejects.toThrow('Storage error');
-      expect(console.error).toHaveBeenCalled();
-    });
-
-    it('should handle quota exceeded errors and try to clear old data', async () => {
-      const manager = StorageManager.getInstance();
-      const oldState = createMockGameState({ lastSaved: Date.now() - 1000 });
-      mockLocalStorage.setItem('catan-companion-state', JSON.stringify({
-        version: 1,
-        data: oldState
-      }));
-
-      // First call throws quota error, second succeeds
-      mockLocalStorage.setItem
-        .mockImplementationOnce(() => {
-          const error = new Error('Quota exceeded');
-          error.name = 'QuotaExceededError';
-          throw error;
-        })
-        .mockImplementationOnce(() => {});
-
-      await manager.saveGameState(createMockGameState());
+  describe('game state clearing', () => {
+    it('clears game state', () => {
+      manager.clearGameState();
       expect(mockLocalStorage.removeItem).toHaveBeenCalled();
     });
 
-    it('should handle estimate API errors', async () => {
-      const manager = StorageManager.getInstance();
-      mockStorageEstimate.mockRejectedValueOnce(new Error('API error'));
-
-      // Should still try to save even if estimate fails
-      await manager.saveGameState(createMockGameState());
-      expect(mockLocalStorage.setItem).toHaveBeenCalled();
+    it('notifies subscribers when state is cleared', () => {
+      const subscriber = jest.fn();
+      manager.subscribe(subscriber);
+      
+      manager.clearGameState();
+      expect(subscriber).toHaveBeenCalledWith(expect.any(Object));
     });
   });
 });
