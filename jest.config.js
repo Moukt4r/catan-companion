@@ -1,37 +1,29 @@
-/** @type {import('jest').Config} */
-const config = {
+// jest.config.js
+module.exports = {
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
-    '^@/components/ui/(.*)$': '<rootDir>/__mocks__/components/ui/$1',
-    '^@/components/(.*)$': '<rootDir>/components/$1',
-    '^@/pages/(.*)$': '<rootDir>/pages/$1',
-    '^@/utils/(.*)$': '<rootDir>/utils/$1',
-    '^@/hooks/(.*)$': '<rootDir>/hooks/$1',
-    '^@/styles/(.*)$': '<rootDir>/styles/$1',
-    '^@/types/(.*)$': '<rootDir>/types/$1',
-    '\\.css$': '<rootDir>/__mocks__/styleMock.js'
+    '^@/components/(.*)$': '<rootDir>/src/components/$1',
+    '^lucide-react$': '<rootDir>/src/__mocks__/lucide-react.tsx',
   },
   transform: {
-    '^.+\\.(t|j)sx?$': ['@swc/jest']
+    '^.+\\.(t|j)sx?$': '@swc/jest',
   },
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$',
+  testMatch: [
+    '<rootDir>/src/**/__tests__/**/*.{ts,tsx}',
+    '<rootDir>/src/**/*.{spec,test}.{ts,tsx}',
+  ],
   collectCoverageFrom: [
-    '**/*.{js,jsx,ts,tsx}',
-    '!**/*.d.ts',
-    '!**/node_modules/**',
-    '!**/.next/**',
-    '!**/coverage/**',
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/**/__tests__/**',
   ],
   coverageThreshold: {
     global: {
       branches: 90,
       functions: 90,
       lines: 90,
-      statements: 90
-    }
-  }
-};
-
-module.exports = config;
+      statements: 90,
+    },
+  },
+}
