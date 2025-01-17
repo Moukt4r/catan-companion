@@ -1,10 +1,9 @@
 import type { SpecialDieFace } from '@/types/diceTypes';
 
 export interface DiceRoll {
-  dice1: number;
-  dice2: number;
+  dice: [number, number];
   sum: number;
-  specialDie?: SpecialDieFace;
+  specialDie: SpecialDieFace | null;
 }
 
 // Special die has 6 faces:
@@ -45,9 +44,9 @@ export class DiceRoller {
     for (let dice1 = 1; dice1 <= 6; dice1++) {
       for (let dice2 = 1; dice2 <= 6; dice2++) {
         combinations.push({
-          dice1,
-          dice2,
-          sum: dice1 + dice2
+          dice: [dice1, dice2],
+          sum: dice1 + dice2,
+          specialDie: null
         });
       }
     }
@@ -72,6 +71,8 @@ export class DiceRoller {
     
     if (this.useSpecialDie) {
       roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
+    } else {
+      roll.specialDie = null;
     }
     
     return roll;
@@ -85,11 +86,19 @@ export class DiceRoller {
     this.shuffle();
   }
 
-  public setUseSpecialDie(use: boolean): void {
+  public setSpecialDie(use: boolean): void {
     this.useSpecialDie = use;
   }
 
   public getRemainingRolls(): number {
     return this.combinations.length - this.discardCount - this.currentIndex;
+  }
+
+  public getDiscardCount(): number {
+    return this.discardCount;
+  }
+
+  public hasSpecialDie(): boolean {
+    return this.useSpecialDie;
   }
 }
