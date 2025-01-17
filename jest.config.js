@@ -1,30 +1,37 @@
-module.exports = {
+/** @type {import('jest').Config} */
+const config = {
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '^@/components/ui/(.*)$': '<rootDir>/__mocks__/components/ui/$1',
+    '^@/components/(.*)$': '<rootDir>/components/$1',
+    '^@/pages/(.*)$': '<rootDir>/pages/$1',
+    '^@/utils/(.*)$': '<rootDir>/utils/$1',
+    '^@/hooks/(.*)$': '<rootDir>/hooks/$1',
+    '^@/styles/(.*)$': '<rootDir>/styles/$1',
+    '^@/types/(.*)$': '<rootDir>/types/$1',
+    '\\.css$': '<rootDir>/__mocks__/styleMock.js'
   },
-  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
+    '^.+\\.(t|j)sx?$': ['@swc/jest']
   },
-  transformIgnorePatterns: [
-    '/node_modules/',
-    '^.+\\.module\\.(css|sass|scss)$',
-  ],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$',
   collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/**/_*.{js,jsx,ts,tsx}',
-    '!src/**/\*.test.{js,jsx,ts,tsx}',
+    '**/*.{js,jsx,ts,tsx}',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+    '!**/.next/**',
+    '!**/coverage/**',
   ],
   coverageThreshold: {
     global: {
       branches: 90,
       functions: 90,
       lines: 90,
-      statements: 90,
-    },
+      statements: 90
+    }
   }
 };
+
+module.exports = config;
