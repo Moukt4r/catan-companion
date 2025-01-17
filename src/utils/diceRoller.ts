@@ -1,9 +1,9 @@
 import type { SpecialDieFace } from '@/types/diceTypes';
 
 export interface DiceRoll {
-  dice: [number, number]; // Changed to return array for test compatibility 
+  dice: [number, number];  // Changed to return array for test compatibility
   total: number;
-  specialDie?: SpecialDieFace;
+  specialDie?: SpecialDieFace | null;
 }
 
 // Special die has 6 faces:
@@ -45,7 +45,8 @@ export class DiceRoller {
       for (let dice2 = 1; dice2 <= 6; dice2++) {
         combinations.push({
           dice: [dice1, dice2],
-          total: dice1 + dice2
+          total: dice1 + dice2,
+          specialDie: null
         });
       }
     }
