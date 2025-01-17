@@ -13,11 +13,11 @@ export interface DiceRoll {
   specialDie?: SpecialDieFace | null;
 }
 
-// Special die has 6 faces:
-// 3 barbarian (red)
-// 1 merchant (yellow)
-// 1 politics (green)
-// 1 science (blue)
+// Special die has 6 faces with distribution:
+// 3 barbarian (red) - 50%
+// 1 merchant (yellow) - 16.67%
+// 1 politics (green) - 16.67%
+// 1 science (blue) - 16.67%
 export const SPECIAL_DIE_FACES: readonly SpecialDieFace[] = Object.freeze([
   'barbarian',
   'barbarian',
@@ -28,13 +28,13 @@ export const SPECIAL_DIE_FACES: readonly SpecialDieFace[] = Object.freeze([
 ]) as const;
 
 export class DiceRoller {
+  private discardedCombinations: Set<string>;
   private combinations: DiceRollInternal[];
   private currentIndex: number;
   private discardCount: number;
   private useSpecialDie: boolean;
   private randomFn: () => number;
-  private specialDieIndex: number;
-  private specialDieFaces: SpecialDieFace[];
+  private readonly history: DiceRoll[];
 
   constructor(discardCount: number = 4, useSpecialDie: boolean = false, randomFn: () => number = Math.random) {
     if (discardCount < 0 || discardCount >= 36) {
@@ -45,10 +45,8 @@ export class DiceRoller {
     this.randomFn = randomFn;
     this.combinations = this.generateCombinations();
     this.currentIndex = 0;
-    this.specialDieIndex = 0;
-    
-    // Get unique faces
-    this.specialDieFaces = Array.from(new Set(SPECIAL_DIE_FACES));
+    this.discardedCombinations = new Set();
+    this.history = [];
     
     this.shuffle();
   }
@@ -77,30 +75,37 @@ export class DiceRoller {
     }
     this.combinations = array;
     this.currentIndex = 0;
+    this.discardedCombinations.clear();
+  }
+
+  private rollSpecialDie(): SpecialDieFace {
+    // Use randomFn to select directly from SPECIAL_DIE_FACES
+    // This preserves the intended distribution (3/6 barbarian, 1/6 others)
+    const index = Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length);
+    return SPECIAL_DIE_FACES[index];
+  }
+
+  private getCombinationKey(roll: DiceRollInternal): string {
+    return `${roll.dice1},${roll.dice2}`;
   }
 
   public roll(): DiceRoll {
     if (this.currentIndex >= this.combinations.length - this.discardCount) {
       this.shuffle();
     }
-    
-    const internal = this.combinations[this.currentIndex++];
-    const roll: DiceRoll = {
-      dice: [internal.dice1, internal.dice2],
-      total: internal.total,
-      specialDie: null
+
+    const roll = this.combinations[this.currentIndex++];
+    const key = this.getCombinationKey(roll);
+    this.discardedCombinations.add(key);
+
+    const diceRoll: DiceRoll = {
+      dice: [roll.dice1, roll.dice2],
+      total: roll.total,
+      specialDie: this.useSpecialDie ? this.rollSpecialDie() : null
     };
-    
-    if (this.useSpecialDie) {
-      // Test is using mockRandom that returns counter++ % length / length
-      // So we should use the same index calculation
-      const index = Math.floor(this.randomFn() * this.specialDieFaces.length);
-      roll.specialDie = SPECIAL_DIE_FACES[index];
-    } else {
-      roll.specialDie = null;
-    }
-    
-    return roll;
+
+    this.history.push(diceRoll);
+    return diceRoll;
   }
 
   public getDiscardCount(): number {
@@ -126,5 +131,9 @@ export class DiceRoller {
   public getRemainingRolls(): number {
     const remaining = this.combinations.length - this.discardCount - this.currentIndex;
     return remaining <= 0 ? this.combinations.length - this.discardCount : remaining;
+  }
+
+  public getHistory(): DiceRoll[] {
+    return [...this.history];
   }
 }
