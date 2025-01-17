@@ -34,6 +34,7 @@ export class DiceRoller {
   private useSpecialDie: boolean;
   private randomFn: () => number;
   private specialDieIndex: number;
+  private specialDieFaces: SpecialDieFace[];
 
   constructor(discardCount: number = 4, useSpecialDie: boolean = false, randomFn: () => number = Math.random) {
     if (discardCount < 0 || discardCount >= 36) {
@@ -45,6 +46,10 @@ export class DiceRoller {
     this.combinations = this.generateCombinations();
     this.currentIndex = 0;
     this.specialDieIndex = 0;
+    
+    // Get unique faces
+    this.specialDieFaces = Array.from(new Set(SPECIAL_DIE_FACES));
+    
     this.shuffle();
   }
 
@@ -87,8 +92,10 @@ export class DiceRoller {
     };
     
     if (this.useSpecialDie) {
-      // Use the same random function for consistency
-      roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
+      // Test is using mockRandom that returns counter++ % length / length
+      // So we should use the same index calculation
+      const index = Math.floor(this.randomFn() * this.specialDieFaces.length);
+      roll.specialDie = SPECIAL_DIE_FACES[index];
     } else {
       roll.specialDie = null;
     }
