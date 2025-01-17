@@ -1,9 +1,8 @@
 import type { SpecialDieFace } from '@/types/diceTypes';
 
 export interface DiceRoll {
-  dice1: number;
-  dice2: number;
-  sum: number;
+  dice: [number, number]; // Changed to return array for test compatibility 
+  total: number;
   specialDie?: SpecialDieFace;
 }
 
@@ -45,9 +44,8 @@ export class DiceRoller {
     for (let dice1 = 1; dice1 <= 6; dice1++) {
       for (let dice2 = 1; dice2 <= 6; dice2++) {
         combinations.push({
-          dice1,
-          dice2,
-          sum: dice1 + dice2
+          dice: [dice1, dice2],
+          total: dice1 + dice2
         });
       }
     }
