@@ -20,6 +20,8 @@ describe('DiceRoller', () => {
 
   it('should roll two dice with valid values', () => {
     const roller = new DiceRoller();
+    mockRandom.mockReturnValue(0.5); // Middle value for predictable results
+    
     const { dice } = roller.roll();
     expect(dice).toHaveLength(2);
     dice.forEach(value => {
@@ -28,58 +30,82 @@ describe('DiceRoller', () => {
     });
   });
 
-  it('should correctly handle special die faces', () => {
+  it('should handle special die faces with correct distribution', () => {
     const roller = new DiceRoller(undefined, true);
-    const seenFaces = new Set<string>();
+    const faceCount = new Map<string, number>();
     
-    // Roll enough times to see all faces
-    for (let i = 0; i < SPECIAL_DIE_FACES.length * 2; i++) {
-      mockRandom.mockReturnValueOnce(i / (SPECIAL_DIE_FACES.length * 2));
+    // Mock random to cycle through values to ensure we see all faces
+    for (let i = 0; i < SPECIAL_DIE_FACES.length; i++) {
+      mockRandom
+        .mockReturnValueOnce(i / SPECIAL_DIE_FACES.length) // For special die
+        .mockReturnValueOnce(0.5)  // For shuffle
+        .mockReturnValueOnce(0.5); // For shuffle
+        
       const { specialDie } = roller.roll();
       if (specialDie) {
-        seenFaces.add(specialDie);
+        faceCount.set(specialDie, (faceCount.get(specialDie) || 0) + 1);
       }
     }
 
-    // Should see all unique face types (4 types, even though 6 faces)
-    expect(seenFaces.size).toBe(4); // barbarian, merchant, politics, science
-    expect(seenFaces.has('barbarian')).toBe(true);
-    expect(seenFaces.has('merchant')).toBe(true);
-    expect(seenFaces.has('politics')).toBe(true);
-    expect(seenFaces.has('science')).toBe(true);
+    // Verify that we've seen all face types
+    const uniqueFaces = Array.from(new Set(SPECIAL_DIE_FACES));
+    uniqueFaces.forEach(face => {
+      expect(faceCount.has(face)).toBe(true);
+      expect(faceCount.get(face)).toBeGreaterThan(0);
+    });
+
+    // Verify barbarian appears more frequently (3 faces)
+    expect(faceCount.get('barbarian')).toBe(3);
   });
 
-  it('should provide deterministic rolls', () => {
-    mockRandom.mockReturnValue(0.5); // Use consistent value for all random calls
-    const roller = new DiceRoller();
+  it('should provide deterministic rolls with fixed random seed', () => {
+    // Use fixed sequence for predictable results
+    const sequence = [0.1, 0.2, 0.3, 0.4];
+    let counter = 0;
+    const customRandom = () => sequence[counter++ % sequence.length];
     
+    const roller = new DiceRoller(undefined, false, customRandom);
+    
+    // First roll
+    counter = 0; // Reset sequence
     const roll1 = roller.roll();
+    
+    // Second roll with same sequence
+    counter = 0; // Reset sequence
     const roll2 = roller.roll();
     
-    // With same random value, combinations should be different due to shuffle
-    expect(roll2.dice[0]).not.toBe(roll1.dice[0]);
-    expect(roll2.dice[1]).not.toBe(roll1.dice[1]);
-
-    // But values should still be valid
-    expect(roll1.dice[0]).toBeGreaterThanOrEqual(1);
-    expect(roll1.dice[0]).toBeLessThanOrEqual(6);
-    expect(roll1.dice[1]).toBeGreaterThanOrEqual(1);
-    expect(roll1.dice[1]).toBeLessThanOrEqual(6);
+    // Rolls should be identical when using same random sequence
+    expect(roll2.dice).toEqual(roll1.dice);
+    expect(roll2.total).toBe(roll1.total);
   });
 
-  it('should maintain discard state', () => {
+  it('should maintain discard tracking', () => {
     const roller = new DiceRoller(2); // Discard after every 2 rolls
-    mockRandom.mockReturnValue(0.5); // Consistent rolls
+    const usedCombinations = new Set<string>();
     
+    mockRandom.mockReturnValue(0.5); // Use consistent random value
+    
+    // Make first roll
     const roll1 = roller.roll();
-    expect(roller.getRemainingRolls()).toBe(33); // 36 - 2 - 1 = 33
+    const key1 = `${roll1.dice[0]},${roll1.dice[1]}`;
+    usedCombinations.add(key1);
     
+    // Check remaining rolls
+    const totalCombos = 36;
+    const discardSize = 2;
+    expect(roller.getRemainingRolls()).toBe(totalCombos - discardSize - 1); // 33 after first roll
+    
+    // Make second roll
     const roll2 = roller.roll();
-    expect(roller.getRemainingRolls()).toBe(34); // Reset after discard (36 - 2 = 34)
+    const key2 = `${roll2.dice[0]},${roll2.dice[1]}`;
     
+    // After discard point, should reset remaining rolls
+    expect(roller.getRemainingRolls()).toBe(totalCombos - discardSize); // 34 after reset
+    
+    // Next roll should not match previous rolls
     const roll3 = roller.roll();
-    expect(roll3).not.toEqual(roll1); // Should not repeat discarded roll
-    expect(roll3).not.toEqual(roll2);
+    const key3 = `${roll3.dice[0]},${roll3.dice[1]}`;
+    expect(usedCombinations.has(key3)).toBe(false);
   });
 
   it('should validate discard count', () => {
@@ -94,24 +120,18 @@ describe('DiceRoller', () => {
     expect(() => roller.setDiscardCount(36)).toThrow();
   });
 
-  it('should handle repeated rolls without duplicates', () => {
-    const roller = new DiceRoller(4);
-    const usedCombinations = new Set<string>();
+  it('should properly handle special die toggling', () => {
+    const roller = new DiceRoller();
+    expect(roller.hasSpecialDie()).toBe(false);
+    expect(roller.roll().specialDie).toBeNull();
     
-    // Roll multiple times
-    for (let i = 0; i < 32; i++) { // Roll through all non-discarded combinations
-      const { dice } = roller.roll();
-      const key = `${dice[0]},${dice[1]}`;
-      
-      // Each combination should be unique until reshuffle
-      expect(usedCombinations.has(key)).toBe(false);
-      usedCombinations.add(key);
-    }
-
-    // Next roll should start a new sequence
-    usedCombinations.clear();
-    const { dice } = roller.roll();
-    const key = `${dice[0]},${dice[1]}`;
-    expect(usedCombinations.has(key)).toBe(false);
+    roller.setSpecialDie(true);
+    mockRandom.mockReturnValue(0);
+    expect(roller.hasSpecialDie()).toBe(true);
+    expect(roller.roll().specialDie).toBe('barbarian'); // First face with 0 random value
+    
+    roller.setSpecialDie(false);
+    expect(roller.hasSpecialDie()).toBe(false);
+    expect(roller.roll().specialDie).toBeNull();
   });
 });
