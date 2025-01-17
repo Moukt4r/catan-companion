@@ -1,9 +1,10 @@
 import type { SpecialDieFace } from '@/types/diceTypes';
 
 export interface DiceRoll {
-  dice: [number, number];
+  dice1: number;
+  dice2: number;
   sum: number;
-  specialDie: SpecialDieFace | null;
+  specialDie?: SpecialDieFace;
 }
 
 // Special die has 6 faces:
@@ -44,9 +45,9 @@ export class DiceRoller {
     for (let dice1 = 1; dice1 <= 6; dice1++) {
       for (let dice2 = 1; dice2 <= 6; dice2++) {
         combinations.push({
-          dice: [dice1, dice2],
-          sum: dice1 + dice2,
-          specialDie: null
+          dice1,
+          dice2,
+          sum: dice1 + dice2
         });
       }
     }
@@ -54,11 +55,12 @@ export class DiceRoller {
   }
 
   private shuffle(): void {
-    for (let i = this.combinations.length - 1; i > 0; i--) {
+    const array = [...this.combinations];
+    for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(this.randomFn() * (i + 1));
-      [this.combinations[i], this.combinations[j]] = 
-      [this.combinations[j], this.combinations[i]];
+      [array[i], array[j]] = [array[j], array[i]];
     }
+    this.combinations = array;
     this.currentIndex = 0;
   }
 
@@ -71,8 +73,6 @@ export class DiceRoller {
     
     if (this.useSpecialDie) {
       roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
-    } else {
-      roll.specialDie = null;
     }
     
     return roll;
@@ -86,19 +86,11 @@ export class DiceRoller {
     this.shuffle();
   }
 
-  public setSpecialDie(use: boolean): void {
+  public setUseSpecialDie(use: boolean): void {
     this.useSpecialDie = use;
   }
 
   public getRemainingRolls(): number {
-    return this.combinations.length - this.discardCount - this.currentIndex;
-  }
-
-  public getDiscardCount(): number {
-    return this.discardCount;
-  }
-
-  public hasSpecialDie(): boolean {
-    return this.useSpecialDie;
+    return Math.max(0, this.combinations.length - this.discardCount - this.currentIndex);
   }
 }
