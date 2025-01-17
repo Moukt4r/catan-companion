@@ -73,9 +73,19 @@ export class DiceRoller {
     
     if (this.useSpecialDie) {
       roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
+    } else {
+      roll.specialDie = null;
     }
     
     return roll;
+  }
+
+  public getDiscardCount(): number {
+    return this.discardCount;
+  }
+
+  public hasSpecialDie(): boolean {
+    return this.useSpecialDie;
   }
 
   public setDiscardCount(count: number): void {
@@ -86,7 +96,7 @@ export class DiceRoller {
     this.shuffle();
   }
 
-  public setUseSpecialDie(use: boolean): void {
+  public setSpecialDie(use: boolean): void {
     this.useSpecialDie = use;
   }
 
