@@ -13,7 +13,15 @@ const config = {
     '\\.css$': '<rootDir>/__mocks__/styleMock.js'
   },
   transform: {
-    '^.+\\.(t|j)sx?$': ['@swc/jest']
+    '^.+\\.(t|j)sx?$': ['@swc/jest', {
+      jsc: {
+        transform: {
+          react: {
+            runtime: 'automatic'
+          }
+        }
+      }
+    }]
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$',
@@ -23,6 +31,7 @@ const config = {
     '!**/node_modules/**',
     '!**/.next/**',
     '!**/coverage/**',
+    '!**/__mocks__/**'
   ],
   coverageThreshold: {
     global: {
@@ -31,7 +40,8 @@ const config = {
       lines: 90,
       statements: 90
     }
-  }
+  },
+  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/__mocks__/']
 };
 
 module.exports = config;
