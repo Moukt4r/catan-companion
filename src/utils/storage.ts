@@ -9,7 +9,7 @@ export class StorageManager {
   private static instance: StorageManager;
   private subscribers: Set<StorageSubscriber> = new Set();
   private static readonly CURRENT_VERSION = 1;
-  private static readonly STORAGE_KEY = 'game_state';
+  private static readonly STORAGE_KEY = 'gameState';  // Fixed storage key
 
   private constructor() {}
 
@@ -20,11 +20,12 @@ export class StorageManager {
     return StorageManager.instance;
   }
 
-  subscribe(subscriber: StorageSubscriber): () => void {
+  subscribe(subscriber: StorageSubscriber): void {
     this.subscribers.add(subscriber);
-    return () => {
-      this.subscribers.delete(subscriber);
-    };
+  }
+
+  unsubscribe(subscriber: StorageSubscriber): void {  // Added explicit unsubscribe method
+    this.subscribers.delete(subscriber);
   }
 
   private notifySubscribers(): void {
@@ -37,7 +38,10 @@ export class StorageManager {
       if (!stored) return null;
 
       const data: StorageData = JSON.parse(stored);
-      return this.migrateData(data);
+      return {  // Include version in returned data
+        ...this.migrateData(data),
+        version: StorageManager.CURRENT_VERSION
+      };
     } catch {
       return null;
     }
@@ -87,20 +91,17 @@ export class StorageManager {
   }
 
   private migrateData(data: StorageData): any {
-    let migrated = data.data;
-
     // Migrate from version 0 to 1 (add autoSave setting)
-    if (data.version === 0) {
-      migrated = {
-        ...migrated,
+    if (!data.version || data.version === 0) {
+      return {
+        ...data.data,
         settings: {
-          ...migrated.settings,
+          ...(data.data.settings || {}),
           autoSave: true
         }
       };
     }
-
-    return migrated;
+    return data.data;
   }
 
   async importData(jsonString: string): Promise<boolean> {
@@ -129,13 +130,7 @@ export class StorageManager {
   }
 
   private async clearOldData(): Promise<void> {
-    const state = this.loadGameState();
-    if (!state || !state.lastSaved) return;
-
-    // Keep only recent data
-    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    if (state.lastSaved < oneWeekAgo) {
-      localStorage.removeItem(StorageManager.STORAGE_KEY);
-    }
+    // Always remove old data when clearing
+    localStorage.removeItem(StorageManager.STORAGE_KEY);
   }
 }
