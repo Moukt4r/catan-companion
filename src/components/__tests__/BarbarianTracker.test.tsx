@@ -10,12 +10,19 @@ beforeEach(() => {
   }));
 });
 
+jest.mock('lucide-react', () => ({
+  Swords: () => <span data-testid="mock-swords-icon" />,
+  Settings: () => <span data-testid="mock-settings-icon" />
+}));
+
 describe('BarbarianTracker', () => {
   it('renders initial state', () => {
     render(<BarbarianTracker />);
     expect(screen.getByText('Barbarian Progress')).toBeInTheDocument();
     expect(screen.getByText('Knights: 0')).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-swords-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-settings-icon')).toBeInTheDocument();
   });
 
   it('increments knight count', () => {
@@ -84,5 +91,33 @@ describe('BarbarianTracker', () => {
     
     // Verify threshold changed
     expect(thresholdInput).toHaveValue(5);
+  });
+
+  it('allows external control of threshold', () => {
+    const { rerender } = render(<BarbarianTracker threshold={5} />);
+    
+    // Open settings to see threshold value
+    fireEvent.click(screen.getByTitle('Configure threshold'));
+    expect(screen.getByLabelText(/attack threshold/i)).toHaveValue(5);
+    
+    // Update controlled value
+    rerender(<BarbarianTracker threshold={8} />);
+    expect(screen.getByLabelText(/attack threshold/i)).toHaveValue(8);
+  });
+
+  it('handles audio play failures gracefully', () => {
+    // Mock Audio.play to reject
+    (global as any).Audio = jest.fn().mockImplementation(() => ({
+      play: jest.fn().mockRejectedValue(new Error('Audio playback failed')),
+    }));
+
+    render(<BarbarianTracker defaultThreshold={2} />);
+    const advanceButton = screen.getByRole('button', { name: /advance/i });
+    
+    // Should not throw when audio fails
+    expect(() => {
+      fireEvent.click(advanceButton);
+      fireEvent.click(advanceButton);
+    }).not.toThrow();
   });
 });
