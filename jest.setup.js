@@ -3,50 +3,35 @@ import '@testing-library/jest-dom';
 
 // Mock next/router
 jest.mock('next/router', () => ({
-  useRouter() {
-    return {
-      route: '/',
-      pathname: '',
-      query: '',
-      asPath: '',
-      push: jest.fn(),
-      replace: jest.fn(),
-    };
-  },
-}));
-
-// Mock next/dynamic for any dynamically imported components
-jest.mock('next/dynamic', () => ({
-  __esModule: true,
-  default: (...args) => {
-    const Component = args[0];
-    return Component;
-  },
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    route: '/',
+    pathname: '',
+    query: {},
+    asPath: '',
+    events: {
+      on: jest.fn(),
+      off: jest.fn(),
+      emit: jest.fn(),
+    },
+  }),
 }));
 
 // Mock next/image
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props) => {
-    // eslint-disable-next-line jsx-a11y/alt-text, @next/next/no-img-element
-    return <img {...props} />;
-  },
+  default: 'img',
 }));
 
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(), // deprecated
-    removeListener: jest.fn(), // deprecated
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-});
+// Mock console.warn to reduce noise in tests
+global.console.warn = jest.fn();
+
+// Add window.URL.createObjectURL mock
+if (typeof window !== 'undefined') {
+  window.URL.createObjectURL = jest.fn();
+}
 
 // Mock IntersectionObserver
 const mockIntersectionObserver = jest.fn();
@@ -56,14 +41,3 @@ mockIntersectionObserver.mockReturnValue({
   disconnect: () => null,
 });
 window.IntersectionObserver = mockIntersectionObserver;
-
-// Mock window.fs for file system operations
-window.fs = {
-  readFile: jest.fn(),
-};
-
-// Mock React 18 useId hook
-jest.mock('react', () => ({
-  ...jest.requireActual('react'),
-  useId: () => 'test-id',
-}));
