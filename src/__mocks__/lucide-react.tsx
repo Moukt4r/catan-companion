@@ -1,10 +1,19 @@
-// Mock for Lucide React icons
-import React from 'react';
+import * as React from 'react';
 
-export const Swords = (props: any) => {
-  return <span data-testid="mock-swords-icon" {...props} />;
-};
+// Create a generic icon component factory
+const createMockIcon = (name: string) => 
+  React.forwardRef((props: any, ref: any) => (
+    <span
+      data-testid={`mock-${name.toLowerCase()}-icon`}
+      ref={ref}
+      {...props}
+    />
+  ));
 
-export const Settings = (props: any) => {
-  return <span data-testid="mock-settings-icon" {...props} />;
-};
+// Mock all icons used in the app
+export const Swords = createMockIcon('Swords');
+export const Settings = createMockIcon('Settings');
+
+// Add displayNames for better debugging
+Swords.displayName = 'Swords';
+Settings.displayName = 'Settings';
