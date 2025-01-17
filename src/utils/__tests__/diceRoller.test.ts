@@ -70,29 +70,32 @@ describe('DiceRoller', () => {
     expect(roll2.total).toBeGreaterThanOrEqual(2);
   });
 
-  it('should maintain discard tracking correctly', () => {
-    const roller = new DiceRoller(2); // Discard after every 2 rolls
-    const rolls = new Set<string>();
+  it('should maintain correct tracking of available combinations', () => {
+    const totalCombos = 36; // 6x6 possible combinations
+    const discardSize = 2;
+    const roller = new DiceRoller(discardSize);
     
     // Use fixed random for consistent shuffling
     mockRandom.mockReturnValue(0.5);
     
-    // Make some rolls and track them
+    // Calculate available combinations after each roll
     const roll1 = roller.roll();
-    rolls.add(`${roll1.dice[0]},${roll1.dice[1]}`);
-    expect(roller.getRemainingRolls()).toBe(33); // 36 - 2 - 1 = 33 (total - discard - used)
+    expect(roller.getRemainingRolls()).toBe(totalCombos - discardSize - 1); // 36 - 2 - 1 = 33
     
     const roll2 = roller.roll();
-    rolls.add(`${roll2.dice[0]},${roll2.dice[1]}`);
-    expect(roller.getRemainingRolls()).toBe(32); // 36 - 2 - 2 = 32
+    expect(roller.getRemainingRolls()).toBe(totalCombos - discardSize - 2); // 36 - 2 - 2 = 32
     
-    // Next roll after discard should be different
     const roll3 = roller.roll();
-    const roll3Key = `${roll3.dice[0]},${roll3.dice[1]}`;
-    
-    // Shouldn't see same combinations from previous rolls
-    expect(rolls.has(roll3Key)).toBe(false);
-    expect(roller.getRemainingRolls()).toBe(33); // 36 - 2 - 1 = 33 (after reset)
+    // After hitting discard point, remaining should be reset minus one used
+    expect(roller.getRemainingRolls()).toBe(totalCombos - discardSize - 1); // Back to 33
+
+    // Ensure rolls are unique
+    const used = new Set([
+      `${roll1.dice[0]},${roll1.dice[1]}`,
+      `${roll2.dice[0]},${roll2.dice[1]}`,
+      `${roll3.dice[0]},${roll3.dice[1]}`
+    ]);
+    expect(used.size).toBe(3); // All rolls should be unique
   });
 
   it('should validate discard count', () => {
