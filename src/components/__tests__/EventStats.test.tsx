@@ -1,125 +1,116 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { EventStats } from '../EventStats';
-
-// Mock lucide-react
-jest.mock('lucide-react', () => ({
-  X: () => <div data-testid="close-icon" />,
-  PieChart: () => <div data-testid="pie-chart-icon" />
-}));
+import { render, screen } from '@testing-library/react';
+import EventStats from '../EventStats';
+import type { GameEvent } from '@/types/events';
 
 describe('EventStats', () => {
-  const mockOnClose = jest.fn();
-
-  const mockEvents = [
+  const mockEvents: GameEvent[] = [
     {
       id: 'test-1',
-      type: 'positive' as const,
-      category: 'resource' as const,
+      type: 'positive',
+      category: 'resource',
       severity: 'low',
-      title: 'Test Positive',
-      description: 'Positive event description'
+      text: 'Gained resources',
+      timestamp: new Date()
     },
     {
       id: 'test-2',
-      type: 'negative' as const,
-      category: 'trade' as const,
+      type: 'negative',
+      category: 'trade',
       severity: 'high',
-      title: 'Test Negative',
-      description: 'Negative event description'
+      text: 'Lost trade',
+      timestamp: new Date()
     },
     {
       id: 'test-3',
-      type: 'neutral' as const,
-      category: 'military' as const,
+      type: 'neutral',
+      category: 'military',
       severity: 'medium',
-      title: 'Test Neutral',
-      description: 'Neutral event description'
-    },
+      text: 'Military event',
+      timestamp: new Date()
+    }
   ];
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('renders without events', () => {
-    render(<EventStats events={[]} onClose={mockOnClose} />);
+  it('renders statistics overview', () => {
+    render(<EventStats events={mockEvents} />);
     expect(screen.getByText('Event Statistics')).toBeInTheDocument();
-    expect(screen.getByText('Events by Category')).toBeInTheDocument();
-    expect(screen.getByText('Events by Severity')).toBeInTheDocument();
+    expect(screen.getByText('By Category')).toBeInTheDocument();
+    expect(screen.getByText('By Type')).toBeInTheDocument();
+    expect(screen.getByText('Total Events: 3')).toBeInTheDocument();
   });
 
-  it('renders event category breakdown', () => {
-    render(<EventStats events={mockEvents} onClose={mockOnClose} />);
-
-    expect(screen.getByText('Resource Events')).toBeInTheDocument();
-    expect(screen.getByText('Trade Events')).toBeInTheDocument();
-    expect(screen.getByText('Military Events')).toBeInTheDocument();
-
-    expect(screen.getByText('Total: 1')).toBeInTheDocument();
-    expect(screen.getByText('Positive: 1')).toBeInTheDocument();
-    expect(screen.getByText('Negative: 1')).toBeInTheDocument();
-    expect(screen.getByText('Neutral: 1')).toBeInTheDocument();
+  it('renders category breakdown', () => {
+    render(<EventStats events={mockEvents} />);
+    
+    // Category counts
+    expect(screen.getByText('resource')).toBeInTheDocument();
+    expect(screen.getByText('trade')).toBeInTheDocument();
+    expect(screen.getByText('military')).toBeInTheDocument();
   });
 
-  it('renders severity breakdown', () => {
-    render(<EventStats events={mockEvents} onClose={mockOnClose} />);
-
-    // Each severity should show its count and percentage
-    expect(screen.getByText('low')).toBeInTheDocument();
-    expect(screen.getByText('33.3%')).toBeInTheDocument();
-
-    expect(screen.getByText('medium')).toBeInTheDocument();
-    expect(screen.getByText('33.3%')).toBeInTheDocument();
-
-    expect(screen.getByText('high')).toBeInTheDocument();
-    expect(screen.getByText('33.3%')).toBeInTheDocument();
+  it('renders type breakdown', () => {
+    render(<EventStats events={mockEvents} />);
+    
+    // Type counts
+    expect(screen.getByText('positive')).toBeInTheDocument();
+    expect(screen.getByText('negative')).toBeInTheDocument();
+    expect(screen.getByText('neutral')).toBeInTheDocument();
   });
 
-  it('handles close button click', () => {
-    render(<EventStats events={mockEvents} onClose={mockOnClose} />);
-    fireEvent.click(screen.getByTestId('close-icon'));
-    expect(mockOnClose).toHaveBeenCalled();
+  it('handles empty events list', () => {
+    render(<EventStats events={[]} />);
+    expect(screen.getByText('Event Statistics')).toBeInTheDocument();
+    expect(screen.getByText('Total Events: 0')).toBeInTheDocument();
   });
 
-  it('displays detailed type breakdown', () => {
-    const manyEvents = [
+  it('displays correct counts for repeated categories', () => {
+    const eventsWithDuplicates: GameEvent[] = [
       ...mockEvents,
       {
         id: 'test-4',
-        type: 'positive' as const,
-        category: 'resource' as const,
-        severity: 'low',
-        title: 'Another Positive',
-        description: 'Another positive event'
+        type: 'positive',
+        category: 'resource',
+        severity: 'medium',
+        text: 'More resources',
+        timestamp: new Date()
       }
     ];
 
-    render(<EventStats events={manyEvents} onClose={mockOnClose} />);
+    render(<EventStats events={eventsWithDuplicates} />);
 
-    // Resource category should show 2 total events
-    const resourceSection = screen.getByText('Resource Events').closest('.bg-gray-50');
-    expect(resourceSection).toHaveTextContent('Total: 2');
-    expect(resourceSection).toHaveTextContent('Positive: 2');
+    // Find the resource category display
+    const resourceSpans = screen.getAllByText('resource');
+    const resourceCount = resourceSpans[0].nextSibling;
+    expect(resourceCount).toHaveTextContent('2');
+
+    expect(screen.getByText('Total Events: 4')).toBeInTheDocument();
   });
 
-  it('displays zero counts for empty categories', () => {
-    const limitedEvents = [{
-      id: 'test-1',
-      type: 'positive' as const,
-      category: 'resource' as const,
-      severity: 'low',
-      title: 'Test Positive',
-      description: 'Positive event description'
-    }];
+  it('formats category and type names correctly', () => {
+    render(<EventStats events={mockEvents} />);
 
-    render(<EventStats events={limitedEvents} onClose={mockOnClose} />);
+    // Check for capitalized category names
+    const categories = screen.getAllByText(/resource|trade|military/);
+    categories.forEach(category => {
+      expect(category).toHaveClass('capitalize');
+    });
 
-    // Trade category should show all zeros except total
-    const tradeSection = screen.getByText('Trade Events').closest('.bg-gray-50');
-    expect(tradeSection).toHaveTextContent('Total: 0');
-    expect(tradeSection).toHaveTextContent('Positive: 0');
-    expect(tradeSection).toHaveTextContent('Negative: 0');
-    expect(tradeSection).toHaveTextContent('Neutral: 0');
+    // Check for capitalized type names
+    const types = screen.getAllByText(/positive|negative|neutral/);
+    types.forEach(type => {
+      expect(type).toHaveClass('capitalize');
+    });
+  });
+
+  it('maintains correct grid layouts', () => {
+    render(<EventStats events={mockEvents} />);
+
+    // Check category grid
+    const categoryGrid = screen.getByText('By Category').nextSibling;
+    expect(categoryGrid).toHaveClass('grid', 'grid-cols-2', 'gap-2');
+
+    // Check type grid
+    const typeGrid = screen.getByText('By Type').nextSibling;
+    expect(typeGrid).toHaveClass('grid', 'grid-cols-2', 'gap-2');
   });
 });
