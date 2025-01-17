@@ -1,1 +1,1 @@
-// This file will be deleted
+// delete this file
