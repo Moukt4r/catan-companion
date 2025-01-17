@@ -1,42 +1,30 @@
 import '@testing-library/jest-dom';
+import React from 'react';
 
-// Mock IntersectionObserver
-class MockIntersectionObserver {
-  observe = jest.fn();
-  unobserve = jest.fn();
-  disconnect = jest.fn();
-}
-
-Object.defineProperty(window, 'IntersectionObserver', {
+// Mock Audio API
+Object.defineProperty(window, 'Audio', {
   writable: true,
-  configurable: true,
-  value: MockIntersectionObserver
-});
-
-// Mock ResizeObserver
-class MockResizeObserver {
-  observe = jest.fn();
-  unobserve = jest.fn();
-  disconnect = jest.fn();
-}
-
-Object.defineProperty(window, 'ResizeObserver', {
-  writable: true,
-  configurable: true,
-  value: MockResizeObserver
-});
-
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
+  value: jest.fn().mockImplementation(() => ({
+    play: jest.fn().mockResolvedValue(undefined),
   })),
+});
+
+// Mock localStorage
+const mockLocalStorage = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+};
+
+Object.defineProperty(window, 'localStorage', {
+  value: mockLocalStorage,
+});
+
+// Mock navigator.storage
+Object.defineProperty(window.navigator, 'storage', {
+  writable: true,
+  value: {
+    estimate: jest.fn().mockResolvedValue({ quota: 100000000, usage: 0 }),
+  },
 });
