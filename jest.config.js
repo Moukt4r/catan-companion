@@ -3,14 +3,14 @@ const config = {
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
-    '^@/components/ui/(.*)$': '<rootDir>/__mocks__/components/ui/$1',
-    '^@/components/(.*)$': '<rootDir>/components/$1',
-    '^@/pages/(.*)$': '<rootDir>/pages/$1',
-    '^@/utils/(.*)$': '<rootDir>/utils/$1',
-    '^@/hooks/(.*)$': '<rootDir>/hooks/$1',
-    '^@/styles/(.*)$': '<rootDir>/styles/$1',
-    '^@/types/(.*)$': '<rootDir>/types/$1',
-    '\\.css$': '<rootDir>/__mocks__/styleMock.js'
+    '^@/components/ui/(.*)$': '<rootDir>/src/__mocks__/components/ui/$1',
+    '^@/components/(.*)$': '<rootDir>/src/components/$1',
+    '^@/pages/(.*)$': '<rootDir>/src/pages/$1',
+    '^@/utils/(.*)$': '<rootDir>/src/utils/$1',
+    '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',
+    '^@/styles/(.*)$': '<rootDir>/src/styles/$1',
+    '^@/types/(.*)$': '<rootDir>/src/types/$1',
+    '\\.(css|less|scss|sass)$': '<rootDir>/src/__mocks__/styleMock.js'
   },
   transform: {
     '^.+\\.(t|j)sx?$': ['@swc/jest', {
@@ -26,12 +26,11 @@ const config = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$',
   collectCoverageFrom: [
-    '**/*.{js,jsx,ts,tsx}',
+    'src/**/*.{js,jsx,ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/.next/**',
     '!**/coverage/**',
-    '!**/__mocks__/**'
   ],
   coverageThreshold: {
     global: {
@@ -41,7 +40,8 @@ const config = {
       statements: 90
     }
   },
-  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/__mocks__/']
+  moduleDirectories: ['node_modules', 'src'],
+  roots: ['<rootDir>/src']
 };
 
 module.exports = config;
