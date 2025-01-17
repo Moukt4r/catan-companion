@@ -1,7 +1,14 @@
 import type { SpecialDieFace } from '@/types/diceTypes';
 
+interface DiceRollInternal {
+  dice1: number;
+  dice2: number;
+  total: number;
+  specialDie?: SpecialDieFace | null;
+}
+
 export interface DiceRoll {
-  dice: [number, number];  // Changed to return array for test compatibility
+  dice: [number, number];
   total: number;
   specialDie?: SpecialDieFace | null;
 }
@@ -21,7 +28,7 @@ export const SPECIAL_DIE_FACES: readonly SpecialDieFace[] = Object.freeze([
 ]) as const;
 
 export class DiceRoller {
-  private combinations: DiceRoll[];
+  private combinations: DiceRollInternal[];
   private currentIndex: number;
   private discardCount: number;
   private useSpecialDie: boolean;
@@ -39,12 +46,13 @@ export class DiceRoller {
     this.shuffle();
   }
 
-  private generateCombinations(): DiceRoll[] {
-    const combinations: DiceRoll[] = [];
+  private generateCombinations(): DiceRollInternal[] {
+    const combinations: DiceRollInternal[] = [];
     for (let dice1 = 1; dice1 <= 6; dice1++) {
       for (let dice2 = 1; dice2 <= 6; dice2++) {
         combinations.push({
-          dice: [dice1, dice2],
+          dice1,
+          dice2,
           total: dice1 + dice2,
           specialDie: null
         });
@@ -68,7 +76,13 @@ export class DiceRoller {
       this.shuffle();
     }
     
-    const roll = { ...this.combinations[this.currentIndex++] };
+    const internal = this.combinations[this.currentIndex++];
+    
+    const roll: DiceRoll = {
+      dice: [internal.dice1, internal.dice2],
+      total: internal.total,
+      specialDie: null
+    };
     
     if (this.useSpecialDie) {
       roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
