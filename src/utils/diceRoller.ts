@@ -87,7 +87,7 @@ export class DiceRoller {
     };
     
     if (this.useSpecialDie) {
-      // Deterministically cycle through special die faces
+      // Use the same random function for consistency
       roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
     } else {
       roll.specialDie = null;
