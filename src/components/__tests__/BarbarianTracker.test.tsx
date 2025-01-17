@@ -76,6 +76,7 @@ describe('BarbarianTracker', () => {
     fireEvent.click(advanceButton);
     
     expect(screen.getByText(/defended!/i)).toBeInTheDocument();
+    expect(screen.getByText('Knights: 0')).toBeInTheDocument(); // Knights reset after attack
   });
 
   it('allows threshold configuration', () => {
@@ -119,5 +120,8 @@ describe('BarbarianTracker', () => {
       fireEvent.click(advanceButton);
       fireEvent.click(advanceButton);
     }).not.toThrow();
+
+    // Attack should still happen
+    expect(screen.getByText(/failed!/i)).toBeInTheDocument();
   });
 });
