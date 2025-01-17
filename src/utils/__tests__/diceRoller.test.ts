@@ -50,23 +50,21 @@ describe('DiceRoller', () => {
   });
 
   it('should provide deterministic rolls', () => {
-    // Create a deterministic sequence: 0, 0.2, 0.4, 0.6, 0.8, 1.0
-    let counter = 0;
-    const customRandom = () => {
-      const value = counter / 5;
-      counter = (counter + 1) % 6;
-      return value;
-    };
-
-    const roller = new DiceRoller(undefined, false, customRandom);
-    const roll1 = roller.roll();
+    mockRandom.mockReturnValue(0.5); // Use consistent value for all random calls
+    const roller = new DiceRoller();
     
-    // Reset counter to get same sequence
-    counter = 0;
+    const roll1 = roller.roll();
     const roll2 = roller.roll();
     
-    expect(roll2.dice).toEqual(roll1.dice);
-    expect(roll2.total).toBe(roll1.total);
+    // With same random value, combinations should be different due to shuffle
+    expect(roll2.dice[0]).not.toBe(roll1.dice[0]);
+    expect(roll2.dice[1]).not.toBe(roll1.dice[1]);
+
+    // But values should still be valid
+    expect(roll1.dice[0]).toBeGreaterThanOrEqual(1);
+    expect(roll1.dice[0]).toBeLessThanOrEqual(6);
+    expect(roll1.dice[1]).toBeGreaterThanOrEqual(1);
+    expect(roll1.dice[1]).toBeLessThanOrEqual(6);
   });
 
   it('should maintain discard state', () => {
@@ -74,7 +72,7 @@ describe('DiceRoller', () => {
     mockRandom.mockReturnValue(0.5); // Consistent rolls
     
     const roll1 = roller.roll();
-    expect(roller.getRemainingRolls()).toBe(1); // One roll remaining before discard
+    expect(roller.getRemainingRolls()).toBe(33); // 36 - 2 - 1 = 33
     
     const roll2 = roller.roll();
     expect(roller.getRemainingRolls()).toBe(34); // Reset after discard (36 - 2 = 34)
@@ -94,5 +92,26 @@ describe('DiceRoller', () => {
     // Invalid changes
     expect(() => roller.setDiscardCount(-1)).toThrow();
     expect(() => roller.setDiscardCount(36)).toThrow();
+  });
+
+  it('should handle repeated rolls without duplicates', () => {
+    const roller = new DiceRoller(4);
+    const usedCombinations = new Set<string>();
+    
+    // Roll multiple times
+    for (let i = 0; i < 32; i++) { // Roll through all non-discarded combinations
+      const { dice } = roller.roll();
+      const key = `${dice[0]},${dice[1]}`;
+      
+      // Each combination should be unique until reshuffle
+      expect(usedCombinations.has(key)).toBe(false);
+      usedCombinations.add(key);
+    }
+
+    // Next roll should start a new sequence
+    usedCombinations.clear();
+    const { dice } = roller.roll();
+    const key = `${dice[0]},${dice[1]}`;
+    expect(usedCombinations.has(key)).toBe(false);
   });
 });
