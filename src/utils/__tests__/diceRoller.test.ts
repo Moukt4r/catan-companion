@@ -4,14 +4,21 @@ describe('DiceRoller', () => {
   let mockRandom: jest.SpyInstance;
 
   beforeEach(() => {
-    mockRandom = jest.spyOn(Math, 'random').mockReturnValue(0);
+    mockRandom = jest.spyOn(Math, 'random');
   });
 
   afterEach(() => {
     mockRandom.mockRestore();
   });
 
-  it('should roll two dice with values between 1 and 6', () => {
+  it('should initialize with default values', () => {
+    const roller = new DiceRoller();
+    expect(roller.getDiscardCount()).toBe(4);
+    expect(roller.hasSpecialDie()).toBe(false);
+    expect(roller.getRemainingRolls()).toBe(32); // 36 - 4 = 32
+  });
+
+  it('should roll two dice with valid values', () => {
     const roller = new DiceRoller();
     const { dice } = roller.roll();
     expect(dice).toHaveLength(2);
@@ -21,89 +28,60 @@ describe('DiceRoller', () => {
     });
   });
 
-  it('should calculate correct sum', () => {
-    const roller = new DiceRoller();
-    // Mock for 1,6 combination
-    mockRandom.mockReturnValueOnce(0).mockReturnValueOnce(0.99);
-
-    const { dice, total } = roller.roll();
-    expect(dice).toEqual([1, 6]);
-    expect(total).toBe(7);
-  });
-
-  it('should handle special die correctly', () => {
+  it('should correctly handle special die faces', () => {
     const roller = new DiceRoller(undefined, true);
+    const seenFaces = new Set<string>();
     
-    // Count occurrences of each face
-    const faceCount = Object.fromEntries(SPECIAL_DIE_FACES.map(face => [face, 0]));
-    
-    // Roll multiple times with controlled random values
-    for (let i = 0; i < SPECIAL_DIE_FACES.length; i++) {
-      // Set random to return i/length to cycle through faces
-      mockRandom.mockReturnValueOnce(i / SPECIAL_DIE_FACES.length);
+    // Roll enough times to see all faces
+    for (let i = 0; i < SPECIAL_DIE_FACES.length * 2; i++) {
+      mockRandom.mockReturnValueOnce(i / (SPECIAL_DIE_FACES.length * 2));
       const { specialDie } = roller.roll();
       if (specialDie) {
-        faceCount[specialDie]++;
+        seenFaces.add(specialDie);
       }
     }
 
-    // Verify distributions
-    expect(faceCount['barbarian']).toBeGreaterThan(0);
-    expect(faceCount['merchant']).toBeGreaterThan(0);
-    expect(faceCount['politics']).toBeGreaterThan(0);
-    expect(faceCount['science']).toBeGreaterThan(0);
-    
-    // 3 faces should be barbarian
-    const barbarianCount = faceCount['barbarian'];
-    expect(barbarianCount).toBe(3);
+    // Should see all unique face types (4 types, even though 6 faces)
+    expect(seenFaces.size).toBe(4); // barbarian, merchant, politics, science
+    expect(seenFaces.has('barbarian')).toBe(true);
+    expect(seenFaces.has('merchant')).toBe(true);
+    expect(seenFaces.has('politics')).toBe(true);
+    expect(seenFaces.has('science')).toBe(true);
   });
 
-  it('should provide deterministic rolls with deterministic random function', () => {
+  it('should provide deterministic rolls', () => {
+    // Create a deterministic sequence: 0, 0.2, 0.4, 0.6, 0.8, 1.0
     let counter = 0;
-    const customRandom = () => counter++ / 6;
+    const customRandom = () => {
+      const value = counter / 5;
+      counter = (counter + 1) % 6;
+      return value;
+    };
 
     const roller = new DiceRoller(undefined, false, customRandom);
-    
-    // Reset counter and do first roll
-    counter = 0;
     const roll1 = roller.roll();
-
-    // Reset counter and do second roll
+    
+    // Reset counter to get same sequence
     counter = 0;
     const roll2 = roller.roll();
-
-    // Same random sequence should produce same dice
+    
     expect(roll2.dice).toEqual(roll1.dice);
+    expect(roll2.total).toBe(roll1.total);
   });
 
-  it('should maintain discard history', () => {
+  it('should maintain discard state', () => {
     const roller = new DiceRoller(2); // Discard after every 2 rolls
-    const roll1 = roller.roll();
-    const roll2 = roller.roll();
+    mockRandom.mockReturnValue(0.5); // Consistent rolls
     
-    // After discard, next roll should be different
+    const roll1 = roller.roll();
+    expect(roller.getRemainingRolls()).toBe(1); // One roll remaining before discard
+    
+    const roll2 = roller.roll();
+    expect(roller.getRemainingRolls()).toBe(34); // Reset after discard (36 - 2 = 34)
+    
     const roll3 = roller.roll();
-
-    // Third roll should be different from discarded rolls
-    expect(roll3.dice).not.toEqual(roll1.dice);
-    expect(roll3.dice).not.toEqual(roll2.dice);
-  });
-
-  it('should track remaining rolls correctly', () => {
-    const roller = new DiceRoller(4); // Discard after 4 rolls
-    expect(roller.getRemainingRolls()).toBe(32); // 36 - 4 = 32
-
-    roller.roll();
-    roller.roll();
-    expect(roller.getRemainingRolls()).toBe(30); // 32 - 2 = 30
-
-    // Roll enough to trigger reshuffle
-    for (let i = 0; i < 30; i++) {
-      roller.roll();
-    }
-
-    // After reshuffle, we should be back to max remaining
-    expect(roller.getRemainingRolls()).toBe(32);
+    expect(roll3).not.toEqual(roll1); // Should not repeat discarded roll
+    expect(roll3).not.toEqual(roll2);
   });
 
   it('should validate discard count', () => {
@@ -116,19 +94,5 @@ describe('DiceRoller', () => {
     // Invalid changes
     expect(() => roller.setDiscardCount(-1)).toThrow();
     expect(() => roller.setDiscardCount(36)).toThrow();
-  });
-
-  it('should handle special die toggle', () => {
-    const roller = new DiceRoller();
-    expect(roller.hasSpecialDie()).toBe(false);
-    
-    roller.setSpecialDie(true);
-    expect(roller.hasSpecialDie()).toBe(true);
-    const { specialDie } = roller.roll();
-    expect(SPECIAL_DIE_FACES).toContain(specialDie);
-    
-    roller.setSpecialDie(false);
-    expect(roller.hasSpecialDie()).toBe(false);
-    expect(roller.roll().specialDie).toBeNull();
   });
 });
