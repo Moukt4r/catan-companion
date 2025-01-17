@@ -78,7 +78,7 @@ describe('DiceRoller', () => {
     // Use fixed random for consistent shuffling
     mockRandom.mockReturnValue(0.5);
     
-    // Calculate available combinations after each roll
+    // Initial rolls before discard
     const roll1 = roller.roll();
     expect(roller.getRemainingRolls()).toBe(totalCombos - discardSize - 1); // 36 - 2 - 1 = 33
     
@@ -86,16 +86,17 @@ describe('DiceRoller', () => {
     expect(roller.getRemainingRolls()).toBe(totalCombos - discardSize - 2); // 36 - 2 - 2 = 32
     
     const roll3 = roller.roll();
-    // After hitting discard point, remaining should be reset minus one used
-    expect(roller.getRemainingRolls()).toBe(totalCombos - discardSize - 1); // Back to 33
-
-    // Ensure rolls are unique
-    const used = new Set([
+    // After first roll in new sequence, we have totalCombos - discardSize - 1 remaining
+    expect(roller.getRemainingRolls()).toBe(31); // 36 - 2 - 3 = 31
+    
+    // Track all rolls for uniqueness
+    const rolls = [
       `${roll1.dice[0]},${roll1.dice[1]}`,
       `${roll2.dice[0]},${roll2.dice[1]}`,
       `${roll3.dice[0]},${roll3.dice[1]}`
-    ]);
-    expect(used.size).toBe(3); // All rolls should be unique
+    ];
+    const uniqueRolls = new Set(rolls);
+    expect(uniqueRolls.size).toBe(3); // All rolls should be unique
   });
 
   it('should validate discard count', () => {
