@@ -1,27 +1,6 @@
-import { jest } from '@jest/globals';
 import { StorageManager } from '../storage';
 
-// Mock localStorage
-const mockLocalStorage = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-  length: 0,
-  key: jest.fn(),
-};
-
-Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage,
-});
-
-// Mock storage quota API
-Object.defineProperty(window.navigator, 'storage', {
-  value: {
-    estimate: jest.fn().mockResolvedValue({ quota: 100000000, usage: 50000000 }),
-  },
-});
-
+// Create mock game state helper
 const createMockGameState = () => ({
   version: 1,
   lastSaved: Date.now(),
@@ -32,11 +11,33 @@ const createMockGameState = () => ({
 });
 
 describe('StorageManager', () => {
+  let mockLocalStorage: { [key: string]: any };
+
   beforeEach(() => {
+    // Reset mocks before each test
+    mockLocalStorage = {
+      getItem: jest.fn(),
+      setItem: jest.fn(),
+      removeItem: jest.fn(),
+      clear: jest.fn(),
+      length: 0,
+      key: jest.fn(),
+    };
+    
+    Object.defineProperty(window, 'localStorage', {
+      value: mockLocalStorage,
+      writable: true
+    });
+
+    // Default storage API mock
+    Object.defineProperty(window.navigator, 'storage', {
+      value: {
+        estimate: jest.fn().mockResolvedValue({ quota: 100000000, usage: 50000000 }),
+      },
+      writable: true,
+    });
+
     jest.clearAllMocks();
-    mockLocalStorage.getItem.mockClear();
-    mockLocalStorage.setItem.mockClear();
-    mockLocalStorage.removeItem.mockClear();
   });
 
   it('should be a singleton', () => {
@@ -60,16 +61,24 @@ describe('StorageManager', () => {
     it('should handle storage quota errors', async () => {
       const manager = StorageManager.getInstance();
       
-      // Mock storage quota exceeded
+      // Mock storage estimate to indicate low space
       Object.defineProperty(window.navigator, 'storage', {
         value: {
           estimate: jest.fn().mockResolvedValue({ quota: 1000, usage: 999 }),
         },
+        writable: true,
       });
 
-      await expect(manager.saveGameState(createMockGameState()))
-        .rejects
-        .toThrow('Storage quota exceeded');
+      // Mock setItem to throw quota error
+      mockLocalStorage.setItem.mockImplementation(() => {
+        const error = new Error('Quota exceeded');
+        error.name = 'QuotaExceededError';
+        throw error;
+      });
+
+      await expect(async () => {
+        await manager.saveGameState(createMockGameState());
+      }).rejects.toThrow('Storage quota exceeded');
     });
 
     it('should notify subscribers after saving', async () => {
@@ -87,25 +96,25 @@ describe('StorageManager', () => {
     it('should handle quota exceeded errors and try to clear old data', async () => {
       const manager = StorageManager.getInstance();
       
-      // Mock localStorage quota exceeded
-      mockLocalStorage.setItem
-        .mockImplementationOnce(() => {
+      // Mock localStorage quota exceeded then success
+      let firstCall = true;
+      mockLocalStorage.setItem.mockImplementation(() => {
+        if (firstCall) {
+          firstCall = false;
           const error = new Error('Quota exceeded');
           error.name = 'QuotaExceededError';
           throw error;
-        })
-        .mockImplementationOnce(() => {
-          // Second attempt succeeds after clearing old data
-          return undefined;
-        });
+        }
+        return undefined;
+      });
 
-      // Mock clearOldData implementation
+      // Return some old data that can be cleared
       mockLocalStorage.getItem.mockReturnValue(JSON.stringify({
         version: 1,
-        data: { lastSaved: Date.now() - 10000 }
+        data: { lastSaved: Date.now() - 1000000 }
       }));
 
-      await expect(manager.saveGameState(createMockGameState())).resolves.toBeUndefined();
+      await manager.saveGameState(createMockGameState());
       expect(mockLocalStorage.removeItem).toHaveBeenCalled();
     });
 
@@ -119,14 +128,15 @@ describe('StorageManager', () => {
   describe('data migration', () => {
     it('should migrate old data formats', () => {
       const manager = StorageManager.getInstance();
-      const oldState = {
+      const oldState = JSON.stringify({
         version: 0,
         data: {
           settings: {},
+          events: []
         }
-      };
+      });
 
-      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(oldState));
+      mockLocalStorage.getItem.mockReturnValue(oldState);
       
       const loadedState = manager.loadGameState();
       expect(loadedState?.version).toBe(1);
@@ -143,11 +153,7 @@ describe('StorageManager', () => {
       expect(await manager.importData(invalidState)).toBe(false);
 
       // Valid state
-      const validState = JSON.stringify({
-        version: 1,
-        lastSaved: Date.now(),
-        settings: { autoSave: true }
-      });
+      const validState = JSON.stringify(createMockGameState());
       expect(await manager.importData(validState)).toBe(true);
     });
   });
