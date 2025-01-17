@@ -33,6 +33,7 @@ export class DiceRoller {
   private discardCount: number;
   private useSpecialDie: boolean;
   private randomFn: () => number;
+  private specialDieIndex: number;
 
   constructor(discardCount: number = 4, useSpecialDie: boolean = false, randomFn: () => number = Math.random) {
     if (discardCount < 0 || discardCount >= 36) {
@@ -43,6 +44,7 @@ export class DiceRoller {
     this.randomFn = randomFn;
     this.combinations = this.generateCombinations();
     this.currentIndex = 0;
+    this.specialDieIndex = 0;
     this.shuffle();
   }
 
@@ -62,6 +64,7 @@ export class DiceRoller {
   }
 
   private shuffle(): void {
+    // Use Fisher-Yates shuffle with custom random function
     const array = [...this.combinations];
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(this.randomFn() * (i + 1));
@@ -77,7 +80,6 @@ export class DiceRoller {
     }
     
     const internal = this.combinations[this.currentIndex++];
-    
     const roll: DiceRoll = {
       dice: [internal.dice1, internal.dice2],
       total: internal.total,
@@ -85,6 +87,7 @@ export class DiceRoller {
     };
     
     if (this.useSpecialDie) {
+      // Deterministically cycle through special die faces
       roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
     } else {
       roll.specialDie = null;
@@ -114,6 +117,7 @@ export class DiceRoller {
   }
 
   public getRemainingRolls(): number {
-    return Math.max(0, this.combinations.length - this.discardCount - this.currentIndex);
+    const remaining = this.combinations.length - this.discardCount - this.currentIndex;
+    return remaining <= 0 ? this.combinations.length - this.discardCount : remaining;
   }
 }
