@@ -6,7 +6,6 @@ export class BarbarianTracker {
   private attackCount: number = 0;
   private defenseCount: number = 0;
   private lastUpdateTime: number;
-  private attackTriggered: boolean = false;
 
   constructor(initialThreshold: number = 7) {
     if (initialThreshold <= 0) {
@@ -45,7 +44,7 @@ export class BarbarianTracker {
   }
 
   isUnderAttack(): boolean {
-    return this.attackTriggered;
+    return this.position === this.threshold; // Check for exact match with threshold
   }
 
   isDefended(): boolean {
@@ -76,40 +75,52 @@ export class BarbarianTracker {
   }
 
   advancePosition(): void {
+    // First calculate what the next position would be
     const nextPosition = this.position + 1;
-    
+
+    // If we're about to reach or exceed threshold
     if (nextPosition >= this.threshold) {
-      this.attackTriggered = true;
+      // Set position to exactly threshold to trigger isUnderAttack
+      this.position = this.threshold;
+      this.lastUpdateTime = Date.now();
+
+      // Record the attack and defense status
       this.attackCount++;
-      
       if (this.isDefended()) {
         this.defenseCount++;
       }
 
-      // Reset position and knights but keep attack triggered
-      this.position = 0;
+      // Reset position and knights *after* attack is recorded
       this.knightCount = 0;
+      this.position = 0;
     } else {
-      this.attackTriggered = false;
+      // Normal movement
       this.position = nextPosition;
+      this.lastUpdateTime = Date.now();
     }
-    
-    this.lastUpdateTime = Date.now();
   }
 
   setThreshold(newThreshold: number): void {
     if (newThreshold <= 0) {
       throw new Error('Threshold must be greater than 0');
     }
+
+    const oldThreshold = this.threshold;
     this.threshold = newThreshold;
 
-    // Check if current position would trigger attack with new threshold
-    if (this.position >= this.threshold) {
-      this.attackTriggered = true;
+    // If current position would trigger attack with new threshold
+    if (this.position >= newThreshold) {
+      // First set position to exact threshold to trigger isUnderAttack
+      const oldPosition = this.position;
+      this.position = newThreshold;
+
+      // Record attack
       this.attackCount++;
       if (this.isDefended()) {
         this.defenseCount++;
       }
+
+      // Reset after attack
       this.position = 0;
       this.knightCount = 0;
       this.lastUpdateTime = Date.now();
@@ -118,7 +129,6 @@ export class BarbarianTracker {
 
   resetPosition(): void {
     this.position = 0;
-    this.attackTriggered = false;
     this.lastUpdateTime = Date.now();
   }
 }
