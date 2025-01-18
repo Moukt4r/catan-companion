@@ -10,7 +10,7 @@ const config = {
     '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',
     '^@/styles/(.*)$': '<rootDir>/src/styles/$1',
     '^@/types/(.*)$': '<rootDir>/src/types/$1',
-    '\\.(css|less|scss|sass)$': '<rootDir>/src/__mocks__/styleMock.js'
+    '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/style.js'
   },
   transform: {
     '^.+\\.(t|j)sx?$': ['@swc/jest', {
