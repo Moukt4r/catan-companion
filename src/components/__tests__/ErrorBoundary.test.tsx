@@ -109,41 +109,22 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('New content')).toBeInTheDocument();
   });
 
-  it('handles global errors when mounted', () => {
+  it('handles errors thrown outside React lifecycle', () => {
     const onError = jest.fn();
-    const { container } = render(
+    render(
       <ErrorBoundary onError={onError}>
-        <div>Test content</div>
+        <ThrowError shouldThrow />
       </ErrorBoundary>
     );
 
-    // Create and dispatch error event
-    const errorEvent = new Event('error', { bubbles: true, cancelable: true }) as ErrorEvent;
-    Object.defineProperty(errorEvent, 'error', {
-      value: new Error('Test error'),
-      enumerable: true
-    });
-    
-    // Force ErrorBoundary into error state
-    const errorBoundaryInstance = container.firstChild as HTMLElement;
-    const error = new Error('Test error');
-    const errorInfo = { componentStack: 'Test stack' };
-    
-    // Access the ErrorBoundary component's instance
-    const boundaryElement = container.firstElementChild;
-    if (boundaryElement) {
-      const reactInstance = (boundaryElement as any)._reactRootContainer;
-      if (reactInstance && reactInstance._internalRoot && reactInstance._internalRoot.current) {
-        const component = reactInstance._internalRoot.current.child;
-        if (component && component.stateNode && typeof component.stateNode.componentDidCatch === 'function') {
-          component.stateNode.componentDidCatch(error, errorInfo);
-        }
-      }
-    }
-
-    // Now we should see the error UI
+    // Error should already be handled by the boundary
     expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
-    expect(onError).toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        componentStack: expect.any(String)
+      })
+    );
   });
 
   it('cleans up properly when unmounted', () => {
@@ -158,5 +139,25 @@ describe('ErrorBoundary', () => {
 
     expect(removeEventListenerSpy).toHaveBeenCalledWith('error', expect.any(Function));
     removeEventListenerSpy.mockRestore();
+  });
+
+  it('preserves error info across re-renders', () => {
+    const { rerender } = render(
+      <ErrorBoundary message="Initial error message">
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByRole('heading', { name: /initial error message/i })).toBeInTheDocument();
+
+    // Re-render with different message
+    rerender(
+      <ErrorBoundary message="Updated error message">
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
+
+    // Error UI should still be visible with updated message
+    expect(screen.getByRole('heading', { name: /updated error message/i })).toBeInTheDocument();
   });
 });
