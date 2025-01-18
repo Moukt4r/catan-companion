@@ -27,7 +27,7 @@ export class DiceRoller {
   private discardCount: number;
   private useSpecialDie: boolean;
   private randomFn: () => number;
-  private lastRollCount: number;
+  private rollCount: number;
 
   constructor(discardCount: number = 4, useSpecialDie: boolean = false, randomFn: () => number = Math.random) {
     if (discardCount < 0 || discardCount >= 36) {
@@ -38,7 +38,7 @@ export class DiceRoller {
     this.randomFn = randomFn;
     this.combinations = this.generateCombinations();
     this.currentIndex = 0;
-    this.lastRollCount = 0;
+    this.rollCount = 0;
     this.shuffle();
   }
 
@@ -57,29 +57,25 @@ export class DiceRoller {
   }
 
   private shuffle(): void {
-    // Save current position in the sequence
-    const remainingRolls = this.getRemainingRolls();
-    
-    // Shuffle combinations
     for (let i = this.combinations.length - 1; i > 0; i--) {
       const j = Math.floor(this.randomFn() * (i + 1));
       [this.combinations[i], this.combinations[j]] = 
       [this.combinations[j], this.combinations[i]];
     }
-    
-    // Reset index but maintain sequence position
     this.currentIndex = 0;
-    this.lastRollCount = remainingRolls > 0 ? this.combinations.length - remainingRolls : 0;
   }
 
   public roll(): DiceRoll {
-    // Check if we need to shuffle
     if (this.currentIndex >= this.combinations.length - this.discardCount) {
       this.shuffle();
     }
     
     const roll = { ...this.combinations[this.currentIndex++] };
-    this.lastRollCount++;
+
+    // Only increment roll count if we haven't reached the total available rolls
+    if (this.rollCount < this.combinations.length - this.discardCount) {
+      this.rollCount++;
+    }
     
     if (this.useSpecialDie) {
       roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
@@ -93,7 +89,7 @@ export class DiceRoller {
       throw new Error('Discard count must be between 0 and 35');
     }
     this.discardCount = count;
-    this.lastRollCount = 0;
+    this.rollCount = 0;
     this.shuffle();
   }
 
@@ -102,6 +98,6 @@ export class DiceRoller {
   }
 
   public getRemainingRolls(): number {
-    return this.combinations.length - this.discardCount - this.lastRollCount;
+    return this.combinations.length - this.discardCount - this.rollCount;
   }
 }
