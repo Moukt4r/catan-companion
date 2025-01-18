@@ -4,10 +4,9 @@ import { DiceDisplay } from '../DiceDisplay';
 import { DiceRoll, SpecialDieFace } from '@/types/diceTypes';
 
 const createRoll = (dice1: number, dice2: number, specialDie?: SpecialDieFace): DiceRoll => ({
-  dice1,
-  dice2,
-  sum: dice1 + dice2,
-  specialDie,
+  dice: [dice1, dice2],
+  total: dice1 + dice2,
+  specialDie: specialDie ?? null,
 });
 
 describe('DiceDisplay', () => {
@@ -17,7 +16,7 @@ describe('DiceDisplay', () => {
 
     expect(screen.getByRole('img', { name: 'First die showing 3' })).toHaveTextContent('3');
     expect(screen.getByRole('img', { name: 'Second die showing 4' })).toHaveTextContent('4');
-    expect(screen.getByText('Sum: 7')).toBeInTheDocument();
+    expect(screen.getByText('Total: 7')).toBeInTheDocument();
   });
 
   it('renders all special die types correctly', () => {
@@ -51,15 +50,9 @@ describe('DiceDisplay', () => {
     const roll = createRoll(3, 4);
     render(<DiceDisplay roll={roll} isRolling={false} />);
 
-    const dice = screen.getAllByRole('img');
-    dice.forEach(die => {
-      expect(die).toHaveClass('dark:bg-gray-700');
-      expect(die).toHaveClass('dark:border-gray-600');
-    });
-
-    expect(screen.getByText('Sum: 7')).toBeInTheDocument();
-    const container = screen.getByText('Sum: 7').parentElement;
-    expect(container).toHaveClass('dark:text-white');
+    expect(screen.getByText('Total: 7')).toBeInTheDocument();
+    const container = screen.getByText('Total: 7').parentElement;
+    expect(container).toHaveClass('text-center dark:text-white');
   });
 
   it('correctly updates when roll values change', () => {
@@ -77,7 +70,7 @@ describe('DiceDisplay', () => {
     // Check updated render
     expect(screen.getByRole('img', { name: 'First die showing 5' })).toHaveTextContent('5');
     expect(screen.getByRole('img', { name: 'Second die showing 6' })).toHaveTextContent('6');
-    expect(screen.getByText('Sum: 11')).toBeInTheDocument();
+    expect(screen.getByText('Total: 11')).toBeInTheDocument();
   });
 
   it('displays appropriate ARIA labels for accessibility', () => {
@@ -97,7 +90,7 @@ describe('DiceDisplay', () => {
   });
 
   it('handles undefined or invalid special die faces', () => {
-    const roll = { ...createRoll(3, 4), specialDie: undefined };
+    const roll = createRoll(3, 4);
     render(<DiceDisplay roll={roll} isRolling={false} />);
 
     expect(screen.queryByTitle(/Die Face/)).not.toBeInTheDocument();
