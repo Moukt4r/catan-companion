@@ -16,11 +16,11 @@ describe('DiceRoller', () => {
     const roller = new DiceRoller();
     const roll = roller.roll();
     
-    expect(roll.dice[0]).toBeGreaterThanOrEqual(1);
-    expect(roll.dice[0]).toBeLessThanOrEqual(6);
-    expect(roll.dice[1]).toBeGreaterThanOrEqual(1);
-    expect(roll.dice[1]).toBeLessThanOrEqual(6);
-    expect(roll.total).toBe(roll.dice[0] + roll.dice[1]);
+    expect(roll.dice1).toBeGreaterThanOrEqual(1);
+    expect(roll.dice1).toBeLessThanOrEqual(6);
+    expect(roll.dice2).toBeGreaterThanOrEqual(1);
+    expect(roll.dice2).toBeLessThanOrEqual(6);
+    expect(roll.sum).toBe(roll.dice1 + roll.dice2);
   });
 
   it('should handle special die faces with correct distribution', () => {
@@ -37,7 +37,7 @@ describe('DiceRoller', () => {
     // Roll enough times to get all special die faces
     for (let i = 0; i < SPECIAL_DIE_FACES.length; i++) {
       const roll = roller.roll();
-      if (roll.specialDie !== null) {
+      if (roll.specialDie) {
         results.add(roll.specialDie);
       }
     }
@@ -57,9 +57,9 @@ describe('DiceRoller', () => {
     const roller = new DiceRoller(4, true, mockRandom);
     const roll = roller.roll();
 
-    expect(roll.dice[0]).toBeGreaterThanOrEqual(1);
-    expect(roll.dice[1]).toBeGreaterThanOrEqual(1);
-    expect(roll.specialDie).not.toBeNull();
+    expect(roll.dice1).toBeGreaterThanOrEqual(1);
+    expect(roll.dice2).toBeGreaterThanOrEqual(1);
+    expect(roll.specialDie).toBeDefined();
     expect(mockRandom).toHaveBeenCalled();
   });
 
@@ -91,14 +91,14 @@ describe('DiceRoller', () => {
   it('should properly handle special die toggling', () => {
     const roller = new DiceRoller(4, false);
     let roll = roller.roll();
-    expect(roll.specialDie).toBeNull();
+    expect(roll.specialDie).toBeUndefined();
 
-    roller.setSpecialDie(true);
+    roller.setUseSpecialDie(true);
     roll = roller.roll();
-    expect(roll.specialDie).not.toBeNull();
+    expect(roll.specialDie).toBeDefined();
 
-    roller.setSpecialDie(false);
+    roller.setUseSpecialDie(false);
     roll = roller.roll();
-    expect(roll.specialDie).toBeNull();
+    expect(roll.specialDie).toBeUndefined();
   });
 });
