@@ -86,18 +86,15 @@ export class BarbarianTracker {
   }
 
   advancePosition(): void {
-    // If already at threshold, trigger attack and return
-    if (this.position >= this.threshold - 1) {
-      this.processAttack();
-      return;
-    }
+    // Calculate next position
+    const nextPosition = this.position + 1;
 
-    // Move forward one space
-    this.position++;
-    
-    // If reached threshold, trigger attack
-    if (this.position >= this.threshold - 1) {
+    // Check if exactly at threshold
+    if (nextPosition > 0 && nextPosition % this.threshold === 0) {
+      this.position = nextPosition;
       this.processAttack();
+    } else {
+      this.position = nextPosition;
     }
 
     this.lastUpdateTime = Date.now();
@@ -108,8 +105,8 @@ export class BarbarianTracker {
       throw new Error('Threshold must be greater than 0');
     }
     
-    // If current position would exceed or reach the new threshold, trigger attack
-    if (this.position >= newThreshold - 1) {
+    // If current position would reach an attack point with new threshold
+    if (this.position >= newThreshold && this.position % newThreshold === 0) {
       this.processAttack();
     }
     
