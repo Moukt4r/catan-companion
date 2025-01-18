@@ -3,27 +3,23 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ErrorBoundary } from '../ErrorBoundary';
 
 describe('ErrorBoundary', () => {
-  let spy: jest.SpyInstance;
+  // Mock console.error before all tests
   const originalError = console.error;
-
   beforeAll(() => {
-    spy = jest.spyOn(console, 'error').mockImplementation((msg, ...args) => {
-      if (typeof msg === 'string' && msg.includes('The above error occurred')) return;
-      if (typeof msg === 'string' && msg.includes('An update to')) return;
-      if (typeof msg === 'string' && msg.includes('Cannot update during')) return;
-      originalError(msg, ...args);
-    });
+    console.error = jest.fn();
   });
 
+  // Restore console.error after all tests
   afterAll(() => {
-    spy.mockRestore();
     console.error = originalError;
   });
 
+  // Clear mock before each test
   beforeEach(() => {
-    spy.mockClear();
+    (console.error as jest.Mock).mockClear();
   });
 
+  // Test component that can throw errors
   const ThrowError = ({ shouldThrow = false }: { shouldThrow?: boolean }) => {
     if (shouldThrow) {
       throw new Error('Test error');
@@ -39,10 +35,12 @@ describe('ErrorBoundary', () => {
     );
 
     expect(screen.getByText('Test content')).toBeInTheDocument();
-    expect(spy).not.toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
   });
 
   it('renders error UI when error occurs', () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    
     render(
       <ErrorBoundary>
         <ThrowError shouldThrow />
@@ -72,23 +70,72 @@ describe('ErrorBoundary', () => {
     );
 
     const retryButton = screen.getByRole('button', { name: /try again/i });
-    
-    // Wrap click in act
-    act(() => {
-      retryButton.click();
-    });
+    fireEvent.click(retryButton);
 
     expect(onReset).toHaveBeenCalled();
   });
 
-  it('cleans up properly when unmounted', () => {
+  it('calls onError when error occurs', () => {
+    const onError = jest.fn();
     render(
+      <ErrorBoundary onError={onError}>
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        componentStack: expect.any(String)
+      })
+    );
+  });
+
+  it('resets error state when children prop changes', () => {
+    const { rerender } = render(
       <ErrorBoundary>
         <ThrowError shouldThrow />
       </ErrorBoundary>
     );
 
-    // Only one error should be logged (React's initial error boundary catch)
-    expect(spy).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
+
+    rerender(
+      <ErrorBoundary>
+        <div>New content</div>
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByText('New content')).toBeInTheDocument();
+  });
+
+  it('handles global errors when mounted', () => {
+    const onError = jest.fn();
+    render(
+      <ErrorBoundary onError={onError}>
+        <div>Test content</div>
+      </ErrorBoundary>
+    );
+
+    // Simulate a global error
+    const error = new Error('Global error');
+    window.dispatchEvent(new ErrorEvent('error', { error }));
+
+    expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
+    expect(onError).toHaveBeenCalledWith(error, expect.any(Object));
+  });
+
+  it('cleans up properly when unmounted', () => {
+    const removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
+    const { unmount } = render(
+      <ErrorBoundary>
+        <div>Test content</div>
+      </ErrorBoundary>
+    );
+
+    unmount();
+
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('error', expect.any(Function));
+    removeEventListenerSpy.mockRestore();
   });
 });
