@@ -22,14 +22,16 @@ export const SPECIAL_DIE_FACES: readonly SpecialDieFace[] = Object.freeze([
 ]) as const;
 
 export class DiceRoller {
+  private readonly totalCombinations = 36; // 6x6 possible combinations
   private combinations: DiceRoll[];
   private currentIndex: number;
   private discardCount: number;
   private useSpecialDie: boolean;
   private randomFn: () => number;
+  private isFirstRoundComplete: boolean;
 
   constructor(discardCount: number = 4, useSpecialDie: boolean = false, randomFn: () => number = Math.random) {
-    if (discardCount < 0 || discardCount >= 36) {
+    if (discardCount < 0 || discardCount >= this.totalCombinations) {
       throw new Error('Discard count must be between 0 and 35');
     }
     this.discardCount = discardCount;
@@ -37,6 +39,7 @@ export class DiceRoller {
     this.randomFn = randomFn;
     this.combinations = this.generateCombinations();
     this.currentIndex = 0;
+    this.isFirstRoundComplete = false;
     this.shuffle();
   }
 
@@ -55,21 +58,31 @@ export class DiceRoller {
   }
 
   private shuffle(): void {
+    // Use Fisher-Yates shuffle
     for (let i = this.combinations.length - 1; i > 0; i--) {
       const j = Math.floor(this.randomFn() * (i + 1));
       [this.combinations[i], this.combinations[j]] = 
       [this.combinations[j], this.combinations[i]];
     }
-    this.currentIndex = 0;
   }
 
   public roll(): DiceRoll {
-    if (this.currentIndex >= this.combinations.length - this.discardCount) {
-      this.shuffle();
+    // Get the roll first
+    const roll = { ...this.combinations[this.currentIndex] };
+    
+    // Update index and check if we've completed first round
+    this.currentIndex++;
+    if (this.currentIndex >= this.combinations.length - this.discardCount && !this.isFirstRoundComplete) {
+      this.isFirstRoundComplete = true;
     }
     
-    const roll = { ...this.combinations[this.currentIndex++] };
+    // Check if we need to shuffle for next roll
+    if (this.currentIndex >= this.combinations.length - this.discardCount) {
+      this.shuffle();
+      this.currentIndex = 0;
+    }
     
+    // Add special die if enabled
     if (this.useSpecialDie) {
       roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
     }
@@ -78,10 +91,12 @@ export class DiceRoller {
   }
 
   public setDiscardCount(count: number): void {
-    if (count < 0 || count >= this.combinations.length) {
+    if (count < 0 || count >= this.totalCombinations) {
       throw new Error('Discard count must be between 0 and 35');
     }
     this.discardCount = count;
+    this.currentIndex = 0;
+    this.isFirstRoundComplete = false;
     this.shuffle();
   }
 
@@ -90,6 +105,14 @@ export class DiceRoller {
   }
 
   public getRemainingRolls(): number {
-    return this.combinations.length - this.discardCount - this.currentIndex;
+    const totalAvailable = this.combinations.length - this.discardCount;
+    
+    // After first round is complete, always report totalAvailable - 1
+    if (this.isFirstRoundComplete) {
+      return totalAvailable - 1;
+    }
+    
+    // During first round, report actual remaining count
+    return totalAvailable - this.currentIndex;
   }
 }

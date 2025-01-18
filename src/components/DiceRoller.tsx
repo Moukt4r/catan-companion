@@ -10,7 +10,7 @@ interface DiceRollerProps {
 }
 
 export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
-  const [diceRoller] = useState(() => new DiceRollerUtil(4, true));
+  const [diceRoller, setDiceRoller] = useState(() => new DiceRollerUtil(4, true));
   const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
   const [discardCount, setDiscardCount] = useState(4);
   const [isRolling, setIsRolling] = useState(false);
@@ -27,22 +27,31 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
   }, [isSoundEnabled]);
 
   const handleRoll = useCallback(async () => {
+    if (isRolling) return;
+    
     setIsRolling(true);
     playDiceSound();
-    await new Promise(resolve => setTimeout(resolve, 600));
     
-    const roll = diceRoller.roll();
-    setCurrentRoll(roll);
-    setRollCount(prev => prev + 1);
-    setTotalPips(prev => prev + roll.sum);
-    setRollHistory(prev => [roll, ...prev].slice(0, 10));
+    try {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      const roll = diceRoller.roll();
+      
+      setCurrentRoll(roll);
+      setRollCount(prev => prev + 1);
+      setTotalPips(prev => prev + roll.sum);
+      setRollHistory(prev => [roll, ...prev].slice(0, 10));
 
-    if (onRoll) {
-      onRoll(roll);
+      if (onRoll) {
+        onRoll(roll);
+      }
+    } catch (error) {
+      console.error('Error rolling dice:', error);
+      // Reinitialize dice roller if something went wrong
+      setDiceRoller(new DiceRollerUtil(discardCount, true));
+    } finally {
+      setIsRolling(false);
     }
-
-    setIsRolling(false);
-  }, [diceRoller, playDiceSound, onRoll]);
+  }, [diceRoller, discardCount, isRolling, playDiceSound, onRoll]);
 
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
     if (event.key === 'r' || event.key === 'R') {
@@ -59,7 +68,12 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     const newCount = parseInt(event.target.value, 10);
     if (!isNaN(newCount) && newCount >= 0 && newCount < 36) {
       setDiscardCount(newCount);
-      diceRoller.setDiscardCount(newCount);
+      try {
+        diceRoller.setDiscardCount(newCount);
+      } catch (error) {
+        console.error('Error setting discard count:', error);
+        setDiceRoller(new DiceRollerUtil(newCount, true));
+      }
     }
   }, [diceRoller]);
 
@@ -116,7 +130,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
       <button
         onClick={handleRoll}
         disabled={isRolling}
-        className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg shadow transition-colors"
+        className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg shadow transition-colors disabled:opacity-50"
       >
         {isRolling ? (
           <span className="flex items-center justify-center">

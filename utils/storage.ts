@@ -6,9 +6,11 @@ interface StorageState {
 }
 
 interface GameState {
-  // ... previous GameState interface ...
   version: number;
   lastSaved: number;
+  settings?: {
+    autoSave?: boolean;
+  };
 }
 
 const CURRENT_VERSION = 1;
@@ -36,7 +38,7 @@ const runMigrations = (state: any, fromVersion: number): GameState => {
   return currentState;
 };
 
-class StorageManager {
+export class StorageManager {
   private static instance: StorageManager;
   private subscribers: Set<(state: GameState) => void>;
 
@@ -52,9 +54,13 @@ class StorageManager {
   }
 
   private async checkQuota(): Promise<boolean> {
-    if (navigator.storage && navigator.storage.estimate) {
-      const { quota, usage } = await navigator.storage.estimate();
-      return quota ? usage! < quota : true;
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        const { quota, usage } = await navigator.storage.estimate();
+        return quota ? usage! < quota : true;
+      }
+    } catch {
+      // If estimate fails, proceed with save attempt
     }
     return true;
   }
@@ -68,7 +74,7 @@ class StorageManager {
     this.subscribers.forEach(callback => callback(state));
   }
 
-  public saveGameState = debounce(async (state: GameState): Promise<void> => {
+  public saveGameState = async (state: GameState): Promise<void> => {
     try {
       const hasQuota = await this.checkQuota();
       if (!hasQuota) {
@@ -88,13 +94,12 @@ class StorageManager {
       this.notifySubscribers(storageState.data);
     } catch (error) {
       console.error('Failed to save game state:', error);
-      // If it's a quota error, try to clear old data
       if (error instanceof Error && error.name === 'QuotaExceededError') {
         this.clearOldData();
       }
       throw error;
     }
-  }, SAVE_DEBOUNCE_MS);
+  };
 
   private clearOldData(): void {
     try {
@@ -128,7 +133,8 @@ class StorageManager {
       
       if (version < CURRENT_VERSION) {
         const migratedState = runMigrations(data, version);
-        this.saveGameState(migratedState);
+        // Don't block on save, but catch any errors
+        this.saveGameState(migratedState).catch(console.error);
         return migratedState;
       }
 
@@ -147,7 +153,6 @@ class StorageManager {
   public async importData(data: string): Promise<boolean> {
     try {
       const importedState = JSON.parse(data);
-      // Validate imported data
       if (!this.validateGameState(importedState)) {
         throw new Error('Invalid game state data');
       }
@@ -165,9 +170,7 @@ class StorageManager {
       typeof state === 'object' &&
       state !== null &&
       typeof state.version === 'number' &&
-      typeof state.lastSaved === 'number' &&
-      // Add more validation as needed
-      true
+      typeof state.lastSaved === 'number'
     );
   }
 

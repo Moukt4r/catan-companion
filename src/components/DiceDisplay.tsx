@@ -4,10 +4,10 @@ import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
 
 interface DiceDisplayProps {
   roll: DiceRoll;
-  isRolling: boolean;
+  isRolling?: boolean;
 }
 
-export const DiceDisplay: React.FC<DiceDisplayProps> = ({ roll, isRolling }) => {
+export const DiceDisplay: React.FC<DiceDisplayProps> = ({ roll, isRolling = false }) => {
   const renderSpecialDie = (face: DiceRoll['specialDie']) => {
     if (!face || !SPECIAL_DIE_INFO[face]) return null;
     

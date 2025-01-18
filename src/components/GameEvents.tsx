@@ -1,5 +1,5 @@
 import React, { useState, forwardRef, useImperativeHandle } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, Settings } from 'lucide-react';
+import * as Icons from 'lucide-react';
 
 type EventType = 'positive' | 'negative' | 'neutral';
 
@@ -80,13 +80,21 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
   }), [eventChance, isEventsEnabled]);
 
   const getEventIcon = (type: EventType) => {
+    const props = {
+      'data-testid': `${type}-icon`,
+      className: type === 'positive' ? 'text-green-500 dark:text-green-400' :
+                 type === 'negative' ? 'text-red-500 dark:text-red-400' :
+                 'text-blue-500 dark:text-blue-400',
+      size: 20
+    };
+
     switch (type) {
       case 'positive':
-        return <CheckCircle2 className="text-green-500 dark:text-green-400" size={20} />;
+        return <Icons.CheckCircle2 {...props} />;
       case 'negative':
-        return <AlertTriangle className="text-red-500 dark:text-red-400" size={20} />;
+        return <Icons.AlertTriangle {...props} />;
       case 'neutral':
-        return <AlertCircle className="text-blue-500 dark:text-blue-400" size={20} />;
+        return <Icons.AlertCircle {...props} />;
     }
   };
 
@@ -100,13 +108,14 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
             className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
             title="Configure events"
           >
-            <Settings size={16} />
+            <Icons.Settings size={16} data-testid="settings-icon" />
           </button>
         </div>
         {eventHistory.length > 0 && (
           <button
             onClick={() => setShowHistory(!showHistory)}
             className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+            data-testid="toggle-history"
           >
             {showHistory ? 'Hide History' : 'Show History'}
           </button>
@@ -129,15 +138,16 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="eventChance">
               Event Chance (0-100%)
             </label>
             <input
               type="number"
+              id="eventChance"
               min="0"
               max="100"
-              value={eventChance * 100}
-              onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))} 
+              value={Math.round(eventChance * 100)}
+              onChange={(e) => setEventChance(Math.min(1, Math.max(0, parseInt(e.target.value) / 100)))}
               className="block w-full px-3 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg dark:text-white"
             />
           </div>
@@ -146,6 +156,7 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
 
       {currentEvent && (
         <div 
+          data-testid="current-event"
           className={`p-4 rounded-lg mb-4 ${
             currentEvent.type === 'positive' ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500' :
             currentEvent.type === 'negative' ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500' :
@@ -156,12 +167,14 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
             {getEventIcon(currentEvent.type)}
             <span className="font-medium">Event!</span>
           </div>
-          <p className="mt-2 dark:text-gray-300">{currentEvent.description}</p>
+          <p className="mt-2 dark:text-gray-300" data-testid={`current-event-text-${currentEvent.type}`}>
+            {currentEvent.description}
+          </p>
         </div>
       )}
 
       {showHistory && eventHistory.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2" data-testid="event-history">
           {eventHistory.map((event, index) => (
             <div
               key={`${event.id}-${index}`}
@@ -176,7 +189,7 @@ export const GameEvents = forwardRef<GameEventsRef>((props, ref) => {
 
       {!currentEvent && !showHistory && eventHistory.length === 0 && isEventsEnabled && (
         <p className="text-gray-600 dark:text-gray-400 text-sm italic">
-          Each dice roll has a {(eventChance * 100).toFixed(0)}% chance to trigger a random event.
+          Each dice roll has a {Math.round(eventChance * 100)}% chance to trigger a random event.
         </p>
       )}
     </div>
