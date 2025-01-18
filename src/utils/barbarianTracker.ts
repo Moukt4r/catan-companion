@@ -6,6 +6,7 @@ export class BarbarianTracker {
   private attackCount: number = 0;
   private defenseCount: number = 0;
   private lastUpdateTime: number;
+  private isCurrentlyUnderAttack: boolean = false;
 
   constructor(initialThreshold: number = 7) {
     if (initialThreshold <= 0) {
@@ -44,7 +45,7 @@ export class BarbarianTracker {
   }
 
   isUnderAttack(): boolean {
-    return this.position >= this.threshold;
+    return this.isCurrentlyUnderAttack || this.position >= this.threshold;
   }
 
   isDefended(): boolean {
@@ -79,12 +80,14 @@ export class BarbarianTracker {
     this.lastUpdateTime = Date.now();
 
     if (this.position >= this.threshold) {
+      this.isCurrentlyUnderAttack = true;
       this.attackCount++;
       if (this.isDefended()) {
         this.defenseCount++;
       }
-      this.resetPosition();
+      this.position = 0;
       this.knightCount = 0;
+      this.isCurrentlyUnderAttack = false;
     }
   }
 
