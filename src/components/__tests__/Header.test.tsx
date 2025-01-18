@@ -3,6 +3,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Header } from '../Header';
 import { useTheme } from 'next-themes';
 
+// Mock lucide-react components
+jest.mock('lucide-react', () => ({
+  Sun: () => <div data-testid="sun-icon">Sun</div>,
+  Moon: () => <div data-testid="moon-icon">Moon</div>,
+  Menu: () => <div data-testid="menu-icon">Menu</div>,
+}));
+
 // Mock useTheme hook
 jest.mock('next-themes', () => ({
   useTheme: jest.fn()
@@ -62,22 +69,22 @@ describe('Header', () => {
       systemTheme: 'light'
     });
 
-    fireEvent.click(themeToggle);
+    render(<Header />);
+    const updatedThemeToggle = screen.getByLabelText(/toggle theme/i);
+    fireEvent.click(updatedThemeToggle);
     expect(setTheme).toHaveBeenCalledWith('light');
   });
 
   it('shows appropriate icon based on current theme', () => {
-    const { rerender } = render(<Header />);
-
     // Light theme
     mockUseTheme.mockReturnValue({
       theme: 'light',
       setTheme: jest.fn(),
       systemTheme: 'light'
     });
-    rerender(<Header />);
-    
-    expect(screen.getByLabelText(/toggle theme/i)).toBeInTheDocument();
+    render(<Header />);
+    expect(screen.getByTestId('moon-icon')).toBeInTheDocument();
+    expect(screen.queryByTestId('sun-icon')).not.toBeInTheDocument();
 
     // Dark theme
     mockUseTheme.mockReturnValue({
@@ -85,13 +92,14 @@ describe('Header', () => {
       setTheme: jest.fn(),
       systemTheme: 'light'
     });
-    rerender(<Header />);
-    
-    expect(screen.getByLabelText(/toggle theme/i)).toBeInTheDocument();
+    render(<Header />);
+    expect(screen.getByTestId('sun-icon')).toBeInTheDocument();
+    expect(screen.queryByTestId('moon-icon')).not.toBeInTheDocument();
   });
 
   it('renders menu button for mobile view', () => {
     render(<Header />);
+    expect(screen.getByTestId('menu-icon')).toBeInTheDocument();
     expect(screen.getByLabelText(/menu/i)).toBeInTheDocument();
   });
 
