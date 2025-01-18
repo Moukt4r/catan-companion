@@ -67,15 +67,16 @@ export class DiceRoller {
   }
 
   public roll(): DiceRoll {
-    // If we've used all non-discarded combinations, shuffle and update state
+    // Check if we've used all available combinations
     if (this.currentIndex >= this.combinations.length - this.discardCount) {
       this.shuffle();
-      this.currentIndex = 0;
       this.hasShuffled = true;
+      this.currentIndex = 1; // Start at 1 to indicate one roll used after shuffle
+    } else {
+      this.currentIndex++;
     }
     
-    const roll = { ...this.combinations[this.currentIndex] };
-    this.currentIndex++;
+    const roll = { ...this.combinations[this.currentIndex - 1] };
     
     if (this.useSpecialDie) {
       roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
@@ -100,11 +101,11 @@ export class DiceRoller {
 
   public getRemainingRolls(): number {
     const totalAvailable = this.combinations.length - this.discardCount;
-    // After first complete cycle, always report totalAvailable - 1
+    
     if (this.hasShuffled) {
       return totalAvailable - 1;
     }
-    // During first cycle, report actual remaining count
+    
     return totalAvailable - this.currentIndex;
   }
 }
