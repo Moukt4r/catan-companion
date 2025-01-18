@@ -6,7 +6,7 @@ export class BarbarianTracker {
   private attackCount: number = 0;
   private defenseCount: number = 0;
   private lastUpdateTime: number;
-  private pendingAttack: boolean = false;
+  private attackTriggered: boolean = false;
 
   constructor(initialThreshold: number = 7) {
     if (initialThreshold <= 0) {
@@ -45,7 +45,7 @@ export class BarbarianTracker {
   }
 
   isUnderAttack(): boolean {
-    return this.pendingAttack || this.position >= this.threshold;
+    return this.attackTriggered;
   }
 
   isDefended(): boolean {
@@ -75,36 +75,26 @@ export class BarbarianTracker {
     this.isMoving = false;
   }
 
-  private handleAttack(): void {
-    // We need to set pendingAttack before any state changes
-    this.pendingAttack = true;
+  advancePosition(): void {
+    const nextPosition = this.position + 1;
     
-    // Count attack and defense before state reset
-    this.attackCount++;
-    if (this.isDefended()) {
-      this.defenseCount++;
-    }
-    
-    // Only update these for the next tick
-    setTimeout(() => {
+    if (nextPosition >= this.threshold) {
+      this.attackTriggered = true;
+      this.attackCount++;
+      
+      if (this.isDefended()) {
+        this.defenseCount++;
+      }
+
+      // Reset position and knights but keep attack triggered
       this.position = 0;
       this.knightCount = 0;
-      this.pendingAttack = false;
-    }, 0);
-  }
-
-  advancePosition(): void {
-    // Check if this move will trigger attack
-    const willReachThreshold = (this.position + 1) >= this.threshold;
-
-    if (willReachThreshold && !this.pendingAttack) {
-      this.position = this.threshold; // Set position to threshold
-      this.lastUpdateTime = Date.now();
-      this.handleAttack(); // This will handle attack and schedule reset
-    } else if (!this.pendingAttack) {
-      this.position++;
-      this.lastUpdateTime = Date.now();
+    } else {
+      this.attackTriggered = false;
+      this.position = nextPosition;
     }
+    
+    this.lastUpdateTime = Date.now();
   }
 
   setThreshold(newThreshold: number): void {
@@ -114,14 +104,21 @@ export class BarbarianTracker {
     this.threshold = newThreshold;
 
     // Check if current position would trigger attack with new threshold
-    if (this.position >= this.threshold && !this.pendingAttack) {
-      this.handleAttack();
+    if (this.position >= this.threshold) {
+      this.attackTriggered = true;
+      this.attackCount++;
+      if (this.isDefended()) {
+        this.defenseCount++;
+      }
+      this.position = 0;
+      this.knightCount = 0;
+      this.lastUpdateTime = Date.now();
     }
   }
 
   resetPosition(): void {
     this.position = 0;
+    this.attackTriggered = false;
     this.lastUpdateTime = Date.now();
-    this.pendingAttack = false;
   }
 }
