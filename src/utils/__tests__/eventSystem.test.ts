@@ -1,169 +1,156 @@
-import { EventSystem } from '../eventSystem';
-
-// Mock the game events so we can have predictable test results
-jest.mock('../events', () => ({
-  EVENTS: [
-    {
-      id: 'test1',
-      type: 'positive',
-      category: 'resource',
-      severity: 'low',
-      prerequisites: {
-        cities: 1
-      }
-    },
-    {
-      id: 'test2',
-      type: 'negative',
-      category: 'resource',
-      severity: 'high',
-      prerequisites: {
-        cities: 3
-      }
-    },
-    {
-      id: 'test3',
-      type: 'neutral',
-      category: 'development',
-      severity: 'medium'
-    }
-  ]
-}));
+import { EventSystem, EVENTS } from '../events';
 
 describe('EventSystem', () => {
-  let system: EventSystem;
+  let eventSystem: EventSystem;
 
   beforeEach(() => {
-    system = new EventSystem();
+    eventSystem = new EventSystem();
   });
 
-  describe('event triggering', () => {
-    it('triggers events at specified rate', () => {
-      const mockRandom = jest.fn()
-        .mockReturnValueOnce(0.1)  // 10% - should trigger (for check)
-        .mockReturnValueOnce(0.5)  // for event selection
-        .mockReturnValueOnce(0.2)  // 20% - should not trigger
-        .mockReturnValueOnce(0.1); // for next event selection
+  it('should initialize with default values', () => {
+    expect(eventSystem.isEnabled()).toBe(true);
+    expect(eventSystem.getChance()).toBe(15);
+  });
 
-      const system = new EventSystem(15, mockRandom);
-      
-      const event1 = system.checkForEvent();
-      expect(event1).toBeTruthy();
-      
-      const event2 = system.checkForEvent();
-      expect(event2).toBeNull();
-    });
+  it('should validate chance values', () => {
+    expect(() => eventSystem.setChance(-1)).toThrow();
+    expect(() => eventSystem.setChance(101)).toThrow();
+    
+    eventSystem.setChance(50);
+    expect(eventSystem.getChance()).toBe(50);
+  });
 
-    it('returns null when no events match prerequisites', () => {
-      const mockGameState = {
-        cities: 0,
-        victoryPoints: 0,
-        developments: 0
-      };
+  it('should enable/disable event generation', () => {
+    eventSystem.disable();
+    expect(eventSystem.isEnabled()).toBe(false);
+    expect(eventSystem.getRandomEvent()).toBeNull();
 
-      const mockRandom = jest.fn()
-        .mockReturnValue(0.1);  // Always trigger, but no events should match prereqs
+    eventSystem.enable();
+    expect(eventSystem.isEnabled()).toBe(true);
+    expect(eventSystem.getRandomEvent()).toBeDefined();
+  });
 
-      const system = new EventSystem(100, mockRandom);
-      const event = system.checkForEvent(mockGameState);
-      expect(event?.id).toBe('test3'); // Should only get the event without prerequisites
-    });
+  it('should fetch events by ID', () => {
+    const testEvent = eventSystem.getEventById('test1');
+    expect(testEvent).toBeDefined();
+    expect(testEvent?.title).toBe('Test Event 1');
+    
+    const nonExistentEvent = eventSystem.getEventById('nonexistent');
+    expect(nonExistentEvent).toBeUndefined();
+  });
 
-    it('validates event chance range', () => {
-      expect(() => new EventSystem(-1)).toThrow();
-      expect(() => new EventSystem(101)).toThrow();
+  it('should respect probability thresholds', () => {
+    eventSystem.setChance(0);
+    expect(eventSystem.getRandomEvent()).toBeNull();
+
+    eventSystem.setChance(100);
+    const event = eventSystem.getRandomEvent();
+    expect(event).toBeDefined();
+    expect(EVENTS).toContainEqual(event);
+  });
+
+  it('should provide deterministic event selection for testing', () => {
+    eventSystem.setChance(100);
+    const event1 = eventSystem.getRandomEvent();
+    const event2 = eventSystem.getRandomEvent();
+    expect(event1).toEqual(event2);
+  });
+
+  it('should include required event properties', () => {
+    eventSystem.setChance(100);
+    const event = eventSystem.getRandomEvent();
+    expect(event).toMatchObject({
+      id: expect.any(String),
+      type: expect.stringMatching(/^(positive|negative|neutral)$/),
+      title: expect.any(String),
+      description: expect.any(String)
     });
   });
 
-  describe('event distribution', () => {
-    it('provides reasonably uniform distribution of events', () => {
-      // Force events to always trigger with deterministic selection
-      let currentIndex = 0;
-      const mockRandom = jest.fn().mockImplementation(() => currentIndex++ % 3 / 3);
-      
-      const system = new EventSystem(100, mockRandom);
-      const eventCounts = new Map<string, number>();
-      const iterations = 300;  // Should get 100 of each event
+  it('should handle event types correctly', () => {
+    const types = new Set(EVENTS.map(event => event.type));
+    expect(types).toContain('positive');
+    expect(types).toContain('negative');
+    expect(types).toContain('neutral');
+  });
 
-      for (let i = 0; i < iterations; i++) {
-        const event = system.checkForEvent();
-        if (event) {
-          eventCounts.set(event.id, (eventCounts.get(event.id) || 0) + 1);
-        }
+  it('should maintain correct event structure', () => {
+    // Test that all events have required properties
+    EVENTS.forEach(event => {
+      expect(event).toHaveProperty('id');
+      expect(event).toHaveProperty('type');
+      expect(event).toHaveProperty('title');
+      expect(event).toHaveProperty('description');
+      expect(event).toHaveProperty('probability');
+
+      expect(typeof event.id).toBe('string');
+      expect(['positive', 'negative', 'neutral']).toContain(event.type);
+      expect(typeof event.title).toBe('string');
+      expect(typeof event.description).toBe('string');
+      expect(typeof event.probability).toBe('number');
+    });
+  });
+
+  it('should handle edge cases', () => {
+    // Test with min chance value
+    eventSystem.setChance(1);
+    expect(eventSystem.getChance()).toBe(1);
+
+    // Test with max chance value
+    eventSystem.setChance(100);
+    expect(eventSystem.getChance()).toBe(100);
+
+    // Test toggling enabled state rapidly
+    eventSystem.enable();
+    eventSystem.disable();
+    eventSystem.enable();
+    expect(eventSystem.isEnabled()).toBe(true);
+  });
+
+  it('should not modify events array externally', () => {
+    const initialLength = EVENTS.length;
+    const event = eventSystem.getEventById('test1');
+
+    // Try to modify the returned event
+    if (event) {
+      event.title = 'Modified title';
+    }
+
+    // Check that original event is unchanged
+    const sameEvent = eventSystem.getEventById('test1');
+    expect(sameEvent?.title).toBe('Test Event 1');
+
+    // Check that events array length hasn't changed
+    expect(EVENTS.length).toBe(initialLength);
+  });
+
+  it('should handle many sequential operations', () => {
+    // Perform a sequence of operations
+    for (let i = 0; i < 100; i++) {
+      eventSystem.setChance(i % 101);
+      if (i % 2 === 0) {
+        eventSystem.disable();
+      } else {
+        eventSystem.enable();
       }
+      eventSystem.getRandomEvent();
+    }
 
-      // Each event should appear about the same number of times
-      const expectedCount = iterations / 3;  // 3 test events
-      const tolerance = expectedCount * 0.3;  // 30% tolerance
-
-      for (const count of eventCounts.values()) {
-        expect(Math.abs(count - expectedCount)).toBeLessThan(tolerance);
-      }
-
-      // Verify we got all events
-      expect(eventCounts.size).toBe(3);
-    });
+    // System should still be in a valid state
+    expect(eventSystem.getChance()).toBeGreaterThanOrEqual(0);
+    expect(eventSystem.getChance()).toBeLessThanOrEqual(100);
+    expect(typeof eventSystem.isEnabled()).toBe('boolean');
   });
 
-  describe('prerequisites handling', () => {
-    it('filters events based on prerequisites correctly', () => {
-      const mockGameState = {
-        cities: 2,
-        victoryPoints: 5,
-        developments: 3
-      };
+  it('should validate event probabilities', () => {
+    // Check that probabilities sum to approximately 1
+    const totalProbability = EVENTS.reduce((sum, event) => sum + (event.probability || 0), 0);
+    expect(Math.abs(1 - totalProbability)).toBeLessThan(0.01);
 
-      // Force first event selection
-      const mockRandom = jest.fn().mockReturnValue(0);
-      const system = new EventSystem(100, mockRandom);
-      
-      const event = system.checkForEvent(mockGameState);
-      expect(event?.id).toBe('test1');  // Only test1 should match (requires 1 city)
-    });
-
-    it('handles events without prerequisites', () => {
-      const gameState = {
-        cities: 0,
-        victoryPoints: 0,
-        developments: 0
-      };
-
-      // Force selection of last event (test3)
-      const mockRandom = jest.fn()
-        .mockReturnValueOnce(0.1)  // Trigger event
-        .mockReturnValueOnce(0.8); // Select last event
-        
-      const system = new EventSystem(100, mockRandom);
-      const event = system.checkForEvent(gameState);
-      
-      expect(event?.id).toBe('test3');
-    });
-  });
-
-  describe('last event tracking', () => {
-    it('tracks last triggered event', () => {
-      system.setEventChance(100);  // Always trigger
-      const event = system.checkForEvent();
-      expect(system.getLastEvent()).toBe(event);
-    });
-
-    it('maintains null when no event triggered', () => {
-      system.setEventChance(0);  // Never trigger
-      system.checkForEvent();
-      expect(system.getLastEvent()).toBeNull();
-    });
-  });
-
-  describe('event chance management', () => {
-    it('gets and sets event chance correctly', () => {
-      const newChance = 50;
-      system.setEventChance(newChance);
-      expect(system.getEventChance()).toBe(newChance);
-    });
-
-    it('throws on invalid event chance', () => {
-      expect(() => system.setEventChance(-1)).toThrow();
-      expect(() => system.setEventChance(101)).toThrow();
+    // Check individual probability ranges
+    EVENTS.forEach(event => {
+      expect(event.probability).toBeGreaterThan(0);
+      expect(event.probability).toBeLessThanOrEqual(1);
     });
   });
 });
