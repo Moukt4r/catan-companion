@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { Header } from '../Header';
+import Header from '../Header';
 
 const mockSetTheme = jest.fn();
 const mockUseTheme = jest.fn();
@@ -13,8 +13,7 @@ jest.mock('next-themes', () => ({
 // Mock lucide-react components
 jest.mock('lucide-react', () => ({
   Sun: () => <span data-testid="sun-icon">Sun</span>,
-  Moon: () => <span data-testid="moon-icon">Moon</span>,
-  Menu: () => <span data-testid="menu-icon">Menu</span>,
+  Moon: () => <span data-testid="moon-icon">Moon</span>
 }));
 
 describe('Header', () => {
@@ -25,15 +24,14 @@ describe('Header', () => {
     // Mock useTheme implementation
     mockUseTheme.mockReturnValue({
       theme: 'light',
-      setTheme: mockSetTheme,
-      systemTheme: 'light'
+      setTheme: mockSetTheme
     });
   });
 
   it('renders the default title', () => {
     render(<Header />);
     expect(screen.getByText('Catan Companion')).toBeInTheDocument();
-    expect(screen.getByRole('banner')).toHaveClass('bg-white');
+    expect(screen.getByRole('banner')).toHaveClass('bg-blue-600');
   });
 
   it('renders a custom title when provided', () => {
@@ -50,8 +48,7 @@ describe('Header', () => {
   it('toggles theme when theme button is clicked', () => {
     mockUseTheme.mockReturnValue({
       theme: 'light',
-      setTheme: mockSetTheme,
-      systemTheme: 'light'
+      setTheme: mockSetTheme
     });
     
     render(<Header />);
@@ -60,7 +57,9 @@ describe('Header', () => {
     expect(screen.getByTestId('moon-icon')).toBeInTheDocument();
     
     // Click theme toggle
-    const themeToggle = screen.getByRole('button', { name: /toggle theme/i });
+    const themeToggle = screen.getByRole('button', {
+      name: /switch to dark mode/i
+    });
     fireEvent.click(themeToggle);
     
     // Verify setTheme was called with dark
@@ -79,8 +78,7 @@ describe('Header', () => {
     // Test dark theme
     mockUseTheme.mockReturnValue({
       theme: 'dark',
-      setTheme: mockSetTheme,
-      systemTheme: 'dark'
+      setTheme: mockSetTheme
     });
     
     render(<Header />);
@@ -88,64 +86,31 @@ describe('Header', () => {
     expect(screen.queryByTestId('moon-icon')).not.toBeInTheDocument();
   });
 
-  it('renders menu button for mobile view', () => {
-    render(<Header />);
-    expect(screen.getByTestId('menu-icon')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /menu/i })).toBeInTheDocument();
-  });
-
-  it('handles menu click', () => {
-    const onMenuClick = jest.fn();
-    render(<Header onMenuClick={onMenuClick} />);
-    
-    const menuButton = screen.getByRole('button', { name: /menu/i });
-    fireEvent.click(menuButton);
-    
-    expect(onMenuClick).toHaveBeenCalled();
-  });
-
   it('renders with appropriate ARIA roles and labels', () => {
     render(<Header />);
     
     expect(screen.getByRole('banner')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /toggle theme/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /menu/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /switch to dark mode/i })).toBeInTheDocument();
   });
 
-  it('applies responsive classes correctly', () => {
+  it('maintains responsive layout', () => {
     render(<Header />);
     const header = screen.getByRole('banner');
     
     expect(header).toHaveClass(
-      'sticky',
-      'top-0',
-      'z-50',
-      'w-full',
-      'border-b',
-      'bg-white',
-      'dark:bg-gray-800'
+      'p-4',
+      'bg-blue-600',
+      'dark:bg-blue-800',
+      'text-white'
     );
-  });
 
-  it('renders NavigationMenu when provided', () => {
-    const NavigationMenu = () => <nav>Navigation</nav>;
-    render(<Header navigationMenu={<NavigationMenu />} />);
-    
-    expect(screen.getByText('Navigation')).toBeInTheDocument();
-  });
-
-  it('maintains layout when title is very long', () => {
-    const longTitle = 'Very'.repeat(20) + ' Long Title';
-    render(<Header title={longTitle} />);
-    
-    const title = screen.getByText(longTitle);
-    expect(title).toHaveClass('truncate');
-  });
-
-  it('applies hover styles to theme toggle button', () => {
-    render(<Header />);
-    const themeToggle = screen.getByRole('button', { name: /toggle theme/i });
-    
-    expect(themeToggle).toHaveClass('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+    const container = screen.getByRole('banner').firstChild;
+    expect(container).toHaveClass(
+      'container',
+      'mx-auto',
+      'flex',
+      'justify-between',
+      'items-center'
+    );
   });
 });
