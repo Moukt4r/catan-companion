@@ -22,7 +22,6 @@ export class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: undefined
     };
-    window.addEventListener('error', this.handleGlobalError);
   }
 
   private handleGlobalError = (event: ErrorEvent) => {
@@ -61,6 +60,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidMount(): void {
     this.mounted = true;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('error', this.handleGlobalError);
+    }
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
@@ -78,7 +80,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentWillUnmount(): void {
     this.mounted = false;
-    window.removeEventListener('error', this.handleGlobalError);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('error', this.handleGlobalError);
+    }
   }
 
   public render(): ReactNode {
