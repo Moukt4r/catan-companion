@@ -19,6 +19,31 @@ export class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: undefined
     };
+    // Wrap all event handlers in error boundary
+    window.addEventListener('error', this.handleGlobalError);
+  }
+
+  private handleGlobalError = (event: ErrorEvent) => {
+    if (!this.state.hasError) {
+      event.preventDefault();
+      this.setState({ 
+        hasError: true, 
+        error: event.error 
+      });
+      this.logError(event.error);
+    }
+  };
+
+  private logError(error: Error) {
+    if (!this.hasLogged) {
+      console.error('Uncaught error:', error);
+      if (this.props.onError) {
+        this.props.onError(error, {
+          componentStack: error.stack || ''
+        });
+      }
+      this.hasLogged = true;
+    }
   }
 
   public static getDerivedStateFromError(error: Error): State {
@@ -26,13 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    if (!this.hasLogged) {
-      console.error('Uncaught error:', error);
-      if (this.props.onError) {
-        this.props.onError(error, errorInfo);
-      }
-      this.hasLogged = true;
-    }
+    this.logError(error);
   }
 
   public componentDidUpdate(prevProps: Props): void {
@@ -44,7 +63,6 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public render(): ReactNode {
     if (this.state.hasError) {
-      // In error state, show error message
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
           <div role="alert" className="p-8 bg-gray-100 rounded-lg shadow-md">
@@ -71,6 +89,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentWillUnmount(): void {
+    window.removeEventListener('error', this.handleGlobalError);
     this.hasLogged = false;
   }
 }
