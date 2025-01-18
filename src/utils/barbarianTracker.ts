@@ -6,7 +6,7 @@ export class BarbarianTracker {
   private attackCount: number = 0;
   private defenseCount: number = 0;
   private lastUpdateTime: number;
-  private attackInProgress: boolean = false;
+  private shouldTriggerAttack: boolean = false;
 
   constructor(initialThreshold: number = 7) {
     if (initialThreshold <= 0) {
@@ -45,7 +45,7 @@ export class BarbarianTracker {
   }
 
   isUnderAttack(): boolean {
-    return this.attackInProgress || this.position >= this.threshold;
+    return this.shouldTriggerAttack || this.position >= this.threshold;
   }
 
   isDefended(): boolean {
@@ -80,20 +80,27 @@ export class BarbarianTracker {
     if (this.isDefended()) {
       this.defenseCount++;
     }
-    this.position = 0;
     this.knightCount = 0;
+    this.position = 0;
+    this.shouldTriggerAttack = false;
     this.lastUpdateTime = Date.now();
   }
 
   advancePosition(): void {
-    if (this.position + 1 >= this.threshold) {
-      // When we're about to hit threshold, trigger attack sequence
-      this.attackInProgress = true;
-      this.position = this.threshold; // Set to threshold to trigger isUnderAttack
+    const nextPosition = this.position + 1;
+
+    // First check if we're about to trigger an attack
+    if (nextPosition >= this.threshold) {
+      // Set the flag first, then handle state transitions
+      this.shouldTriggerAttack = true;
+      this.position = this.threshold;
+      this.lastUpdateTime = Date.now();
+      
+      // Now handle the attack, which will reset position and clear the flag
       this.handleAttack();
-      this.attackInProgress = false;
     } else {
-      this.position++;
+      // Normal position advancement
+      this.position = nextPosition;
       this.lastUpdateTime = Date.now();
     }
   }
@@ -103,6 +110,12 @@ export class BarbarianTracker {
       throw new Error('Threshold must be greater than 0');
     }
     this.threshold = newThreshold;
+
+    // Check if current position would trigger attack with new threshold
+    if (this.position >= this.threshold) {
+      this.shouldTriggerAttack = true;
+      this.handleAttack();
+    }
   }
 
   resetPosition(): void {
