@@ -37,7 +37,7 @@ describe('DiceRoller', () => {
     // Roll enough times to get all special die faces
     for (let i = 0; i < SPECIAL_DIE_FACES.length; i++) {
       const roll = roller.roll();
-      if (roll.specialDie) {
+      if (roll.specialDie !== null) {
         results.add(roll.specialDie);
       }
     }
@@ -52,14 +52,14 @@ describe('DiceRoller', () => {
   it('should provide deterministic rolls with mock random function', () => {
     const mockRandom = jest.fn()
       .mockReturnValueOnce(0)    // First shuffle
-      .mockReturnValueOnce(0.5); // First special die
+      .mockReturnValue(0.5);     // All subsequent calls (special die)
 
     const roller = new DiceRoller(4, true, mockRandom);
     const roll = roller.roll();
 
     expect(roll.dice[0]).toBeGreaterThanOrEqual(1);
     expect(roll.dice[1]).toBeGreaterThanOrEqual(1);
-    expect(roll.specialDie).toBeDefined();
+    expect(roll.specialDie).not.toBeNull();
     expect(mockRandom).toHaveBeenCalled();
   });
 
@@ -95,7 +95,7 @@ describe('DiceRoller', () => {
 
     roller.setSpecialDie(true);
     roll = roller.roll();
-    expect(roll.specialDie).toBeDefined();
+    expect(roll.specialDie).not.toBeNull();
 
     roller.setSpecialDie(false);
     roll = roller.roll();
