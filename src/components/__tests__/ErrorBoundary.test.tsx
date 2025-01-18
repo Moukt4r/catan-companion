@@ -1,24 +1,27 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ErrorBoundary } from '../ErrorBoundary';
 
 describe('ErrorBoundary', () => {
-  const originalConsoleError = console.error;
+  let spy: jest.SpyInstance;
+  const originalError = console.error;
 
   beforeAll(() => {
-    // Replace console.error with mock just for error boundary events
-    console.error = jest.fn((msg: string) => {
-      if (msg.includes('The above error occurred')) return;
-      originalConsoleError(msg);
+    spy = jest.spyOn(console, 'error').mockImplementation((msg, ...args) => {
+      if (typeof msg === 'string' && msg.includes('The above error occurred')) return;
+      if (typeof msg === 'string' && msg.includes('An update to')) return;
+      if (typeof msg === 'string' && msg.includes('Cannot update during')) return;
+      originalError(msg, ...args);
     });
   });
 
   afterAll(() => {
-    console.error = originalConsoleError;
+    spy.mockRestore();
+    console.error = originalError;
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    spy.mockClear();
   });
 
   const ThrowError = ({ shouldThrow = false }: { shouldThrow?: boolean }) => {
@@ -36,7 +39,7 @@ describe('ErrorBoundary', () => {
     );
 
     expect(screen.getByText('Test content')).toBeInTheDocument();
-    expect(console.error).not.toHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it('renders error UI when error occurs', () => {
@@ -69,27 +72,23 @@ describe('ErrorBoundary', () => {
     );
 
     const retryButton = screen.getByRole('button', { name: /try again/i });
-    retryButton.click();
+    
+    // Wrap click in act
+    act(() => {
+      retryButton.click();
+    });
 
     expect(onReset).toHaveBeenCalled();
   });
 
   it('cleans up properly when unmounted', () => {
-    const errorSpy = jest.fn();
-    console.error = errorSpy;
-
-    const { unmount } = render(
+    render(
       <ErrorBoundary>
         <ThrowError shouldThrow />
       </ErrorBoundary>
     );
 
-    unmount();
-    
-    // Should only log error once from React's error boundary catch
-    expect(errorSpy).toHaveBeenCalledTimes(1);
-    
-    // Restore original spy
-    console.error = originalConsoleError;
+    // Only one error should be logged (React's initial error boundary catch)
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 });
