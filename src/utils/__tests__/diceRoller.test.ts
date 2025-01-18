@@ -65,17 +65,17 @@ describe('DiceRoller', () => {
 
   it('should maintain correct tracking of available combinations', () => {
     const roller = new DiceRoller(4);
-    const totalCombos = 32; // 36 total - 4 discarded
+    const availableCombos = 32; // 36 total - 4 discarded
 
     // Roll all but one
-    for (let i = 0; i < totalCombos - 1; i++) {
+    for (let i = 0; i < availableCombos - 1; i++) {
       roller.roll();
-      expect(roller.getRemainingRolls()).toBe(totalCombos - (i + 1));
+      expect(roller.getRemainingRolls()).toBe(availableCombos - (i + 1));
     }
 
     // Roll the last one - should trigger reshuffle
     roller.roll();
-    expect(roller.getRemainingRolls()).toBe(totalCombos - 1);
+    expect(roller.getRemainingRolls()).toBe(availableCombos - 1);
   });
 
   it('should validate discard count', () => {
