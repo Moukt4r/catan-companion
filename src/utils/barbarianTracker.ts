@@ -7,7 +7,6 @@ export class BarbarianTracker {
   private defenseCount: number = 0;
   private lastUpdateTime: number;
   private currentAttack: boolean = false;
-  private postAttackReset: boolean = false;
 
   constructor(initialThreshold: number = 7) {
     if (initialThreshold <= 0) {
@@ -18,7 +17,7 @@ export class BarbarianTracker {
   }
 
   getPosition(): number {
-    return this.postAttackReset ? 0 : this.position;
+    return this.position;
   }
 
   getKnightCount(): number {
@@ -78,40 +77,29 @@ export class BarbarianTracker {
 
   private handleAttack(): void {
     this.currentAttack = true;
-    this.postAttackReset = false;
     this.attackCount++;
     
     if (this.isDefended()) {
       this.defenseCount++;
     }
 
+    this.position = 0;
     this.knightCount = 0;
-    this.postAttackReset = true;
   }
 
   advancePosition(): void {
-    // Clear previous attack state if we're starting a new move
-    if (this.postAttackReset) {
-      this.position = 0;
-      this.currentAttack = false;
-      this.postAttackReset = false;
-      this.lastUpdateTime = Date.now();
-      return;
-    }
-
-    // Calculate next position
-    const nextPosition = this.position + 1;
-
-    // Handle attack threshold
-    if (nextPosition >= this.threshold) {
-      // Trigger attack at threshold
-      this.position = this.threshold;
+    // Clear attack state from previous move if any
+    this.currentAttack = false;
+    
+    // Check if this move will trigger an attack
+    if (this.position + 1 >= this.threshold) {
+      // Do not increment position, trigger attack instead
       this.handleAttack();
     } else {
-      this.position = nextPosition;
-      this.currentAttack = false;
+      // Advance position normally
+      this.position++;
     }
-
+    
     this.lastUpdateTime = Date.now();
   }
 
@@ -131,7 +119,6 @@ export class BarbarianTracker {
   resetPosition(): void {
     this.position = 0;
     this.currentAttack = false;
-    this.postAttackReset = false;
     this.lastUpdateTime = Date.now();
   }
 }
