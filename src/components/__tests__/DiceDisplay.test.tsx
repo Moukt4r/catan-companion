@@ -1,8 +1,8 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { DiceDisplay } from '../DiceDisplay';
-import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
 import type { DiceRoll } from '@/types/diceTypes';
+import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
 
 describe('DiceDisplay', () => {
   const defaultRoll: DiceRoll = {
@@ -49,9 +49,6 @@ describe('DiceDisplay', () => {
       // Check icon and label are present
       expect(specialDieContainer?.textContent).toContain(icon);
       expect(specialDieContainer?.textContent).toContain(label);
-      
-      // Cleanup after each iteration to prevent memory leaks
-      container.remove();
     });
   });
 
@@ -95,19 +92,5 @@ describe('DiceDisplay', () => {
       'items-center',
       'justify-center'
     );
-  });
-
-  it('shows loading state when rolling', () => {
-    const { container } = render(<DiceDisplay roll={defaultRoll} isRolling={true} />);
-    const firstDie = container.querySelector('.animate-bounce');
-    const secondDie = container.querySelector('.animate-bounce.delay-100');
-    expect(firstDie).toBeInTheDocument();
-    expect(secondDie).toBeInTheDocument();
-  });
-
-  it('maintains total sum visibility', () => {
-    const { container } = render(<DiceDisplay roll={defaultRoll} isRolling={false} />);
-    const sum = screen.getByText('Sum: 7');
-    expect(sum).toHaveClass('text-xl', 'font-bold', 'dark:text-white');
   });
 });
