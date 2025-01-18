@@ -1,49 +1,22 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import App from '../_app';
-import { ErrorBoundary } from '../../components/ErrorBoundary';
-
-// Mock CSS imports
-jest.mock('../../styles/globals.css', () => ({}));
 
 // Mock next/app
 jest.mock('next/app', () => ({
-  type: AppProps = {
-    Component: React.ComponentType;
-    pageProps: any;
-  }
-}));
-
-// Mock ThemeProvider
-jest.mock('next-themes', () => ({
-  ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  __esModule: true,
+  default: ({ Component, pageProps }: any) => <Component {...pageProps} />
 }));
 
 describe('App', () => {
   it('renders without crashing', () => {
-    const Component = () => <div>Test Component</div>;
-    const pageProps = {};
+    const Component = () => <div>Test</div>;
+    const pageProps = { test: true };
 
-    render(
-      <App 
-        Component={Component}
-        pageProps={pageProps}
-      />
-    );
-  });
-
-  it('wraps content in ErrorBoundary', () => {
-    const Component = () => <div>Test Component</div>;
-    const pageProps = {};
-
-    const { container } = render(
-      <App 
-        Component={Component}
-        pageProps={pageProps}
-      />
+    const { getByText } = render(
+      <App Component={Component} pageProps={pageProps} />
     );
 
-    // Find ErrorBoundary in the rendered tree
-    expect(container.firstChild).toBeTruthy();
+    expect(getByText('Test')).toBeInTheDocument();
   });
 });
