@@ -10,7 +10,7 @@ const config = {
     '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',
     '^@/styles/(.*)$': '<rootDir>/src/styles/$1',
     '^@/types/(.*)$': '<rootDir>/src/types/$1',
-    '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/style.js'
+    '\\.(css|less|scss|sass)$': 'identity-obj-proxy'
   },
   transform: {
     '^.+\\.(t|j)sx?$': ['@swc/jest', {
