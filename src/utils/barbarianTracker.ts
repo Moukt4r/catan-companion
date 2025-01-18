@@ -78,7 +78,7 @@ export class BarbarianTracker {
     this.position++;
     this.lastUpdateTime = Date.now();
 
-    if (this.isUnderAttack()) {
+    if (this.position >= this.threshold) {
       this.attackCount++;
       if (this.isDefended()) {
         this.defenseCount++;
