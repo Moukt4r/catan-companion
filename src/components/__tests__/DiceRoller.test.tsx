@@ -1,152 +1,158 @@
 import React from 'react';
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DiceRoller } from '../DiceRoller';
+import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
+
+// Mock the Lucide icons
+jest.mock('lucide-react', () => ({
+  Loader: () => <span>Loading...</span>,
+  RotateCcw: () => <span>Reset</span>,
+  Volume2: () => <span>Sound On</span>,
+  VolumeX: () => <span>Sound Off</span>,
+}));
+
+// Mock the audio playback
+const mockPlay = jest.fn();
+const mockAudio = jest.fn(() => ({
+  play: mockPlay,
+}));
+(global as any).Audio = mockAudio;
 
 describe('DiceRoller', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    jest.clearAllMocks();
+    mockPlay.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
     jest.useRealTimers();
   });
 
   it('renders initial state correctly', () => {
     render(<DiceRoller />);
-    expect(screen.getByText('Roll Dice')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Discard Count/i)).toHaveValue(4);
+    expect(screen.getByRole('button', { name: /roll dice/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/discard count/i)).toHaveValue(4);
   });
 
   it('allows changing discard count', () => {
     render(<DiceRoller />);
-    const input = screen.getByLabelText(/Discard Count/i);
+    const input = screen.getByLabelText(/discard count/i);
     
     act(() => {
-      fireEvent.change(input, { target: { value: '6' } });
+      fireEvent.change(input, { target: { value: '8' } });
     });
-    
-    expect(input).toHaveValue(6);
+
+    expect(input).toHaveValue(8);
   });
 
-  it('toggles special die', () => {
-    render(<DiceRoller />);
-    const toggle = screen.getByLabelText(/Use Cities & Knights special die/i);
-    
-    act(() => {
-      fireEvent.click(toggle);
-    });
-    expect(toggle).toBeChecked();
-    
-    act(() => {
-      fireEvent.click(toggle);
-    });
-    expect(toggle).not.toBeChecked();
-  });
+  it('handles roll action', async () => {
+    jest.useFakeTimers();
+    const onRoll = jest.fn();
+    render(<DiceRoller onRoll={onRoll} />);
 
-  it('shows loading state while rolling', async () => {
-    render(<DiceRoller />);
-    const button = screen.getByRole('button', { name: 'Roll Dice' });
+    const button = screen.getByRole('button', { name: /roll dice/i });
+    fireEvent.click(button);
 
-    act(() => {
-      fireEvent.click(button);
-    });
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(mockAudio).toHaveBeenCalledWith('/dice-roll.mp3');
+    expect(mockPlay).toHaveBeenCalled();
 
-    expect(screen.getByRole('button')).toHaveTextContent('Rolling...');
-    expect(button).toBeDisabled();
-      
-    // Fast-forward animation timer
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(600);
     });
 
-    await waitFor(() => {
-      expect(screen.getByRole('button')).toHaveTextContent('Roll Dice');
-      expect(button).not.toBeDisabled();
-    });
+    expect(onRoll).toHaveBeenCalled();
+    expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
   });
 
   it('updates statistics after rolling', async () => {
+    jest.useFakeTimers();
     render(<DiceRoller />);
-    
-    const button = screen.getByRole('button', { name: 'Roll Dice' });
 
-    act(() => {
-      fireEvent.click(button);
-    });
+    const button = screen.getByRole('button', { name: /roll dice/i });
+    fireEvent.click(button);
 
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(600);
     });
 
-    await waitFor(() => {
-      expect(screen.getByText(/Total Rolls:/i)).toHaveTextContent('Total Rolls: 1');
-    });
+    expect(screen.getByText(/total rolls: 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/average roll/i)).toBeInTheDocument();
   });
 
-  // Additional test cases to improve coverage
+  it('handles keyboard shortcuts', () => {
+    render(<DiceRoller />);
+
+    act(() => {
+      fireEvent.keyDown(document, { key: 'r' });
+    });
+
+    expect(mockAudio).toHaveBeenCalledWith('/dice-roll.mp3');
+  });
+
+  it('toggles sound', () => {
+    render(<DiceRoller />);
+    const soundButton = screen.getByRole('button', { name: /disable sound/i });
+
+    fireEvent.click(soundButton);
+
+    expect(screen.getByRole('button', { name: /enable sound/i })).toBeInTheDocument();
+  });
+
   it('validates discard count range', () => {
     render(<DiceRoller />);
-    const input = screen.getByLabelText(/Discard Count/i);
+    const input = screen.getByLabelText(/discard count/i);
 
     // Test minimum value
-    act(() => {
-      fireEvent.change(input, { target: { value: '-1' } });
-    });
-    expect(input).toHaveValue(0);
+    fireEvent.change(input, { target: { value: '-1' } });
+    expect(input).toHaveValue(4);
 
     // Test maximum value
-    act(() => {
-      fireEvent.change(input, { target: { value: '37' } });
-    });
-    expect(input).toHaveValue(36);
+    fireEvent.change(input, { target: { value: '36' } });
+    expect(input).toHaveValue(4);
+
+    // Test valid value
+    fireEvent.change(input, { target: { value: '10' } });
+    expect(input).toHaveValue(10);
   });
 
-  it('displays special die result', async () => {
+  it('resets statistics', async () => {
+    jest.useFakeTimers();
     render(<DiceRoller />);
-    const toggle = screen.getByLabelText(/Use Cities & Knights special die/i);
     
-    // Enable special die
-    act(() => {
-      fireEvent.click(toggle);
-    });
-
     // Roll dice
-    const button = screen.getByRole('button', { name: 'Roll Dice' });
-    act(() => {
-      fireEvent.click(button);
-    });
+    const button = screen.getByRole('button', { name: /roll dice/i });
+    fireEvent.click(button);
 
-    act(() => {
+    await act(async () => {
       jest.advanceTimersByTime(600);
     });
 
-    // Check that special die result is displayed
-    await waitFor(() => {
-      expect(screen.getByTestId('special-die')).toBeInTheDocument();
-    });
+    // Reset stats
+    const resetButton = screen.getByTitle(/reset statistics/i);
+    fireEvent.click(resetButton);
+
+    expect(screen.getByText(/total rolls: 0/i)).toBeInTheDocument();
+    expect(screen.getByText(/average roll: 0\.0/i)).toBeInTheDocument();
   });
 
-  it('handles roll history correctly', async () => {
+  it('handles roll history', async () => {
+    jest.useFakeTimers();
     render(<DiceRoller />);
-    const button = screen.getByRole('button', { name: 'Roll Dice' });
+
+    const button = screen.getByRole('button', { name: /roll dice/i });
 
     // Roll multiple times
     for (let i = 0; i < 3; i++) {
-      act(() => {
-        fireEvent.click(button);
-      });
-
-      act(() => {
+      fireEvent.click(button);
+      await act(async () => {
         jest.advanceTimersByTime(600);
-      });
-
-      await waitFor(() => {
-        expect(button).not.toBeDisabled();
       });
     }
 
-    // Check history is tracked
-    expect(screen.getByText(/Total Rolls: 3/i)).toBeInTheDocument();
+    expect(screen.getByText(/roll history/i)).toBeInTheDocument();
+    expect(screen.getByText(/roll 1:/i)).toBeInTheDocument();
+    expect(screen.getByText(/roll 2:/i)).toBeInTheDocument();
+    expect(screen.getByText(/roll 3:/i)).toBeInTheDocument();
   });
 });
