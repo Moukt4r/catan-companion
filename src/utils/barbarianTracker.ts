@@ -101,8 +101,7 @@ export class BarbarianTracker {
       throw new Error('Threshold must be greater than 0');
     }
     
-    this.threshold = newThreshold;
-
+    // If current position would exceed the new threshold, reset position
     if (this.position >= newThreshold) {
       this.underAttack = true;
       this.attackCount++;
@@ -112,6 +111,8 @@ export class BarbarianTracker {
       this.position = 0;
       this.knightCount = 0;
     }
+    
+    this.threshold = newThreshold;
   }
 
   resetPosition(): void {
