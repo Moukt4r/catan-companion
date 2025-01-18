@@ -93,4 +93,72 @@ describe('DiceDisplay', () => {
       'justify-center'
     );
   });
+
+  // New tests for edge cases
+  it('handles invalid special die face gracefully', () => {
+    // Test with an invalid face value
+    const rollWithInvalidFace: DiceRoll = {
+      ...defaultRoll,
+      specialDie: 'invalid-face' as any
+    };
+
+    const { container } = render(
+      <DiceDisplay roll={rollWithInvalidFace} isRolling={false} />
+    );
+
+    // Special die section should not be rendered
+    const specialDieContainer = container.querySelector('.flex.items-center.gap-2.mt-2');
+    expect(specialDieContainer).not.toBeInTheDocument();
+  });
+
+  it('handles undefined special die info gracefully', () => {
+    // Temporarily modify SPECIAL_DIE_INFO to simulate missing info
+    const originalInfo = { ...SPECIAL_DIE_INFO };
+    (SPECIAL_DIE_INFO as any)['barbarian'] = undefined;
+
+    const rollWithBarbarianFace: DiceRoll = {
+      ...defaultRoll,
+      specialDie: 'barbarian'
+    };
+
+    const { container } = render(
+      <DiceDisplay roll={rollWithBarbarianFace} isRolling={false} />
+    );
+
+    // Special die section should not be rendered
+    const specialDieContainer = container.querySelector('.flex.items-center.gap-2.mt-2');
+    expect(specialDieContainer).not.toBeInTheDocument();
+
+    // Restore original info
+    Object.assign(SPECIAL_DIE_INFO, originalInfo);
+  });
+
+  it('uses default value for isRolling prop', () => {
+    // Render without providing isRolling prop
+    const { container } = render(<DiceDisplay roll={defaultRoll} />);
+    
+    // Should not have bounce animation classes
+    const diceElements = container.querySelectorAll('.animate-bounce');
+    expect(diceElements).toHaveLength(0);
+  });
+
+  it('handles all special die face types', () => {
+    // Test each special die face type separately to ensure complete type coverage
+    const faceTypes = ['barbarian', 'merchant', 'politics', 'science'] as const;
+    
+    faceTypes.forEach(faceType => {
+      const rollWithFace: DiceRoll = {
+        ...defaultRoll,
+        specialDie: faceType
+      };
+
+      const { container } = render(
+        <DiceDisplay roll={rollWithFace} isRolling={false} />
+      );
+
+      const specialDieContainer = container.querySelector('.flex.items-center.gap-2.mt-2');
+      expect(specialDieContainer).toBeInTheDocument();
+      expect(specialDieContainer?.textContent).toContain(SPECIAL_DIE_INFO[faceType].label);
+    });
+  });
 });
