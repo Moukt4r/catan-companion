@@ -45,9 +45,9 @@ export const DiceDisplay: React.FC<DiceDisplayProps> = ({ roll, isRolling }) => 
             {roll.dice[1]}
           </div>
         </div>
-        <div className="text-center text-xl font-bold dark:text-white">
-          Total: {roll.total}
-        </div>
+        <span className="text-center text-xl font-bold dark:text-white">
+          <span>Total: {roll.total}</span>
+        </span>
         {roll.specialDie && renderSpecialDie(roll.specialDie)}
       </div>
     </div>
