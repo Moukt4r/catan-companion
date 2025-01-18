@@ -6,7 +6,6 @@ export class BarbarianTracker {
   private attackCount: number = 0;
   private defenseCount: number = 0;
   private lastUpdateTime: number;
-  private shouldTriggerAttack: boolean = false;
 
   constructor(initialThreshold: number = 7) {
     if (initialThreshold <= 0) {
@@ -45,7 +44,7 @@ export class BarbarianTracker {
   }
 
   isUnderAttack(): boolean {
-    return this.shouldTriggerAttack || this.position >= this.threshold;
+    return this.position >= this.threshold;
   }
 
   isDefended(): boolean {
@@ -75,31 +74,24 @@ export class BarbarianTracker {
     this.isMoving = false;
   }
 
-  private handleAttack(): void {
-    this.attackCount++;
-    if (this.isDefended()) {
-      this.defenseCount++;
-    }
-    this.knightCount = 0;
-    this.position = 0;
-    this.shouldTriggerAttack = false;
-    this.lastUpdateTime = Date.now();
-  }
-
   advancePosition(): void {
+    // First check if this move will trigger an attack
     const nextPosition = this.position + 1;
-
-    // First check if we're about to trigger an attack
     if (nextPosition >= this.threshold) {
-      // Set the flag first, then handle state transitions
-      this.shouldTriggerAttack = true;
+      // Set position to threshold to ensure isUnderAttack returns true
       this.position = this.threshold;
       this.lastUpdateTime = Date.now();
       
-      // Now handle the attack, which will reset position and clear the flag
-      this.handleAttack();
+      // Handle the attack and reset
+      this.attackCount++;
+      if (this.isDefended()) {
+        this.defenseCount++;
+      }
+      
+      // Reset state
+      this.position = 0;
+      this.knightCount = 0;
     } else {
-      // Normal position advancement
       this.position = nextPosition;
       this.lastUpdateTime = Date.now();
     }
@@ -113,8 +105,13 @@ export class BarbarianTracker {
 
     // Check if current position would trigger attack with new threshold
     if (this.position >= this.threshold) {
-      this.shouldTriggerAttack = true;
-      this.handleAttack();
+      this.attackCount++;
+      if (this.isDefended()) {
+        this.defenseCount++;
+      }
+      this.position = 0;
+      this.knightCount = 0;
+      this.lastUpdateTime = Date.now();
     }
   }
 
