@@ -12,6 +12,7 @@ interface State {
 
 export class ErrorBoundary extends Component<Props, State> {
   private hasLogged: boolean = false;
+  private mounted: boolean = false;
 
   constructor(props: Props) {
     super(props);
@@ -19,12 +20,11 @@ export class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: undefined
     };
-    // Wrap all event handlers in error boundary
     window.addEventListener('error', this.handleGlobalError);
   }
 
   private handleGlobalError = (event: ErrorEvent) => {
-    if (!this.state.hasError) {
+    if (!this.state.hasError && this.mounted) {
       event.preventDefault();
       this.setState({ 
         hasError: true, 
@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private logError(error: Error) {
-    if (!this.hasLogged) {
+    if (!this.hasLogged && this.mounted) {
       console.error('Uncaught error:', error);
       if (this.props.onError) {
         this.props.onError(error, {
@@ -50,8 +50,14 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  public componentDidMount(): void {
+    this.mounted = true;
+  }
+
   public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    this.logError(error);
+    if (this.mounted) {
+      this.logError(error);
+    }
   }
 
   public componentDidUpdate(prevProps: Props): void {
@@ -59,6 +65,11 @@ export class ErrorBoundary extends Component<Props, State> {
       this.setState({ hasError: false, error: undefined });
       this.hasLogged = false;
     }
+  }
+
+  public componentWillUnmount(): void {
+    this.mounted = false;
+    window.removeEventListener('error', this.handleGlobalError);
   }
 
   public render(): ReactNode {
@@ -86,10 +97,5 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     return this.props.children;
-  }
-
-  public componentWillUnmount(): void {
-    window.removeEventListener('error', this.handleGlobalError);
-    this.hasLogged = false;
   }
 }
