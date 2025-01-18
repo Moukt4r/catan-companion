@@ -1,48 +1,79 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import App from '../_app';
 
-// Mock CSS imports
-jest.mock('@/styles/globals.css', () => ({}));
-
-// Mock ErrorBoundary component
+// Mock the ErrorBoundary component
 jest.mock('@/components/ErrorBoundary', () => ({
-  ErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="error-boundary">{children}</div>
+  )
 }));
 
+// Mock the CSS import
+jest.mock('@/styles/globals.css', () => ({}));
+
 describe('App', () => {
+  const mockComponent = () => <div>Test Content</div>;
+  const mockPageProps = { testProp: 'test-value' };
+
   it('renders without crashing', () => {
-    const Component = () => <div>Test</div>;
-    const pageProps = { test: true };
-
-    const { getByText } = render(
-      <App Component={Component} pageProps={pageProps} />
-    );
-
-    expect(getByText('Test')).toBeInTheDocument();
+    render(<App Component={mockComponent} pageProps={mockPageProps} />);
+    expect(screen.getByText('Test Content')).toBeInTheDocument();
   });
 
-  it('passes props to Component', () => {
-    const Component = (props: any) => <div>Props: {JSON.stringify(props)}</div>;
-    const pageProps = { testProp: 'test-value' };
-
-    const { getByText } = render(
-      <App Component={Component} pageProps={pageProps} />
-    );
-
-    expect(getByText('Props: {"testProp":"test-value"}')).toBeInTheDocument();
+  it('wraps content in ErrorBoundary', () => {
+    render(<App Component={mockComponent} pageProps={mockPageProps} />);
+    expect(screen.getByTestId('error-boundary')).toBeInTheDocument();
   });
 
-  it('wraps Component in a styled container', () => {
-    const Component = () => <div>Test</div>;
-    const pageProps = {};
-
+  it('applies layout classes', () => {
     const { container } = render(
-      <App Component={Component} pageProps={pageProps} />
+      <App Component={mockComponent} pageProps={mockPageProps} />
+    );
+    const layoutDiv = container.querySelector('div.min-h-screen.bg-gray-100');
+    expect(layoutDiv).toBeInTheDocument();
+  });
+
+  it('passes pageProps to Component', () => {
+    const TestComponent = (props: any) => (
+      <div>Props: {JSON.stringify(props)}</div>
+    );
+    render(<App Component={TestComponent} pageProps={mockPageProps} />);
+    expect(screen.getByText('Props: {"testProp":"test-value"}')).toBeInTheDocument();
+  });
+
+  it('handles empty pageProps', () => {
+    render(<App Component={mockComponent} pageProps={{}} />);
+    expect(screen.getByText('Test Content')).toBeInTheDocument();
+  });
+
+  it('handles undefined pageProps', () => {
+    // @ts-ignore - Testing with undefined pageProps
+    render(<App Component={mockComponent} />);
+    expect(screen.getByText('Test Content')).toBeInTheDocument();
+  });
+
+  it('handles complex Components', () => {
+    const ComplexComponent = ({ children, className }: any) => (
+      <div className={className}>
+        <header>Header</header>
+        {children}
+        <footer>Footer</footer>
+      </div>
     );
 
-    const mainContainer = container.firstChild as HTMLElement;
-    expect(mainContainer.className).toContain('min-h-screen');
-    expect(mainContainer.className).toContain('bg-gray-100');
+    render(
+      <App
+        Component={ComplexComponent}
+        pageProps={{
+          children: <div>Content</div>,
+          className: 'test-class',
+        }}
+      />
+    );
+
+    expect(screen.getByText('Header')).toBeInTheDocument();
+    expect(screen.getByText('Content')).toBeInTheDocument();
+    expect(screen.getByText('Footer')).toBeInTheDocument();
   });
 });
