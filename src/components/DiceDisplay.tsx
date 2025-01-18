@@ -25,7 +25,7 @@ export const DiceDisplay: React.FC<DiceDisplayProps> = ({ roll, isRolling }) => 
   };
 
   return (
-    <div className="mt-6 text-center" aria-live="polite">
+    <div className="mt-6" aria-live="polite">
       <div className="flex flex-col items-center justify-center space-y-4">
         <div className="flex justify-center space-x-4">
           <div 
@@ -45,7 +45,7 @@ export const DiceDisplay: React.FC<DiceDisplayProps> = ({ roll, isRolling }) => 
             {roll.dice[1]}
           </div>
         </div>
-        <div className="text-xl font-bold dark:text-white">
+        <div className="text-center text-xl font-bold dark:text-white">
           Total: {roll.total}
         </div>
         {roll.specialDie && renderSpecialDie(roll.specialDie)}
