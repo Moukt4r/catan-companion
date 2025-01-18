@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { Header } from '../Header';
 import { useTheme } from 'next-themes';
 
@@ -29,6 +29,7 @@ describe('Header', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    cleanup();
   });
 
   it('renders the default title', () => {
@@ -56,7 +57,7 @@ describe('Header', () => {
       systemTheme: 'light'
     });
 
-    render(<Header />);
+    const { rerender } = render(<Header />);
     const themeToggle = screen.getByLabelText(/toggle theme/i);
     
     fireEvent.click(themeToggle);
@@ -69,9 +70,9 @@ describe('Header', () => {
       systemTheme: 'light'
     });
 
-    render(<Header />);
-    const updatedThemeToggle = screen.getByLabelText(/toggle theme/i);
-    fireEvent.click(updatedThemeToggle);
+    // Rerender the same component instance
+    rerender(<Header />);
+    fireEvent.click(themeToggle);
     expect(setTheme).toHaveBeenCalledWith('light');
   });
 
@@ -82,7 +83,7 @@ describe('Header', () => {
       setTheme: jest.fn(),
       systemTheme: 'light'
     });
-    render(<Header />);
+    const { rerender } = render(<Header />);
     expect(screen.getByTestId('moon-icon')).toBeInTheDocument();
     expect(screen.queryByTestId('sun-icon')).not.toBeInTheDocument();
 
@@ -92,7 +93,7 @@ describe('Header', () => {
       setTheme: jest.fn(),
       systemTheme: 'light'
     });
-    render(<Header />);
+    rerender(<Header />);
     expect(screen.getByTestId('sun-icon')).toBeInTheDocument();
     expect(screen.queryByTestId('moon-icon')).not.toBeInTheDocument();
   });
