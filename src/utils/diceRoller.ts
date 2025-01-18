@@ -28,7 +28,7 @@ export class DiceRoller {
   private discardCount: number;
   private useSpecialDie: boolean;
   private randomFn: () => number;
-  private shuffleState: 'initial' | 'first-round' | 'subsequent';
+  private isFirstRoundComplete: boolean;
 
   constructor(discardCount: number = 4, useSpecialDie: boolean = false, randomFn: () => number = Math.random) {
     if (discardCount < 0 || discardCount >= this.totalCombinations) {
@@ -39,7 +39,7 @@ export class DiceRoller {
     this.randomFn = randomFn;
     this.combinations = this.generateCombinations();
     this.currentIndex = 0;
-    this.shuffleState = 'initial';
+    this.isFirstRoundComplete = false;
     this.shuffle();
   }
 
@@ -67,25 +67,22 @@ export class DiceRoller {
   }
 
   public roll(): DiceRoll {
-    // Get the actual roll before any state updates
+    // Get the roll first
     const roll = { ...this.combinations[this.currentIndex] };
     
-    // Update state and index
+    // Update index and check if we've completed first round
     this.currentIndex++;
+    if (this.currentIndex >= this.combinations.length - this.discardCount && !this.isFirstRoundComplete) {
+      this.isFirstRoundComplete = true;
+    }
     
     // Check if we need to shuffle for next roll
     if (this.currentIndex >= this.combinations.length - this.discardCount) {
-      // Transition states if needed
-      if (this.shuffleState === 'initial') {
-        this.shuffleState = 'first-round';
-      } else if (this.shuffleState === 'first-round') {
-        this.shuffleState = 'subsequent';
-      }
-      
       this.shuffle();
       this.currentIndex = 0;
     }
     
+    // Add special die if enabled
     if (this.useSpecialDie) {
       roll.specialDie = SPECIAL_DIE_FACES[Math.floor(this.randomFn() * SPECIAL_DIE_FACES.length)];
     }
@@ -99,7 +96,7 @@ export class DiceRoller {
     }
     this.discardCount = count;
     this.currentIndex = 0;
-    this.shuffleState = 'initial';
+    this.isFirstRoundComplete = false;
     this.shuffle();
   }
 
@@ -110,13 +107,12 @@ export class DiceRoller {
   public getRemainingRolls(): number {
     const totalAvailable = this.combinations.length - this.discardCount;
     
-    // For subsequent rounds after first complete cycle,
-    // always report totalAvailable - 1 to maintain fair distribution
-    if (this.shuffleState === 'subsequent') {
+    // After first round is complete, always report totalAvailable - 1
+    if (this.isFirstRoundComplete) {
       return totalAvailable - 1;
     }
     
-    // For initial and first round, report actual remaining count
+    // During first round, report actual remaining count
     return totalAvailable - this.currentIndex;
   }
 }
