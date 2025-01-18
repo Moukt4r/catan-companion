@@ -75,9 +75,9 @@ describe('DiceDisplay', () => {
     expect(parentFlex).toBeInTheDocument();
     expect(parentFlex).toHaveClass('items-center', 'justify-center', 'space-y-4');
 
-    const diceContainer = container.querySelector('.flex.justify-center');
+    const diceContainer = container.querySelector('.flex.flex-col');
     expect(diceContainer).toBeInTheDocument();
-    expect(diceContainer).toHaveClass('space-x-4');
+    expect(diceContainer).toHaveClass('items-center', 'justify-center', 'space-y-4');
 
     const diceElements = container.querySelectorAll('.w-16.h-16');
     expect(diceElements).toHaveLength(2);
