@@ -1,8 +1,8 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { DiceDisplay } from '../DiceDisplay';
-import type { DiceRoll } from '@/types/diceTypes';
 import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
+import type { DiceRoll } from '@/types/diceTypes';
 
 describe('DiceDisplay', () => {
   const defaultRoll: DiceRoll = {
@@ -12,12 +12,11 @@ describe('DiceDisplay', () => {
   };
 
   it('renders dice values correctly', () => {
-    const { getByText, getByRole } = render(
-      <DiceDisplay roll={defaultRoll} isRolling={false} />
-    );
-    expect(getByRole('img', { name: /first die showing 3/i })).toBeInTheDocument();
-    expect(getByRole('img', { name: /second die showing 4/i })).toBeInTheDocument();
-    expect(getByText('Sum: 7')).toBeInTheDocument();
+    render(<DiceDisplay roll={defaultRoll} isRolling={false} />);
+    
+    expect(screen.getByRole('img', { name: /first die showing 3/i })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /second die showing 4/i })).toBeInTheDocument();
+    expect(screen.getByText('Sum: 7')).toBeInTheDocument();
   });
 
   it('renders animation class when rolling', () => {
@@ -30,51 +29,50 @@ describe('DiceDisplay', () => {
 
   it('renders special die with correct colors and layout', () => {
     Object.entries(SPECIAL_DIE_INFO).forEach(([face, { color, icon, label }]) => {
-      const rollWithSpecial: DiceRoll = {
+      const specialRoll: DiceRoll = {
         ...defaultRoll,
         specialDie: face as DiceRoll['specialDie']
       };
 
       const { container } = render(
-        <DiceDisplay roll={rollWithSpecial} isRolling={false} />
+        <DiceDisplay roll={specialRoll} isRolling={false} />
       );
 
-      const specialDie = container.querySelector('.flex.items-center.gap-2.mt-2');
-      expect(specialDie).toBeInTheDocument();
+      const specialDieContainer = container.querySelector('.flex.items-center.gap-2.mt-2');
+      expect(specialDieContainer).toBeInTheDocument();
 
       // Check color dot
-      const colorDot = specialDie?.querySelector(`.${color.split(' ')[0]}`);
+      const colorClass = color.split(' ')[0]; // Gets the first class, e.g., 'bg-red-500' from 'bg-red-500 other-class'
+      const colorDot = specialDieContainer?.querySelector(`.${colorClass}`);
       expect(colorDot).toBeInTheDocument();
 
-      // Check icon content
-      expect(specialDie?.textContent).toContain(icon);
-
-      // Check label content
-      expect(specialDie?.textContent).toContain(label);
+      // Check icon and label are present
+      expect(specialDieContainer?.textContent).toContain(icon);
+      expect(specialDieContainer?.textContent).toContain(label);
+      
+      // Cleanup after each iteration to prevent memory leaks
+      container.remove();
     });
   });
 
   it('maintains accessibility attributes', () => {
-    const { getAllByRole } = render(
-      <DiceDisplay roll={defaultRoll} isRolling={false} />
-    );
-    const diceElements = getAllByRole('img');
-    expect(diceElements[0]).toHaveAttribute('aria-label', 'First die showing 3');
-    expect(diceElements[1]).toHaveAttribute('aria-label', 'Second die showing 4');
+    render(<DiceDisplay roll={defaultRoll} isRolling={false} />);
+    
+    const firstDie = screen.getByRole('img', { name: /first die showing 3/i });
+    const secondDie = screen.getByRole('img', { name: /second die showing 4/i });
+    
+    expect(firstDie).toHaveAttribute('aria-label', 'First die showing 3');
+    expect(secondDie).toHaveAttribute('aria-label', 'Second die showing 4');
   });
 
   it('has live region for screen readers', () => {
-    const { container } = render(
-      <DiceDisplay roll={defaultRoll} isRolling={false} />
-    );
+    const { container } = render(<DiceDisplay roll={defaultRoll} isRolling={false} />);
     const liveRegion = container.querySelector('[aria-live="polite"]');
     expect(liveRegion).toBeInTheDocument();
   });
 
   it('maintains responsive layout', () => {
-    const { container } = render(
-      <DiceDisplay roll={defaultRoll} isRolling={false} />
-    );
+    const { container } = render(<DiceDisplay roll={defaultRoll} isRolling={false} />);
     
     const parentFlex = container.querySelector('.flex.flex-col');
     expect(parentFlex).toBeInTheDocument();
@@ -100,9 +98,7 @@ describe('DiceDisplay', () => {
   });
 
   it('shows loading state when rolling', () => {
-    const { container } = render(
-      <DiceDisplay roll={defaultRoll} isRolling={true} />
-    );
+    const { container } = render(<DiceDisplay roll={defaultRoll} isRolling={true} />);
     const firstDie = container.querySelector('.animate-bounce');
     const secondDie = container.querySelector('.animate-bounce.delay-100');
     expect(firstDie).toBeInTheDocument();
@@ -110,10 +106,8 @@ describe('DiceDisplay', () => {
   });
 
   it('maintains total sum visibility', () => {
-    const { getByText } = render(
-      <DiceDisplay roll={defaultRoll} isRolling={false} />
-    );
-    const sum = getByText('Sum: 7');
+    const { container } = render(<DiceDisplay roll={defaultRoll} isRolling={false} />);
+    const sum = screen.getByText('Sum: 7');
     expect(sum).toHaveClass('text-xl', 'font-bold', 'dark:text-white');
   });
 });
