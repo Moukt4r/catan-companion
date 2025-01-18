@@ -1,10 +1,14 @@
 import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { Header } from '../Header';
-import { useTheme } from 'next-themes';
+
+const mockSetTheme = jest.fn();
+const mockUseTheme = jest.fn();
 
 // Mock next-themes
-jest.mock('next-themes');
+jest.mock('next-themes', () => ({
+  useTheme: () => mockUseTheme()
+}));
 
 // Mock lucide-react components
 jest.mock('lucide-react', () => ({
@@ -14,14 +18,12 @@ jest.mock('lucide-react', () => ({
 }));
 
 describe('Header', () => {
-  const mockSetTheme = jest.fn();
-
   beforeEach(() => {
     jest.clearAllMocks();
     cleanup();
     
     // Mock useTheme implementation
-    (useTheme as jest.Mock).mockReturnValue({
+    mockUseTheme.mockReturnValue({
       theme: 'light',
       setTheme: mockSetTheme,
       systemTheme: 'light'
@@ -46,7 +48,7 @@ describe('Header', () => {
   });
 
   it('toggles theme when theme button is clicked', () => {
-    (useTheme as jest.Mock).mockReturnValue({
+    mockUseTheme.mockReturnValue({
       theme: 'light',
       setTheme: mockSetTheme,
       systemTheme: 'light'
@@ -75,7 +77,7 @@ describe('Header', () => {
     cleanup();
     
     // Test dark theme
-    (useTheme as jest.Mock).mockReturnValue({
+    mockUseTheme.mockReturnValue({
       theme: 'dark',
       setTheme: mockSetTheme,
       systemTheme: 'dark'
