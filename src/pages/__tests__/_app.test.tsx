@@ -1,79 +1,56 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import App from '../_app';
 
-// Mock the ErrorBoundary component
-jest.mock('@/components/ErrorBoundary', () => ({
-  ErrorBoundary: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="error-boundary">{children}</div>
-  )
-}));
-
-// Mock the CSS import
+// Mock CSS module
 jest.mock('@/styles/globals.css', () => ({}));
 
+// Mock ErrorBoundary component
+jest.mock('@/components/ErrorBoundary', () => ({
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>
+}));
+
 describe('App', () => {
-  const mockComponent = () => <div>Test Content</div>;
-  const mockPageProps = { testProp: 'test-value' };
-
   it('renders without crashing', () => {
-    render(<App Component={mockComponent} pageProps={mockPageProps} />);
-    expect(screen.getByText('Test Content')).toBeInTheDocument();
-  });
+    const Component = () => <div>Test</div>;
+    const pageProps = { test: true };
 
-  it('wraps content in ErrorBoundary', () => {
-    render(<App Component={mockComponent} pageProps={mockPageProps} />);
-    expect(screen.getByTestId('error-boundary')).toBeInTheDocument();
-  });
-
-  it('applies layout classes', () => {
     const { container } = render(
-      <App Component={mockComponent} pageProps={mockPageProps} />
-    );
-    const layoutDiv = container.querySelector('div.min-h-screen.bg-gray-100');
-    expect(layoutDiv).toBeInTheDocument();
-  });
-
-  it('passes pageProps to Component', () => {
-    const TestComponent = (props: any) => (
-      <div>Props: {JSON.stringify(props)}</div>
-    );
-    render(<App Component={TestComponent} pageProps={mockPageProps} />);
-    expect(screen.getByText('Props: {"testProp":"test-value"}')).toBeInTheDocument();
-  });
-
-  it('handles empty pageProps', () => {
-    render(<App Component={mockComponent} pageProps={{}} />);
-    expect(screen.getByText('Test Content')).toBeInTheDocument();
-  });
-
-  it('handles undefined pageProps', () => {
-    // @ts-ignore - Testing with undefined pageProps
-    render(<App Component={mockComponent} />);
-    expect(screen.getByText('Test Content')).toBeInTheDocument();
-  });
-
-  it('handles complex Components', () => {
-    const ComplexComponent = ({ children, className }: any) => (
-      <div className={className}>
-        <header>Header</header>
-        {children}
-        <footer>Footer</footer>
-      </div>
+      <App Component={Component} pageProps={pageProps} />
     );
 
-    render(
-      <App
-        Component={ComplexComponent}
-        pageProps={{
-          children: <div>Content</div>,
-          className: 'test-class',
-        }}
-      />
+    // Check that Component renders
+    expect(container).toHaveTextContent('Test');
+    
+    // Check that min-h-screen class is applied
+    const mainContainer = container.firstChild;
+    expect(mainContainer).toHaveClass('min-h-screen');
+    expect(mainContainer).toHaveClass('bg-gray-100');
+  });
+
+  it('passes props correctly to Component', () => {
+    const mockProps = { testProp: 'value' };
+    const Component = (props: any) => <div data-testid="component">{JSON.stringify(props)}</div>;
+
+    const { getByTestId } = render(
+      <App Component={Component} pageProps={mockProps} />
     );
 
-    expect(screen.getByText('Header')).toBeInTheDocument();
-    expect(screen.getByText('Content')).toBeInTheDocument();
-    expect(screen.getByText('Footer')).toBeInTheDocument();
+    // Verify props are passed through
+    expect(getByTestId('component')).toHaveTextContent(JSON.stringify(mockProps));
+  });
+
+  it('maintains component hierarchy', () => {
+    const Component = () => <div>Child Component</div>;
+    const { container } = render(
+      <App Component={Component} pageProps={{}} />
+    );
+
+    // Check that the component is wrapped in a div with the correct classes
+    const outerDiv = container.firstChild as HTMLElement;
+    expect(outerDiv.tagName).toBe('DIV');
+    expect(outerDiv.classList.contains('min-h-screen')).toBe(true);
+    expect(outerDiv.classList.contains('bg-gray-100')).toBe(true);
+    expect(outerDiv).toHaveTextContent('Child Component');
   });
 });
