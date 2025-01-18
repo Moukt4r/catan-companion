@@ -76,25 +76,24 @@ export class BarbarianTracker {
   }
 
   private handleAttack(): void {
-    this.attackInProgress = true;
     this.attackCount++;
-    
     if (this.isDefended()) {
       this.defenseCount++;
     }
-    
     this.position = 0;
     this.knightCount = 0;
-    this.attackInProgress = false;
     this.lastUpdateTime = Date.now();
   }
 
   advancePosition(): void {
-    const nextPosition = this.position + 1;
-    if (nextPosition >= this.threshold) {
+    if (this.position + 1 >= this.threshold) {
+      // When we're about to hit threshold, trigger attack sequence
+      this.attackInProgress = true;
+      this.position = this.threshold; // Set to threshold to trigger isUnderAttack
       this.handleAttack();
+      this.attackInProgress = false;
     } else {
-      this.position = nextPosition;
+      this.position++;
       this.lastUpdateTime = Date.now();
     }
   }
