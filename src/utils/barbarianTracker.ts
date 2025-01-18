@@ -76,13 +76,11 @@ export class BarbarianTracker {
   }
 
   advancePosition(): void {
-    const nextPosition = this.position + 1;
-    
-    if (nextPosition >= this.threshold) {
-      // Set attack flag first
+    if (this.position >= this.threshold - 1) {
+      // Set attack flag
       this.underAttack = true;
       
-      // Record attack before state changes
+      // Record attack
       this.attackCount++;
       if (this.isDefended()) {
         this.defenseCount++;
@@ -91,11 +89,8 @@ export class BarbarianTracker {
       // Reset position and knights
       this.position = 0;
       this.knightCount = 0;
-      
-      // Clear attack flag
-      this.underAttack = false;
     } else {
-      this.position = nextPosition;
+      this.position++;
     }
 
     this.lastUpdateTime = Date.now();
@@ -116,13 +111,15 @@ export class BarbarianTracker {
       }
       this.position = 0;
       this.knightCount = 0;
-      this.underAttack = false;
     }
   }
 
   resetPosition(): void {
     this.position = 0;
     this.lastUpdateTime = Date.now();
+  }
+
+  endAttack(): void {
     this.underAttack = false;
   }
 }
