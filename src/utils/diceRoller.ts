@@ -67,23 +67,23 @@ export class DiceRoller {
   }
 
   public roll(): DiceRoll {
-    // Check if we need to shuffle
+    // Get the actual roll before any state updates
+    const roll = { ...this.combinations[this.currentIndex] };
+    
+    // Update state and index
+    this.currentIndex++;
+    
+    // Check if we need to shuffle for next roll
     if (this.currentIndex >= this.combinations.length - this.discardCount) {
-      // Update state before shuffle
+      // Transition states if needed
       if (this.shuffleState === 'initial') {
         this.shuffleState = 'first-round';
+      } else if (this.shuffleState === 'first-round') {
+        this.shuffleState = 'subsequent';
       }
       
       this.shuffle();
       this.currentIndex = 0;
-    }
-
-    const roll = { ...this.combinations[this.currentIndex] };
-    this.currentIndex++;
-
-    // Update state for future reference
-    if (this.currentIndex === this.combinations.length - this.discardCount && this.shuffleState === 'first-round') {
-      this.shuffleState = 'subsequent';
     }
     
     if (this.useSpecialDie) {
