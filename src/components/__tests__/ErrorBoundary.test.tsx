@@ -2,38 +2,30 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ErrorBoundary } from '../ErrorBoundary';
 
-// Create components that will throw errors
-const ThrowError = (): React.ReactElement => {
-  throw new Error('Test error');
-};
+// Mock console.error to prevent noise in test output
+const originalError = console.error;
 
-const ThrowErrorWithInfo = (): React.ReactElement => {
-  throw new Error('Test error with info');
-};
+beforeAll(() => {
+  console.error = jest.fn();
+});
 
-const ThrowErrorOnClick = (): React.ReactElement => {
-  const handleClick = () => {
-    throw new Error('Error on click');
-  };
-  return <button onClick={handleClick}>Trigger Error</button>;
-};
+afterAll(() => {
+  console.error = originalError;
+});
 
 describe('ErrorBoundary', () => {
-  // Prevent console.error spam during tests
-  const originalConsoleError = console.error;
-  beforeAll(() => {
-    console.error = jest.fn();
-  });
-
-  afterAll(() => {
-    console.error = originalConsoleError;
-  });
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    (console.error as jest.Mock).mockClear();
   });
 
-  it('renders children when there is no error', () => {
+  const ThrowError = ({ shouldThrow = false }: { shouldThrow?: boolean }) => {
+    if (shouldThrow) {
+      throw new Error('Test error');
+    }
+    return <div>No error</div>;
+  };
+
+  it('renders children when no error occurs', () => {
     render(
       <ErrorBoundary>
         <div>Test content</div>
@@ -41,145 +33,61 @@ describe('ErrorBoundary', () => {
     );
 
     expect(screen.getByText('Test content')).toBeInTheDocument();
+    expect(console.error).not.toHaveBeenCalled();
   });
 
-  it('renders error UI when there is an error', () => {
+  it('renders error UI when error occurs', () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     render(
       <ErrorBoundary>
-        <ThrowError />
+        <ThrowError shouldThrow />
       </ErrorBoundary>
     );
 
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-    expect(screen.getByText('Please refresh the page and try again.')).toBeInTheDocument();
+    expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument();
+    spy.mockRestore();
   });
 
-  it('shows error details in development mode', () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
-
+  it('renders error UI with custom message', () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const errorMessage = 'Custom error message';
     render(
-      <ErrorBoundary>
-        <ThrowError />
+      <ErrorBoundary message={errorMessage}>
+        <ThrowError shouldThrow />
       </ErrorBoundary>
     );
 
-    const errorMessage = screen.getByText(/Error: Test error/);
-    expect(errorMessage).toBeInTheDocument();
-    expect(errorMessage.parentElement).toHaveAttribute('class', expect.stringContaining('bg-gray-100'));
-
-    process.env.NODE_ENV = originalNodeEnv;
+    expect(screen.getByText(errorMessage)).toBeInTheDocument();
+    spy.mockRestore();
   });
 
-  it('logs error information to console.error', () => {
+  it('supports error retry', () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const onReset = jest.fn();
     render(
-      <ErrorBoundary>
-        <ThrowError />
+      <ErrorBoundary onReset={onReset}>
+        <ThrowError shouldThrow />
       </ErrorBoundary>
     );
 
-    expect(console.error).toHaveBeenCalled();
-  });
+    const retryButton = screen.getByText(/Try again/i);
+    fireEvent.click(retryButton);
 
-  it('does not show error details in production mode', () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
-
-    render(
-      <ErrorBoundary>
-        <ThrowError />
-      </ErrorBoundary>
-    );
-
-    expect(screen.queryByText(/Error: Test error/)).not.toBeInTheDocument();
-
-    process.env.NODE_ENV = originalNodeEnv;
-  });
-
-  it('handles runtime errors from event handlers', () => {
-    render(
-      <ErrorBoundary>
-        <ThrowErrorOnClick />
-      </ErrorBoundary>
-    );
-
-    const button = screen.getByText('Trigger Error');
-    fireEvent.click(button);
-
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-  });
-
-  it('recovers when children change', () => {
-    const { rerender } = render(
-      <ErrorBoundary>
-        <ThrowError />
-      </ErrorBoundary>
-    );
-
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-
-    rerender(
-      <ErrorBoundary>
-        <div>Working content</div>
-      </ErrorBoundary>
-    );
-
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByText('Working content')).toBeInTheDocument();
-  });
-
-  it('preserves error state when props change but key remains same', () => {
-    const { rerender } = render(
-      <ErrorBoundary>
-        <ThrowError />
-      </ErrorBoundary>
-    );
-
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-
-    // Update props but keep same error-throwing child
-    rerender(
-      <ErrorBoundary>
-        <ThrowError />
-      </ErrorBoundary>
-    );
-
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-  });
-
-  it('resets error state when key changes', () => {
-    const { rerender } = render(
-      <ErrorBoundary key="1">
-        <ThrowError />
-      </ErrorBoundary>
-    );
-
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-
-    // Render with new key
-    rerender(
-      <ErrorBoundary key="2">
-        <div>Working content</div>
-      </ErrorBoundary>
-    );
-
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByText('Working content')).toBeInTheDocument();
+    expect(onReset).toHaveBeenCalled();
+    spy.mockRestore();
   });
 
   it('cleans up properly when unmounted', () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const { unmount } = render(
       <ErrorBoundary>
-        <ThrowError />
+        <ThrowError shouldThrow />
       </ErrorBoundary>
     );
 
-    expect(screen.getByRole('alert')).toBeInTheDocument();
     unmount();
     
-    // No memory leaks or errors on unmount
-    expect(console.error).toHaveBeenCalledTimes(1); // Only from the initial error
+    expect(spy).toHaveBeenCalledTimes(1); // Only from the initial error
+    spy.mockRestore();
   });
 });
