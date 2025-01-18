@@ -76,8 +76,11 @@ export class BarbarianTracker {
   }
 
   advancePosition(): void {
-    if (this.position >= this.threshold - 1) {
-      // Set attack flag
+    const nextPosition = this.position + 1;
+
+    // Check if next position would reach or exceed threshold
+    if (nextPosition >= this.threshold) {
+      // Set attack flag first
       this.underAttack = true;
       
       // Record attack
@@ -89,8 +92,11 @@ export class BarbarianTracker {
       // Reset position and knights
       this.position = 0;
       this.knightCount = 0;
+
+      // Clear attack flag
+      this.underAttack = false;
     } else {
-      this.position++;
+      this.position = nextPosition;
     }
 
     this.lastUpdateTime = Date.now();
@@ -101,8 +107,8 @@ export class BarbarianTracker {
       throw new Error('Threshold must be greater than 0');
     }
     
-    // If position would exceed or equal the new threshold, reset
-    if (this.position >= newThreshold - 1) {
+    // If current position would exceed or reach the new threshold, reset
+    if (this.position >= newThreshold) {
       this.underAttack = true;
       this.attackCount++;
       if (this.isDefended()) {
@@ -110,6 +116,7 @@ export class BarbarianTracker {
       }
       this.position = 0;
       this.knightCount = 0;
+      this.underAttack = false;
     }
     
     this.threshold = newThreshold;
