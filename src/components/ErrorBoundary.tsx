@@ -2,7 +2,9 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
+  message?: string;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
+  onReset?: () => void;
 }
 
 interface State {
@@ -36,7 +38,6 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private logError(error: Error) {
     if (!this.hasLogged && this.mounted) {
-      console.error('Uncaught error:', error);
       if (this.props.onError) {
         this.props.onError(error, {
           componentStack: error.stack || ''
@@ -45,6 +46,14 @@ export class ErrorBoundary extends Component<Props, State> {
       this.hasLogged = true;
     }
   }
+
+  private handleReset = () => {
+    this.setState({ hasError: false, error: undefined });
+    this.hasLogged = false;
+    if (this.props.onReset) {
+      this.props.onReset();
+    }
+  };
 
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
@@ -78,10 +87,10 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
           <div role="alert" className="p-8 bg-gray-100 rounded-lg shadow-md">
             <h2 className="text-2xl font-bold text-red-600 mb-4">
-              Something went wrong
+              {this.props.message || 'Something went wrong'}
             </h2>
             <p className="text-gray-600">
-              Please refresh the page and try again.
+              Please try again.
             </p>
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <pre 
@@ -90,6 +99,14 @@ export class ErrorBoundary extends Component<Props, State> {
               >
                 {this.state.error.toString()}
               </pre>
+            )}
+            {this.props.onReset && (
+              <button
+                onClick={this.handleReset}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Try again
+              </button>
             )}
           </div>
         </div>
