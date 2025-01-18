@@ -11,6 +11,8 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
+  private hasLogged: boolean = false;
+
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -20,29 +22,29 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public static getDerivedStateFromError(error: Error): State {
-    // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // Only log the error once
-    if (!this.state.hasError) {
+    if (!this.hasLogged) {
       console.error('Uncaught error:', error);
       if (this.props.onError) {
         this.props.onError(error, errorInfo);
       }
+      this.hasLogged = true;
     }
   }
 
-  // Clear error state when children change
   public componentDidUpdate(prevProps: Props): void {
-    if (this.state.hasError && prevProps.children !== this.props.children) {
+    if (prevProps.children !== this.props.children) {
       this.setState({ hasError: false, error: undefined });
+      this.hasLogged = false;
     }
   }
 
   public render(): ReactNode {
     if (this.state.hasError) {
+      // In error state, show error message
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
           <div role="alert" className="p-8 bg-gray-100 rounded-lg shadow-md">
@@ -54,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </p>
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <pre 
-                className="mt-4 p-4 bg-gray-100 rounded overflow-auto text-sm" 
+                className="mt-4 p-4 bg-gray-100 rounded overflow-auto text-sm"
                 data-testid="error-details"
               >
                 {this.state.error.toString()}
@@ -69,9 +71,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentWillUnmount(): void {
-    // Clean up error state when component unmounts
-    if (this.state.hasError) {
-      this.setState({ hasError: false, error: undefined });
-    }
+    this.hasLogged = false;
   }
 }
