@@ -2,20 +2,20 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ErrorBoundary } from '../ErrorBoundary';
 
-// Mock console.error to prevent noise in test output
-const originalError = console.error;
-
-beforeAll(() => {
-  console.error = jest.fn();
-});
-
-afterAll(() => {
-  console.error = originalError;
-});
-
 describe('ErrorBoundary', () => {
+  const originalError = console.error;
+  const spy = jest.fn();
+
+  beforeAll(() => {
+    console.error = spy;
+  });
+
+  afterAll(() => {
+    console.error = originalError;
+  });
+
   beforeEach(() => {
-    (console.error as jest.Mock).mockClear();
+    spy.mockClear();
   });
 
   const ThrowError = ({ shouldThrow = false }: { shouldThrow?: boolean }) => {
@@ -33,11 +33,10 @@ describe('ErrorBoundary', () => {
     );
 
     expect(screen.getByText('Test content')).toBeInTheDocument();
-    expect(console.error).not.toHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it('renders error UI when error occurs', () => {
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     render(
       <ErrorBoundary>
         <ThrowError shouldThrow />
@@ -45,11 +44,9 @@ describe('ErrorBoundary', () => {
     );
 
     expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument();
-    spy.mockRestore();
   });
 
   it('renders error UI with custom message', () => {
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const errorMessage = 'Custom error message';
     render(
       <ErrorBoundary message={errorMessage}>
@@ -57,12 +54,10 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    expect(screen.getByText(errorMessage)).toBeInTheDocument();
-    spy.mockRestore();
+    expect(screen.getByRole('heading', { level: 2, name: errorMessage })).toBeInTheDocument();
   });
 
   it('supports error retry', () => {
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const onReset = jest.fn();
     render(
       <ErrorBoundary onReset={onReset}>
@@ -70,15 +65,13 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    const retryButton = screen.getByText(/Try again/i);
+    const retryButton = screen.getByRole('button', { name: /try again/i });
     fireEvent.click(retryButton);
 
     expect(onReset).toHaveBeenCalled();
-    spy.mockRestore();
   });
 
   it('cleans up properly when unmounted', () => {
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const { unmount } = render(
       <ErrorBoundary>
         <ThrowError shouldThrow />
@@ -87,7 +80,7 @@ describe('ErrorBoundary', () => {
 
     unmount();
     
-    expect(spy).toHaveBeenCalledTimes(1); // Only from the initial error
-    spy.mockRestore();
+    // The error should be logged only once during the initial render
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 });
