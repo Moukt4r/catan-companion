@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { DiceDisplay } from '../DiceDisplay';
-import { DiceRoll, SpecialDieFace } from '@/types/diceTypes';
+import { DiceRoll, SpecialDieFace, SPECIAL_DIE_INFO } from '@/types/diceTypes';
 
 const createRoll = (dice1: number, dice2: number, specialDie?: SpecialDieFace): DiceRoll => ({
   dice: [dice1, dice2],
@@ -30,6 +30,12 @@ describe('DiceDisplay', () => {
       const titleCaseName = specialDie.charAt(0).toUpperCase() + specialDie.slice(1);
       const specialDieElement = container.querySelector(`[title="${titleCaseName} Die Face"]`);
       expect(specialDieElement).toBeInTheDocument();
+
+      // Test special die info mapping
+      const dieInfo = SPECIAL_DIE_INFO[specialDie];
+      expect(container.querySelector(`.${dieInfo.color}`)).toBeInTheDocument();
+      expect(container.textContent).toContain(dieInfo.icon);
+      expect(container.textContent).toContain(dieInfo.label);
       
       // Clean up between tests
       container.remove();
@@ -89,38 +95,91 @@ describe('DiceDisplay', () => {
     expect(container).toHaveAttribute('aria-live', 'polite');
   });
 
-  it('handles undefined or invalid special die faces', () => {
+  it('handles null special die face', () => {
     const roll = createRoll(3, 4);
+    roll.specialDie = null;
     render(<DiceDisplay roll={roll} isRolling={false} />);
 
     expect(screen.queryByTitle(/Die Face/)).not.toBeInTheDocument();
   });
 
-  it('maintains correct spacing and layout', () => {
-    const roll = createRoll(3, 4, 'barbarian');
-    const { container } = render(<DiceDisplay roll={roll} isRolling={false} />);
+  it('handles invalid special die face', () => {
+    const roll = createRoll(3, 4);
+    // @ts-ignore - Testing invalid input
+    roll.specialDie = 'invalid';
+    render(<DiceDisplay roll={roll} isRolling={false} />);
 
-    // Check flex container classes
-    expect(container.querySelector('.flex.flex-col')).toBeInTheDocument();
-    expect(container.querySelector('.flex.justify-center.space-x-4')).toBeInTheDocument();
+    expect(screen.queryByTitle(/Die Face/)).not.toBeInTheDocument();
   });
 
-  it('renders special die with correct colors', () => {
-    const specialDieTypes: Array<[SpecialDieFace, string]> = [
-      ['barbarian', 'bg-red-500'],
-      ['merchant', 'bg-yellow-400'],
-      ['politics', 'bg-blue-500'],
-      ['science', 'bg-green-500']
+  it('handles undefined special die face', () => {
+    const roll = createRoll(3, 4);
+    // @ts-ignore - Testing undefined input
+    roll.specialDie = undefined;
+    render(<DiceDisplay roll={roll} isRolling={false} />);
+
+    expect(screen.queryByTitle(/Die Face/)).not.toBeInTheDocument();
+  });
+
+  it('renders special die with correct colors and layout', () => {
+    const specialDieTypes: Array<[SpecialDieFace, string, string, string]> = [
+      ['barbarian', 'bg-red-500', '🗡️', 'Barbarian'],
+      ['merchant', 'bg-yellow-400', '💰', 'Merchant'],
+      ['politics', 'bg-blue-500', '👑', 'Politics'],
+      ['science', 'bg-green-500', '🔬', 'Science']
     ];
 
-    specialDieTypes.forEach(([type, colorClass]) => {
+    specialDieTypes.forEach(([type, colorClass, icon, label]) => {
       const roll = createRoll(3, 4, type);
       const { container } = render(<DiceDisplay roll={roll} isRolling={false} />);
 
+      // Check color indicator
       const colorIndicator = container.querySelector(`.${colorClass}`);
       expect(colorIndicator).toBeInTheDocument();
 
+      // Check icon and label
+      expect(container.textContent).toContain(icon);
+      expect(container.textContent).toContain(label);
+
+      // Check flex layout
+      const specialDieContainer = container.querySelector('.flex.items-center.gap-2.mt-2');
+      expect(specialDieContainer).toBeInTheDocument();
+
       container.remove();
+    });
+  });
+
+  it('maintains responsive layout', () => {
+    const roll = createRoll(3, 4, 'barbarian');
+    const { container } = render(<DiceDisplay roll={roll} isRolling={false} />);
+
+    // Check main container
+    expect(container.firstChild).toHaveClass('mt-6');
+
+    // Check flex containers
+    const flexCol = container.querySelector('.flex.flex-col');
+    expect(flexCol).toHaveClass('items-center', 'justify-center', 'space-y-4');
+
+    const flexRow = container.querySelector('.flex.justify-center');
+    expect(flexRow).toHaveClass('space-x-4');
+
+    // Check individual dice containers
+    const diceContainers = container.querySelectorAll('.w-16.h-16');
+    expect(diceContainers).toHaveLength(2);
+    diceContainers.forEach(die => {
+      expect(die).toHaveClass(
+        'bg-white',
+        'dark:bg-gray-700',
+        'border-2',
+        'border-gray-300',
+        'dark:border-gray-600',
+        'rounded-lg',
+        'flex',
+        'items-center',
+        'justify-center',
+        'text-2xl',
+        'font-bold'
+      );
     });
   });
 });
