@@ -4,13 +4,12 @@ interface DiceRollInternal {
   dice1: number;
   dice2: number;
   total: number;
-  specialDie?: SpecialDieFace | null;
 }
 
 export interface DiceRoll {
   dice: [number, number];
   total: number;
-  specialDie?: SpecialDieFace | null;
+  specialDie: SpecialDieFace | null;
 }
 
 // Special die has 6 faces with distribution:
@@ -58,8 +57,7 @@ export class DiceRoller {
         combinations.push({
           dice1,
           dice2,
-          total: dice1 + dice2,
-          specialDie: null
+          total: dice1 + dice2
         });
       }
     }
@@ -129,8 +127,12 @@ export class DiceRoller {
   }
 
   public getRemainingRolls(): number {
-    const remaining = this.combinations.length - this.discardCount - this.currentIndex;
-    return remaining <= 0 ? this.combinations.length - this.discardCount : remaining;
+    // If we're at the end and about to shuffle
+    if (this.currentIndex >= this.combinations.length - this.discardCount) {
+      return this.combinations.length - this.discardCount - 1;
+    }
+    // Otherwise return remaining in current deck
+    return this.combinations.length - this.discardCount - this.currentIndex;
   }
 
   public getHistory(): DiceRoll[] {
