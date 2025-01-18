@@ -16,11 +16,11 @@ describe('DiceRoller', () => {
     const roller = new DiceRoller();
     const roll = roller.roll();
     
-    expect(roll.dice1).toBeGreaterThanOrEqual(1);
-    expect(roll.dice1).toBeLessThanOrEqual(6);
-    expect(roll.dice2).toBeGreaterThanOrEqual(1);
-    expect(roll.dice2).toBeLessThanOrEqual(6);
-    expect(roll.sum).toBe(roll.dice1 + roll.dice2);
+    expect(roll.dice[0]).toBeGreaterThanOrEqual(1);
+    expect(roll.dice[0]).toBeLessThanOrEqual(6);
+    expect(roll.dice[1]).toBeGreaterThanOrEqual(1);
+    expect(roll.dice[1]).toBeLessThanOrEqual(6);
+    expect(roll.total).toBe(roll.dice[0] + roll.dice[1]);
   });
 
   it('should handle special die faces with correct distribution', () => {
@@ -57,8 +57,8 @@ describe('DiceRoller', () => {
     const roller = new DiceRoller(4, true, mockRandom);
     const roll = roller.roll();
 
-    expect(roll.dice1).toBeGreaterThanOrEqual(1);
-    expect(roll.dice2).toBeGreaterThanOrEqual(1);
+    expect(roll.dice[0]).toBeGreaterThanOrEqual(1);
+    expect(roll.dice[1]).toBeGreaterThanOrEqual(1);
     expect(roll.specialDie).toBeDefined();
     expect(mockRandom).toHaveBeenCalled();
   });
@@ -91,14 +91,14 @@ describe('DiceRoller', () => {
   it('should properly handle special die toggling', () => {
     const roller = new DiceRoller(4, false);
     let roll = roller.roll();
-    expect(roll.specialDie).toBeUndefined();
+    expect(roll.specialDie).toBeNull();
 
-    roller.setUseSpecialDie(true);
+    roller.setSpecialDie(true);
     roll = roller.roll();
     expect(roll.specialDie).toBeDefined();
 
-    roller.setUseSpecialDie(false);
+    roller.setSpecialDie(false);
     roll = roller.roll();
-    expect(roll.specialDie).toBeUndefined();
+    expect(roll.specialDie).toBeNull();
   });
 });
