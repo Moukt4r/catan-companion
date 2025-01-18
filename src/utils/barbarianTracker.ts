@@ -6,7 +6,8 @@ export class BarbarianTracker {
   private attackCount: number = 0;
   private defenseCount: number = 0;
   private lastUpdateTime: number;
-  private stateChanged: boolean = false;
+  private pendingAttack: boolean = false;
+  private nextPosition: number = 0;
 
   constructor(initialThreshold: number = 7) {
     if (initialThreshold <= 0) {
@@ -14,6 +15,7 @@ export class BarbarianTracker {
     }
     this.threshold = initialThreshold;
     this.lastUpdateTime = Date.now();
+    this.nextPosition = 0;
   }
 
   getPosition(): number {
@@ -45,12 +47,9 @@ export class BarbarianTracker {
   }
 
   isUnderAttack(): boolean {
-    if (this.stateChanged) {
-      // If we've changed state during this turn, use position
-      return this.position >= this.threshold;
-    }
-    // Otherwise, check if next position would trigger attack
-    return (this.position + 1) >= this.threshold;
+    const willAttack = this.position >= this.threshold;
+    const willReachThreshold = (this.nextPosition >= this.threshold);
+    return this.pendingAttack || willAttack || willReachThreshold;
   }
 
   isDefended(): boolean {
@@ -64,31 +63,39 @@ export class BarbarianTracker {
 
   incrementKnights(): void {
     this.knightCount++;
-    this.stateChanged = false;
   }
 
   decrementKnights(): void {
     if (this.knightCount > 0) {
       this.knightCount--;
     }
-    this.stateChanged = false;
   }
 
   startMove(): void {
     this.isMoving = true;
-    this.stateChanged = false;
   }
 
   endMove(): void {
     this.isMoving = false;
-    this.stateChanged = false;
+  }
+
+  private checkForAttack(): boolean {
+    return this.position >= this.threshold || this.nextPosition >= this.threshold;
+  }
+
+  private prepareNextPosition(): void {
+    // Calculate where we would move next
+    this.nextPosition = this.position + 1;
+    
+    // Set pending attack if needed
+    if (this.checkForAttack()) {
+      this.pendingAttack = true;
+      this.position = this.threshold; // Force position to threshold for attack
+    }
   }
 
   private handleAttack(): void {
-    // Mark that we're changing state
-    this.stateChanged = true;
-    
-    // Record attack and update counters
+    // Record the attack
     this.attackCount++;
     if (this.isDefended()) {
       this.defenseCount++;
@@ -96,22 +103,25 @@ export class BarbarianTracker {
 
     // Reset state
     this.position = 0;
+    this.nextPosition = 0;
     this.knightCount = 0;
-    this.lastUpdateTime = Date.now();
+    this.pendingAttack = false;
   }
 
   advancePosition(): void {
-    // Reset state change flag at start of turn
-    this.stateChanged = false;
+    // Phase 1: Prepare next state
+    this.prepareNextPosition();
 
-    // Check if next position would trigger attack
-    if ((this.position + 1) >= this.threshold) {
+    // Phase 2: Handle attack if needed
+    if (this.pendingAttack) {
       this.handleAttack();
     } else {
-      // Regular movement
-      this.position++;
-      this.lastUpdateTime = Date.now();
+      // Phase 3: Regular movement
+      this.position = this.nextPosition;
     }
+
+    // Phase 4: Update timestamp
+    this.lastUpdateTime = Date.now();
   }
 
   setThreshold(newThreshold: number): void {
@@ -120,17 +130,18 @@ export class BarbarianTracker {
     }
     
     this.threshold = newThreshold;
-    this.stateChanged = false;
 
-    // Check if current position would trigger attack with new threshold
-    if (this.position >= newThreshold) {
+    // Recalculate position after threshold change
+    this.prepareNextPosition();
+    if (this.pendingAttack) {
       this.handleAttack();
     }
   }
 
   resetPosition(): void {
     this.position = 0;
+    this.nextPosition = 0;
+    this.pendingAttack = false;
     this.lastUpdateTime = Date.now();
-    this.stateChanged = false;
   }
 }
