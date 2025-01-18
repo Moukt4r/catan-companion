@@ -1,43 +1,25 @@
-// Add testing-library jest-dom matchers
+// Add DOM testing library matchers
 import '@testing-library/jest-dom';
 
-// Mock next/router
+// Mock Next.js router
 jest.mock('next/router', () => ({
   useRouter: () => ({
     push: jest.fn(),
     replace: jest.fn(),
     prefetch: jest.fn(),
-    route: '/',
-    pathname: '',
-    query: {},
-    asPath: '',
-    events: {
-      on: jest.fn(),
-      off: jest.fn(),
-      emit: jest.fn(),
-    },
   }),
 }));
 
-// Mock next/image
-jest.mock('next/image', () => ({
-  __esModule: true,
-  default: 'img',
-}));
+// Mock CSS imports globally
+jest.mock('styles/globals.css', () => ({}));
 
-// Mock console.warn to reduce noise in tests
-global.console.warn = jest.fn();
-
-// Add window.URL.createObjectURL mock
-if (typeof window !== 'undefined') {
-  window.URL.createObjectURL = jest.fn();
-}
-
-// Mock IntersectionObserver
-const mockIntersectionObserver = jest.fn();
-mockIntersectionObserver.mockReturnValue({
-  observe: () => null,
-  unobserve: () => null,
-  disconnect: () => null,
+// Mock window object for localStorage
+Object.defineProperty(window, 'localStorage', {
+  value: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    clear: jest.fn(),
+    removeItem: jest.fn(),
+  },
+  writable: true
 });
-window.IntersectionObserver = mockIntersectionObserver;
