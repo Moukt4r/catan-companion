@@ -86,8 +86,16 @@ export class BarbarianTracker {
   }
 
   advancePosition(): void {
+    // Check if position is already at or past threshold
+    if (this.position >= this.threshold - 1) {
+      this.processAttack();
+      return;
+    }
+    
+    // Calculate next position
     const nextPosition = this.position + 1;
 
+    // Check if next position would reach threshold
     if (nextPosition >= this.threshold) {
       this.processAttack();
     } else {
