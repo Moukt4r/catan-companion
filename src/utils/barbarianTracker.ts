@@ -75,22 +75,21 @@ export class BarbarianTracker {
     this.isMoving = false;
   }
 
+  private processAttack(): void {
+    this.underAttack = true;
+    this.attackCount++;
+    if (this.isDefended()) {
+      this.defenseCount++;
+    }
+    this.position = 0;
+    this.knightCount = 0;
+  }
+
   advancePosition(): void {
     const nextPosition = this.position + 1;
 
     if (nextPosition >= this.threshold) {
-      // Signal attack first
-      this.underAttack = true;
-
-      // Record the attack outcome
-      this.attackCount++;
-      if (this.isDefended()) {
-        this.defenseCount++;
-      }
-
-      // Reset position and knights
-      this.position = 0;
-      this.knightCount = 0;
+      this.processAttack();
     } else {
       this.position = nextPosition;
     }
@@ -105,13 +104,7 @@ export class BarbarianTracker {
     
     // If current position would exceed or reach the new threshold, trigger attack
     if (this.position >= newThreshold) {
-      this.underAttack = true;
-      this.attackCount++;
-      if (this.isDefended()) {
-        this.defenseCount++;
-      }
-      this.position = 0;
-      this.knightCount = 0;
+      this.processAttack();
     }
     
     this.threshold = newThreshold;
