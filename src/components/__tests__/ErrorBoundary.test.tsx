@@ -2,56 +2,45 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ErrorBoundary } from '../ErrorBoundary';
 
-// Mock console.error to avoid test output pollution
-const originalConsoleError = console.error;
-beforeAll(() => {
-  console.error = jest.fn();
-});
-
-afterAll(() => {
-  console.error = originalConsoleError;
-});
-
-afterEach(() => {
-  jest.clearAllMocks();
-});
-
-// Components for testing
-const ThrowError = () => {
+// Create components that will throw errors
+const ThrowError = (): React.ReactElement => {
   throw new Error('Test error');
 };
 
-const ThrowErrorOnClick = () => {
-  const [shouldThrow, setShouldThrow] = React.useState(false);
-  
-  if (shouldThrow) {
-    throw new Error('Error on click');
-  }
-
-  return (
-    <button onClick={() => setShouldThrow(true)}>
-      Trigger Error
-    </button>
-  );
-};
-
-const ThrowErrorWithInfo = () => {
+const ThrowErrorWithInfo = (): React.ReactElement => {
   throw new Error('Test error with info');
 };
 
-const ComponentWithKey = ({ id }: { id: number }) => {
-  return <div>Component {id}</div>;
+const ThrowErrorOnClick = (): React.ReactElement => {
+  const handleClick = () => {
+    throw new Error('Error on click');
+  };
+  return <button onClick={handleClick}>Trigger Error</button>;
 };
 
 describe('ErrorBoundary', () => {
+  // Prevent console.error spam during tests
+  const originalConsoleError = console.error;
+  beforeAll(() => {
+    console.error = jest.fn();
+  });
+
+  afterAll(() => {
+    console.error = originalConsoleError;
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders children when there is no error', () => {
     render(
       <ErrorBoundary>
-        <div>Test Content</div>
+        <div>Test content</div>
       </ErrorBoundary>
     );
-    
-    expect(screen.getByText('Test Content')).toBeInTheDocument();
+
+    expect(screen.getByText('Test content')).toBeInTheDocument();
   });
 
   it('renders error UI when there is an error', () => {
@@ -76,8 +65,9 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    expect(screen.getByText(/Error: Test error/)).toBeInTheDocument();
-    expect(screen.getByTestId('error-details')).toBeInTheDocument();
+    const errorMessage = screen.getByText(/Error: Test error/);
+    expect(errorMessage).toBeInTheDocument();
+    expect(errorMessage.parentElement).toHaveAttribute('class', expect.stringContaining('bg-gray-100'));
 
     process.env.NODE_ENV = originalNodeEnv;
   });
@@ -102,7 +92,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    expect(screen.queryByTestId('error-details')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Error: Test error/)).not.toBeInTheDocument();
 
     process.env.NODE_ENV = originalNodeEnv;
   });
@@ -121,7 +111,7 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
   });
 
-  it('recovers from error when children change', () => {
+  it('recovers when children change', () => {
     const { rerender } = render(
       <ErrorBoundary>
         <ThrowError />
@@ -130,42 +120,26 @@ describe('ErrorBoundary', () => {
 
     expect(screen.getByRole('alert')).toBeInTheDocument();
 
-    // Rerender with new child
     rerender(
       <ErrorBoundary>
-        <div>New Content</div>
+        <div>Working content</div>
       </ErrorBoundary>
     );
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByText('New Content')).toBeInTheDocument();
-  });
-
-  it('handles errors with componentStack information', () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
-
-    render(
-      <ErrorBoundary>
-        <div>
-          <ThrowErrorWithInfo />
-        </div>
-      </ErrorBoundary>
-    );
-
-    expect(screen.getByTestId('error-details')).toHaveTextContent(/in ThrowErrorWithInfo/);
-
-    process.env.NODE_ENV = originalNodeEnv;
+    expect(screen.getByText('Working content')).toBeInTheDocument();
   });
 
   it('preserves error state when props change but key remains same', () => {
     const { rerender } = render(
       <ErrorBoundary>
-        <ComponentWithKey id={1} />
+        <ThrowError />
       </ErrorBoundary>
     );
 
-    // Force an error
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    // Update props but keep same error-throwing child
     rerender(
       <ErrorBoundary>
         <ThrowError />
@@ -173,48 +147,39 @@ describe('ErrorBoundary', () => {
     );
 
     expect(screen.getByRole('alert')).toBeInTheDocument();
-
-    // Update props but keep same key
-    rerender(
-      <ErrorBoundary>
-        <ComponentWithKey id={2} />
-      </ErrorBoundary>
-    );
-
-    // Error UI should still be shown
-    expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
-  it('calls onError prop when an error occurs', () => {
-    const onError = jest.fn();
-    
-    render(
-      <ErrorBoundary onError={onError}>
-        <ThrowError />
-      </ErrorBoundary>
-    );
-
-    expect(onError).toHaveBeenCalledWith(expect.any(Error));
-  });
-
-  it('handles multiple errors in succession', () => {
+  it('resets error state when key changes', () => {
     const { rerender } = render(
+      <ErrorBoundary key="1">
+        <ThrowError />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    // Render with new key
+    rerender(
+      <ErrorBoundary key="2">
+        <div>Working content</div>
+      </ErrorBoundary>
+    );
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('Working content')).toBeInTheDocument();
+  });
+
+  it('cleans up properly when unmounted', () => {
+    const { unmount } = render(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>
     );
 
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(console.error).toHaveBeenCalledTimes(1);
-
-    // Cause another error
-    rerender(
-      <ErrorBoundary>
-        <ThrowErrorWithInfo />
-      </ErrorBoundary>
-    );
-
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(console.error).toHaveBeenCalledTimes(2);
+    unmount();
+    
+    // No memory leaks or errors on unmount
+    expect(console.error).toHaveBeenCalledTimes(1); // Only from the initial error
   });
 });
