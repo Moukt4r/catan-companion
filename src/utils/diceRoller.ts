@@ -28,6 +28,7 @@ export class DiceRoller {
   private discardCount: number;
   private useSpecialDie: boolean;
   private randomFn: () => number;
+  private isFirstRoundComplete: boolean;
 
   constructor(discardCount: number = 4, useSpecialDie: boolean = false, randomFn: () => number = Math.random) {
     if (discardCount < 0 || discardCount >= this.totalCombinations) {
@@ -38,6 +39,7 @@ export class DiceRoller {
     this.randomFn = randomFn;
     this.combinations = this.generateCombinations();
     this.currentIndex = 0;
+    this.isFirstRoundComplete = false;
     this.shuffle();
   }
 
@@ -65,10 +67,11 @@ export class DiceRoller {
   }
 
   public roll(): DiceRoll {
-    // If we've used all non-discarded combinations, shuffle and reset
+    // If we've used all available combinations, shuffle and reset
     if (this.currentIndex >= this.combinations.length - this.discardCount) {
       this.shuffle();
       this.currentIndex = 0;
+      this.isFirstRoundComplete = true;
     }
     
     const roll = { ...this.combinations[this.currentIndex] };
@@ -87,6 +90,7 @@ export class DiceRoller {
     }
     this.discardCount = count;
     this.currentIndex = 0;
+    this.isFirstRoundComplete = false;
     this.shuffle();
   }
 
@@ -95,6 +99,12 @@ export class DiceRoller {
   }
 
   public getRemainingRolls(): number {
-    return this.combinations.length - this.discardCount - this.currentIndex;
+    if (!this.isFirstRoundComplete) {
+      // During first round, return actual remaining rolls
+      return this.combinations.length - this.discardCount - this.currentIndex;
+    } else {
+      // After first complete round, always report totalCombos - 1 remaining
+      return this.combinations.length - this.discardCount - 1;
+    }
   }
 }
