@@ -2,6 +2,9 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import App from '../_app';
 
+// Mock CSS imports
+jest.mock('../../styles/globals.css', () => ({}));
+
 // Mock next/app
 jest.mock('next/app', () => ({
   __esModule: true,
