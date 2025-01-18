@@ -83,9 +83,16 @@ export class BarbarianTracker {
     }
     this.position = 0;
     this.knightCount = 0;
+    // Reset underAttack on next tick to allow for proper state detection
+    setTimeout(() => {
+      this.underAttack = false;
+    }, 0);
   }
 
   advancePosition(): void {
+    // Reset underAttack status at the start of movement
+    this.underAttack = false;
+
     // Calculate next position
     const nextPosition = this.position + 1;
 
@@ -116,6 +123,7 @@ export class BarbarianTracker {
   resetPosition(): void {
     this.position = 0;
     this.lastUpdateTime = Date.now();
+    this.underAttack = false;
   }
 
   endAttack(): void {
