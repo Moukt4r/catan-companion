@@ -147,12 +147,22 @@ describe('GameEvents', () => {
     const input = screen.getByLabelText(/Event Chance/i);
 
     // Test with value > 100
+    randomSpy.mockReturnValueOnce(0.9); // Make sure no event triggers
     fireEvent.change(input, { target: { value: '150' } });
     expect(input).toHaveValue(100);
+    act(() => {
+      ref.current?.checkForEvent();
+    });
+    expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
 
     // Test with negative value
+    randomSpy.mockReturnValueOnce(0.9); // Make sure no event triggers
     fireEvent.change(input, { target: { value: '-10' } });
     expect(input).toHaveValue(0);
+    act(() => {
+      ref.current?.checkForEvent();
+    });
+    expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
   });
 
   it('does not trigger event when chance is not met', () => {
