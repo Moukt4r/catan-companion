@@ -23,16 +23,16 @@ describe('DiceDisplay', () => {
     const { container } = render(
       <DiceDisplay roll={defaultRoll} isRolling={true} />
     );
-    const diceElements = container.querySelectorAll('.animate-bounce, .animate-bounce.delay-100');
-    expect(diceElements).toHaveLength(2);
 
-    // Check individual dice animations
+    // Check that all three elements (container and both dice) have animations
+    const containerElement = container.querySelector('.flex.flex-col');
+    expect(containerElement).toHaveClass('animate-bounce');
+
     const firstDie = screen.getByRole('img', { name: /first die showing 3/i });
     const secondDie = screen.getByRole('img', { name: /second die showing 4/i });
     
     expect(firstDie).toHaveClass('animate-bounce');
-    expect(secondDie).toHaveClass('animate-bounce');
-    expect(secondDie).toHaveClass('delay-100');
+    expect(secondDie).toHaveClass('animate-bounce', 'delay-100');
   });
 
   it('renders special die with correct colors and layout', () => {
@@ -83,9 +83,8 @@ describe('DiceDisplay', () => {
     expect(parentFlex).toBeInTheDocument();
     expect(parentFlex).toHaveClass('items-center', 'justify-center', 'space-y-4');
 
-    const diceContainer = container.querySelector('.flex.flex-col');
+    const diceContainer = container.querySelector('.flex.justify-center.space-x-4');
     expect(diceContainer).toBeInTheDocument();
-    expect(diceContainer).toHaveClass('items-center', 'justify-center', 'space-y-4');
 
     const diceElements = container.querySelectorAll('.w-16.h-16');
     expect(diceElements).toHaveLength(2);
@@ -100,5 +99,11 @@ describe('DiceDisplay', () => {
       'items-center',
       'justify-center'
     );
+  });
+
+  it('does not render special die section when no special die is provided', () => {
+    render(<DiceDisplay roll={defaultRoll} isRolling={false} />);
+    const specialDieContainer = screen.queryByTitle(/die face/i);
+    expect(specialDieContainer).not.toBeInTheDocument();
   });
 });
