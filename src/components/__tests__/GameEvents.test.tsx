@@ -16,21 +16,24 @@ jest.useFakeTimers();
 describe('GameEvents', () => {
   const ref = React.createRef<GameEventsRef>();
   let randomSpy: jest.SpyInstance;
+  let floorSpy: jest.SpyInstance;
 
   beforeEach(() => {
     randomSpy = jest.spyOn(Math, 'random');
+    floorSpy = jest.spyOn(Math, 'floor');
     randomSpy.mockReturnValue(0.1); // 10% chance, below default 15%
   });
 
   afterEach(() => {
     randomSpy.mockRestore();
+    floorSpy.mockRestore();
     jest.clearAllTimers();
     jest.clearAllMocks();
   });
 
   const clearAnyExistingEvents = async () => {
-    act(() => {
-      jest.advanceTimersByTime(10000);
+    await act(async () => {
+      jest.runOnlyPendingTimers();
     });
     await waitFor(() => {
       expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
@@ -86,7 +89,7 @@ describe('GameEvents', () => {
     expect(screen.getByTestId('current-event')).toBeInTheDocument();
     
     act(() => {
-      jest.advanceTimersByTime(10000);
+      jest.runOnlyPendingTimers();
     });
     
     expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
@@ -111,7 +114,7 @@ describe('GameEvents', () => {
     for (let i = 0; i < 12; i++) {
       act(() => {
         ref.current?.checkForEvent();
-        jest.advanceTimersByTime(10000); // Clear current event
+        jest.runOnlyPendingTimers();
       });
     }
     
@@ -121,10 +124,10 @@ describe('GameEvents', () => {
   });
 
   it('shows correct icon and styling for each event type', () => {
-    const { rerender } = render(<GameEvents ref={ref} />);
+    render(<GameEvents ref={ref} />);
 
     // Test positive event
-    jest.spyOn(global.Math, 'floor').mockReturnValueOnce(0); // First event in EVENTS array is positive
+    floorSpy.mockReturnValueOnce(0); // First event in EVENTS array is positive
     act(() => {
       ref.current?.checkForEvent();
     });
@@ -132,8 +135,12 @@ describe('GameEvents', () => {
     expect(screen.getByTestId('current-event')).toHaveClass('bg-green-50');
     expect(screen.getByTestId('current-event-text-positive')).toBeInTheDocument();
 
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+
     // Test negative event
-    jest.spyOn(global.Math, 'floor').mockReturnValueOnce(10); // 11th event is negative
+    floorSpy.mockReturnValueOnce(10); // 11th event is negative
     act(() => {
       ref.current?.checkForEvent();
     });
@@ -141,8 +148,12 @@ describe('GameEvents', () => {
     expect(screen.getByTestId('current-event')).toHaveClass('bg-red-50');
     expect(screen.getByTestId('current-event-text-negative')).toBeInTheDocument();
 
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+
     // Test neutral event
-    jest.spyOn(global.Math, 'floor').mockReturnValueOnce(20); // 21st event is neutral
+    floorSpy.mockReturnValueOnce(20); // 21st event is neutral
     act(() => {
       ref.current?.checkForEvent();
     });
@@ -155,18 +166,20 @@ describe('GameEvents', () => {
     render(<GameEvents ref={ref} />);
     await clearAnyExistingEvents();
 
-    // Test with value > 100
+    // Setup mocks for the sequence of operations
     randomSpy.mockImplementation(() => 0.9); // Make sure no event triggers
-    
+    floorSpy.mockImplementation((n) => n); // Passthrough for input validation
+
     fireEvent.click(screen.getByTitle('Configure events'));
     const input = screen.getByLabelText(/Event Chance/i);
 
+    // Test with value > 100
     await act(async () => {
       fireEvent.change(input, { target: { value: '150' } });
       ref.current?.checkForEvent();
-      jest.advanceTimersByTime(0); // Flush any pending timers
+      jest.runOnlyPendingTimers();
     });
-
+    
     expect(input).toHaveValue(100);
     await waitFor(() => {
       expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
@@ -176,7 +189,7 @@ describe('GameEvents', () => {
     await act(async () => {
       fireEvent.change(input, { target: { value: '-10' } });
       ref.current?.checkForEvent();
-      jest.advanceTimersByTime(0); // Flush any pending timers
+      jest.runOnlyPendingTimers();
     });
 
     expect(input).toHaveValue(0);
@@ -188,10 +201,10 @@ describe('GameEvents', () => {
   it('does not trigger event when chance is not met', async () => {
     randomSpy.mockImplementation(() => 0.9); // Above threshold
     render(<GameEvents ref={ref} />);
-    await clearAnyExistingEvents();
-
-    act(() => {
+    
+    await act(async () => {
       ref.current?.checkForEvent();
+      jest.runOnlyPendingTimers();
     });
 
     await waitFor(() => {
