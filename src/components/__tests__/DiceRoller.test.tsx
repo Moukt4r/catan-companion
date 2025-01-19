@@ -25,7 +25,7 @@ describe('DiceRoller', () => {
 
   // Mock audio playback
   const mockPlay = jest.fn();
-  const mockAudio = jest.fn(() => ({ play: mockPlay }));
+  let mockAudio: jest.Mock;
   const mockConsoleError = jest.fn();
   
   // Mock utility methods
@@ -40,6 +40,7 @@ describe('DiceRoller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPlay.mockResolvedValue(undefined);
+    mockAudio = jest.fn(() => ({ play: mockPlay }));
     
     // Setup DiceRollerUtil mock for each test
     (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
@@ -127,6 +128,8 @@ describe('DiceRoller', () => {
 
   it('handles audio play errors gracefully', async () => {
     jest.useFakeTimers();
+
+    // Mock the play function to reject
     mockPlay.mockRejectedValueOnce(new Error('Audio failed to play'));
 
     render(<DiceRoller />);
@@ -139,6 +142,26 @@ describe('DiceRoller', () => {
 
     expect(mockPlay).toHaveBeenCalled();
     expect(mockRoll).toHaveBeenCalled();
+  });
+
+  it('handles audio creation errors gracefully', async () => {
+    jest.useFakeTimers();
+
+    // Mock the Audio constructor to throw
+    mockAudio.mockImplementationOnce(() => {
+      throw new Error('Audio creation failed');
+    });
+
+    render(<DiceRoller />);
+    const button = screen.getByRole('button', { name: /roll dice/i });
+    fireEvent.click(button);
+
+    await act(async () => {
+      jest.advanceTimersByTime(600);
+    });
+
+    expect(mockAudio).toHaveBeenCalled();
+    expect(mockRoll).toHaveBeenCalled(); // Roll should still happen
   });
 
   it('updates statistics after rolling', async () => {
@@ -156,18 +179,37 @@ describe('DiceRoller', () => {
     expect(screen.getByText(/average roll: 7\.0/i)).toBeInTheDocument();
   });
 
-  it('toggles sound', () => {
+  it('toggles sound and handles errors during roll', async () => {
+    jest.useFakeTimers();
     render(<DiceRoller />);
 
+    // Enable sound and simulate error
+    mockAudio.mockImplementationOnce(() => ({ 
+      play: jest.fn().mockRejectedValueOnce(new Error('Audio error'))
+    }));
+
+    const rollButton = screen.getByRole('button', { name: /roll dice/i });
+    fireEvent.click(rollButton);
+
+    await act(async () => {
+      jest.advanceTimersByTime(600);
+    });
+
+    // Roll should complete despite audio error
+    expect(mockRoll).toHaveBeenCalled();
+
+    // Now disable sound
     const soundButton = screen.getByRole('button', { name: /disable sound/i });
     fireEvent.click(soundButton);
 
     expect(screen.getByRole('button', { name: /enable sound/i })).toBeInTheDocument();
 
-    const rollButton = screen.getByRole('button', { name: /roll dice/i });
+    // Roll again with sound disabled
+    mockRoll.mockClear();
     fireEvent.click(rollButton);
 
     expect(mockAudio).not.toHaveBeenCalled();
+    expect(mockRoll).toHaveBeenCalled();
   });
 
   it('validates discard count range', () => {
@@ -227,6 +269,14 @@ describe('DiceRoller', () => {
     
     expect(mockAudio).toHaveBeenCalledWith('/dice-roll.mp3');
     expect(mockPlay).toHaveBeenCalled();
+  });
+
+  it('ignores non-r key presses', () => {
+    render(<DiceRoller />);
+    fireEvent.keyDown(document, { key: 'a' });
+    
+    expect(mockAudio).not.toHaveBeenCalled();
+    expect(mockRoll).not.toHaveBeenCalled();
   });
 
   it('handles non-numeric discard count input', () => {
