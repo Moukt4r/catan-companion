@@ -70,8 +70,8 @@ describe('EventSystem', () => {
     it('handles case when roll is above all cumulative probabilities', () => {
       // First random passes chance check
       (Math.random as jest.Mock).mockReturnValueOnce(0.1);
-      // Second random is above all cumulative probabilities
-      (Math.random as jest.Mock).mockReturnValueOnce(0.99);
+      // Second random is above all cumulative probabilities (total is 1.0)
+      (Math.random as jest.Mock).mockReturnValueOnce(1.1);
 
       expect(eventSystem.getRandomEvent()).toBeNull();
     });
