@@ -5,8 +5,8 @@ import { GameEvents, GameEventsRef } from '../GameEvents';
 // Mock the icons
 jest.mock('lucide-react', () => ({
   AlertCircle: () => <div data-testid="neutral-icon">AlertCircle</div>,
-  AlertTriangle: () => <div data-testid="warning-icon">AlertTriangle</div>,
-  CheckCircle2: () => <div data-testid="success-icon">CheckCircle2</div>,
+  AlertTriangle: () => <div data-testid="negative-icon">AlertTriangle</div>,
+  CheckCircle2: () => <div data-testid="positive-icon">CheckCircle2</div>,
   Settings: () => <div data-testid="settings-icon">Settings</div>,
 }));
 
@@ -106,18 +106,39 @@ describe('GameEvents', () => {
     }
     
     fireEvent.click(screen.getByTestId('toggle-history'));
-    const historyItems = screen.getAllByTestId(/success-icon|warning-icon|neutral-icon/);
+    const historyItems = screen.getAllByTestId(/positive-icon|negative-icon|neutral-icon/);
     expect(historyItems).toHaveLength(10);
   });
 
-  it('shows correct icon for each event type', () => {
-    render(<GameEvents ref={ref} />);
+  it('shows correct icon and styling for each event type', () => {
+    const { rerender } = render(<GameEvents ref={ref} />);
+
+    // Test positive event
+    jest.spyOn(global.Math, 'floor').mockReturnValueOnce(0); // First event in EVENTS array is positive
     act(() => {
       ref.current?.checkForEvent();
     });
+    expect(screen.getByTestId('positive-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('current-event')).toHaveClass('bg-green-50');
+    expect(screen.getByTestId('current-event-text-positive')).toBeInTheDocument();
 
-    // The event will be positive (since Math.random is mocked to return 0.1)
-    expect(screen.getByTestId('success-icon')).toBeInTheDocument();
+    // Test negative event
+    jest.spyOn(global.Math, 'floor').mockReturnValueOnce(10); // 11th event is negative
+    act(() => {
+      ref.current?.checkForEvent();
+    });
+    expect(screen.getByTestId('negative-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('current-event')).toHaveClass('bg-red-50');
+    expect(screen.getByTestId('current-event-text-negative')).toBeInTheDocument();
+
+    // Test neutral event
+    jest.spyOn(global.Math, 'floor').mockReturnValueOnce(20); // 21st event is neutral
+    act(() => {
+      ref.current?.checkForEvent();
+    });
+    expect(screen.getByTestId('neutral-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('current-event')).toHaveClass('bg-blue-50');
+    expect(screen.getByTestId('current-event-text-neutral')).toBeInTheDocument();
   });
 
   it('handles extreme event chance values', () => {
@@ -155,5 +176,26 @@ describe('GameEvents', () => {
     
     fireEvent.click(toggleHistory);
     expect(screen.queryByTestId('event-history')).not.toBeInTheDocument();
+  });
+
+  it('shows correct percentage text when no events are active', () => {
+    render(<GameEvents ref={ref} />);
+    expect(screen.getByText(/15% chance to trigger/)).toBeInTheDocument();
+
+    // Change event chance
+    fireEvent.click(screen.getByTitle('Configure events'));
+    const input = screen.getByLabelText(/Event Chance/i);
+    fireEvent.change(input, { target: { value: '25' } });
+
+    expect(screen.getByText(/25% chance to trigger/)).toBeInTheDocument();
+  });
+
+  it('does not show percentage text when events are disabled', () => {
+    render(<GameEvents ref={ref} />);
+    fireEvent.click(screen.getByTitle('Configure events'));
+    const toggle = screen.getByLabelText(/Enable random events/i);
+    fireEvent.click(toggle);
+
+    expect(screen.queryByText(/chance to trigger/)).not.toBeInTheDocument();
   });
 });
