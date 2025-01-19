@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
@@ -12,10 +12,11 @@ const Header: React.FC<HeaderProps> = ({
   className = '' 
 }) => {
   const { theme, setTheme } = useTheme();
+  const isDark = theme === 'dark';
 
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
-  };
+  const toggleTheme = useCallback(() => {
+    setTheme(isDark ? 'light' : 'dark');
+  }, [isDark, setTheme]);
 
   return (
     <header className={`p-4 bg-blue-600 dark:bg-blue-800 text-white ${className}`} role="banner">
@@ -24,9 +25,9 @@ const Header: React.FC<HeaderProps> = ({
         <button
           onClick={toggleTheme}
           className="p-2 rounded-full hover:bg-blue-500 dark:hover:bg-blue-700 transition-colors"
-          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
         >
-          {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
+          {isDark ? <Sun size={24} /> : <Moon size={24} />}
         </button>
       </div>
     </header>
