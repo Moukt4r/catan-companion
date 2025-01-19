@@ -275,15 +275,21 @@ describe('DiceRoller', () => {
       });
     }
 
+    // Check that roll history is displayed
     expect(screen.getByRole('heading', { name: /roll history/i })).toBeInTheDocument();
     expect(screen.getByText(/roll 1:/i)).toBeInTheDocument();
     expect(screen.getByText(/roll 2:/i)).toBeInTheDocument();
     expect(screen.getByText(/roll 3:/i)).toBeInTheDocument();
 
-    // Check that science special die is displayed
-    const specialDieInfo = SPECIAL_DIE_INFO.science;
-    expect(screen.getByTestId('special-die-displays')).toBeInTheDocument();
-    expect(screen.getAllByText('Science')).toHaveLength(4); // Main display + 3 history entries
+    // Check that special die displays are present
+    const specialDieDisplays = screen.getAllByTestId('special-die-display');
+    expect(specialDieDisplays).toHaveLength(4); // Main display + 3 history entries
+
+    // Verify the special die content
+    specialDieDisplays.forEach(display => {
+      const container = within(display);
+      expect(container.getByText('Science')).toBeInTheDocument();
+    });
   });
 
   it('limits roll history to 10 items', async () => {
