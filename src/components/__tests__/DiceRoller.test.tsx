@@ -280,7 +280,7 @@ describe('DiceRoller', () => {
     expect(screen.getByText(/roll 3:/i)).toBeInTheDocument();
 
     // Verify special die icon is rendered
-    expect(screen.getByTitle('science Die Face')).toBeInTheDocument();
+    expect(screen.getByTitle('Science Die Face')).toBeInTheDocument();
   });
 
   it('limits roll history to 10 items', async () => {
@@ -321,5 +321,15 @@ describe('DiceRoller', () => {
 
     expect(mockPlay).toHaveBeenCalled();
     expect(mockRoll).toHaveBeenCalled(); // Roll should still happen
+  });
+
+  it('ignores non-r key presses', () => {
+    render(<DiceRoller />);
+
+    act(() => {
+      fireEvent.keyDown(document, { key: 'a' });
+    });
+
+    expect(mockAudio).not.toHaveBeenCalled();
   });
 });
