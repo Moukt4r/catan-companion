@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DiceRoller } from '../DiceRoller';
 import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
+import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
 
 // Create mock implementation for DiceRollerUtil
 const mockRoll = jest.fn().mockReturnValue({
@@ -260,7 +261,7 @@ describe('DiceRoller', () => {
     expect(mockRoll).toHaveBeenCalledTimes(1); // Only one roll executed
   });
 
-  it('handles roll history', async () => {
+  it('handles roll history and special die display', async () => {
     jest.useFakeTimers();
     render(<DiceRoller />);
 
@@ -279,8 +280,11 @@ describe('DiceRoller', () => {
     expect(screen.getByText(/roll 2:/i)).toBeInTheDocument();
     expect(screen.getByText(/roll 3:/i)).toBeInTheDocument();
 
-    // Verify special die icon is rendered
-    expect(screen.getByTitle('Science Die Face')).toBeInTheDocument();
+    // Verify special die information is displayed
+    const specialDieInfo = SPECIAL_DIE_INFO.science;
+    expect(screen.getByText(specialDieInfo.label)).toBeInTheDocument();
+    expect(screen.getByText(specialDieInfo.icon)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /roll history/i })).toBeInTheDocument();
   });
 
   it('limits roll history to 10 items', async () => {
