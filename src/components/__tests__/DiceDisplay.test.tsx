@@ -60,6 +60,17 @@ describe('DiceDisplay', () => {
     });
   });
 
+  it('handles invalid special die values gracefully', () => {
+    const rollWithInvalidSpecialDie: DiceRoll = {
+      ...defaultRoll,
+      specialDie: 'invalid-face' as any
+    };
+
+    render(<DiceDisplay roll={rollWithInvalidSpecialDie} isRolling={false} />);
+    const specialDieContainer = screen.queryByTitle(/die face/i);
+    expect(specialDieContainer).not.toBeInTheDocument();
+  });
+
   it('maintains accessibility attributes', () => {
     render(<DiceDisplay roll={defaultRoll} isRolling={false} />);
     
