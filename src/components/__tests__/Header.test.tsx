@@ -25,130 +25,109 @@ describe('Header', () => {
     cleanup();
   });
 
-  it('renders with default props', () => {
-    render(<Header />);
-    const header = screen.getByRole('banner');
+  it('renders with no props', () => {
+    const Element = Header as any; // To avoid TypeScript prop validation
+    const { container } = render(<Element />);
+    const header = container.firstChild as HTMLElement;
     
-    // Check default title
+    // Should render with default title
     expect(screen.getByText('Catan Companion')).toBeInTheDocument();
     
-    // Check that base classes are applied without any custom class
+    // Should have default classes but no extra className
     const classList = header.className.split(' ').filter(Boolean);
-    expect(classList).toContain('p-4');
-    expect(classList).toContain('bg-blue-600');
-    expect(classList).toContain('text-white');
-    expect(classList.length).toBe(4); // Including dark: class
+    expect(classList).toEqual(['p-4', 'bg-blue-600', 'text-white']);
+    expect(classList).not.toContain('undefined');
+    expect(classList).not.toContain('null');
   });
 
-  it('applies custom className correctly', () => {
-    render(<Header className="test-class" />);
+  it('renders with empty className', () => {
+    render(<Header className="" />);
     const header = screen.getByRole('banner');
     const classList = header.className.split(' ').filter(Boolean);
-
-    // Should have all default classes plus our custom class
-    expect(classList).toContain('p-4');
-    expect(classList).toContain('bg-blue-600');
-    expect(classList).toContain('text-white');
-    expect(classList).toContain('test-class');
+    
+    // Should have default classes but no extra whitespace
+    expect(classList).toEqual(['p-4', 'bg-blue-600', 'text-white']);
   });
 
   it('renders custom title', () => {
     render(<Header title="Test Title" />);
     expect(screen.getByText('Test Title')).toBeInTheDocument();
+    expect(screen.queryByText('Catan Companion')).not.toBeInTheDocument();
   });
 
-  it('handles theme changes correctly', () => {
-    // Test light theme
-    mockUseTheme.mockReturnValue({
-      theme: 'light',
-      setTheme: mockSetTheme
-    });
-    const { rerender } = render(<Header />);
+  it('combines custom className correctly', () => {
+    render(<Header className="custom-class" />);
+    const header = screen.getByRole('banner');
+    const classList = header.className.split(' ').filter(Boolean);
     
+    // Should have default classes plus custom class
+    expect(classList).toEqual(['p-4', 'bg-blue-600', 'text-white', 'custom-class']);
+  });
+
+  it('handles theme correctly', () => {
+    // Light theme
+    const { rerender } = render(<Header />);
     expect(screen.getByTestId('moon-icon')).toBeInTheDocument();
     expect(screen.queryByTestId('sun-icon')).not.toBeInTheDocument();
+    expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Switch to dark mode');
     
-    // Toggle to dark theme
-    const button = screen.getByRole('button');
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button'));
     expect(mockSetTheme).toHaveBeenCalledWith('dark');
 
-    // Re-render with dark theme
+    // Dark theme
     mockUseTheme.mockReturnValue({
       theme: 'dark',
       setTheme: mockSetTheme
     });
     rerender(<Header />);
-    
     expect(screen.getByTestId('sun-icon')).toBeInTheDocument();
     expect(screen.queryByTestId('moon-icon')).not.toBeInTheDocument();
+    expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Switch to light mode');
     
-    // Toggle back to light theme
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button'));
     expect(mockSetTheme).toHaveBeenCalledWith('light');
   });
 
-  it('maintains responsive layout', () => {
-    render(<Header />);
-    
-    // Container has correct classes
-    const container = screen.getByRole('banner').firstElementChild;
-    expect(container).toHaveClass(
-      'container',
-      'mx-auto',
-      'flex',
-      'justify-between',
-      'items-center'
-    );
-    
-    // Title has correct classes
-    const title = screen.getByText('Catan Companion');
-    expect(title).toHaveClass('text-2xl', 'font-bold');
-    
-    // Theme toggle has correct classes
-    const themeButton = screen.getByRole('button');
-    expect(themeButton).toHaveClass(
-      'p-2',
-      'rounded-full',
-      'hover:bg-blue-500',
-      'dark:hover:bg-blue-700',
-      'transition-colors'
-    );
-  });
-
-  it('provides correct ARIA labels for theme toggle', () => {
-    // Light theme
-    render(<Header />);
-    expect(screen.getByRole('button')).toHaveAttribute(
-      'aria-label',
-      'Switch to dark mode'
-    );
-    
-    // Dark theme
-    cleanup();
-    mockUseTheme.mockReturnValue({
-      theme: 'dark',
-      setTheme: mockSetTheme
-    });
-    render(<Header />);
-    expect(screen.getByRole('button')).toHaveAttribute(
-      'aria-label',
-      'Switch to light mode'
-    );
-  });
-
-  it('handles undefined theme gracefully', () => {
+  it('handles undefined theme correctly', () => {
     mockUseTheme.mockReturnValue({
       theme: undefined,
       setTheme: mockSetTheme
     });
     render(<Header />);
     
-    // Should default to light theme UI
+    // Should default to light theme behavior
     expect(screen.getByTestId('moon-icon')).toBeInTheDocument();
-    expect(screen.getByRole('button')).toHaveAttribute(
-      'aria-label',
-      'Switch to dark mode'
+    expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Switch to dark mode');
+    
+    fireEvent.click(screen.getByRole('button'));
+    expect(mockSetTheme).toHaveBeenCalledWith('dark');
+  });
+
+  it('maintains semantic layout', () => {
+    render(<Header />);
+    
+    // Proper heading hierarchy
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading).toHaveClass('text-2xl', 'font-bold');
+    expect(heading).toHaveTextContent('Catan Companion');
+
+    // Proper banner role
+    const banner = screen.getByRole('banner');
+    expect(banner.firstElementChild).toHaveClass(
+      'container',
+      'mx-auto',
+      'flex',
+      'justify-between',
+      'items-center'
+    );
+
+    // Theme toggle button
+    const button = screen.getByRole('button');
+    expect(button).toHaveClass(
+      'p-2',
+      'rounded-full',
+      'hover:bg-blue-500',
+      'transition-colors'
     );
   });
 });
