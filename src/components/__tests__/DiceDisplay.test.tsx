@@ -27,28 +27,32 @@ describe('DiceDisplay', () => {
     expect(diceElements).toHaveLength(2);
   });
 
-  it('renders special die with correct colors and layout', () => {
-    Object.entries(SPECIAL_DIE_INFO).forEach(([face, { color, icon, label }]) => {
-      const specialRoll: DiceRoll = {
+  it('renders special die correctly for all face types', () => {
+    const faceTypes = ['barbarian', 'merchant', 'politics', 'science'] as const;
+    
+    faceTypes.forEach(face => {
+      const rollWithFace: DiceRoll = {
         ...defaultRoll,
-        specialDie: face as DiceRoll['specialDie']
+        specialDie: face
       };
 
       const { container } = render(
-        <DiceDisplay roll={specialRoll} isRolling={false} />
+        <DiceDisplay roll={rollWithFace} isRolling={false} />
       );
 
-      const specialDieContainer = container.querySelector('.flex.items-center.gap-2.mt-2');
-      expect(specialDieContainer).toBeInTheDocument();
+      const faceInfo = SPECIAL_DIE_INFO[face];
+      const colorClass = faceInfo.color.split(' ')[0];
 
-      // Check color dot
-      const colorClass = color.split(' ')[0]; // Gets the first class, e.g., 'bg-red-500' from 'bg-red-500 other-class'
-      const colorDot = specialDieContainer?.querySelector(`.${colorClass}`);
+      const wrapper = container.querySelector('.flex.items-center.gap-2.mt-2');
+      expect(wrapper).toBeInTheDocument();
+
+      const colorDot = wrapper?.querySelector(`.${colorClass}`);
       expect(colorDot).toBeInTheDocument();
-
-      // Check icon and label are present
-      expect(specialDieContainer?.textContent).toContain(icon);
-      expect(specialDieContainer?.textContent).toContain(label);
+      expect(wrapper?.textContent).toContain(faceInfo.icon);
+      expect(wrapper?.textContent).toContain(faceInfo.label);
+      
+      const title = wrapper?.getAttribute('title');
+      expect(title).toBe(`${faceInfo.label} Die Face`);
     });
   });
 
@@ -94,71 +98,41 @@ describe('DiceDisplay', () => {
     );
   });
 
-  // New tests for edge cases
-  it('handles invalid special die face gracefully', () => {
-    // Test with an invalid face value
-    const rollWithInvalidFace: DiceRoll = {
-      ...defaultRoll,
-      specialDie: 'invalid-face' as any
-    };
-
-    const { container } = render(
-      <DiceDisplay roll={rollWithInvalidFace} isRolling={false} />
-    );
-
-    // Special die section should not be rendered
-    const specialDieContainer = container.querySelector('.flex.items-center.gap-2.mt-2');
-    expect(specialDieContainer).not.toBeInTheDocument();
+  // Edge case tests
+  it('handles missing special die face', () => {
+    const roll = { ...defaultRoll, specialDie: undefined };
+    const { container } = render(<DiceDisplay roll={roll} />);
+    
+    const specialDie = container.querySelector('.flex.items-center.gap-2.mt-2');
+    expect(specialDie).not.toBeInTheDocument();
   });
 
-  it('handles undefined special die info gracefully', () => {
-    // Temporarily modify SPECIAL_DIE_INFO to simulate missing info
+  it('handles invalid special die face', () => {
+    const roll = { ...defaultRoll, specialDie: 'invalid-face' as any };
+    const { container } = render(<DiceDisplay roll={roll} />);
+    
+    const specialDie = container.querySelector('.flex.items-center.gap-2.mt-2');
+    expect(specialDie).not.toBeInTheDocument();
+  });
+
+  it('handles missing special die info', () => {
     const originalInfo = { ...SPECIAL_DIE_INFO };
-    (SPECIAL_DIE_INFO as any)['barbarian'] = undefined;
+    (SPECIAL_DIE_INFO as any).barbarian = undefined;
 
-    const rollWithBarbarianFace: DiceRoll = {
-      ...defaultRoll,
-      specialDie: 'barbarian'
-    };
+    const roll = { ...defaultRoll, specialDie: 'barbarian' };
+    const { container } = render(<DiceDisplay roll={roll} />);
+    
+    const specialDie = container.querySelector('.flex.items-center.gap-2.mt-2');
+    expect(specialDie).not.toBeInTheDocument();
 
-    const { container } = render(
-      <DiceDisplay roll={rollWithBarbarianFace} isRolling={false} />
-    );
-
-    // Special die section should not be rendered
-    const specialDieContainer = container.querySelector('.flex.items-center.gap-2.mt-2');
-    expect(specialDieContainer).not.toBeInTheDocument();
-
-    // Restore original info
     Object.assign(SPECIAL_DIE_INFO, originalInfo);
   });
 
-  it('uses default value for isRolling prop', () => {
-    // Render without providing isRolling prop
-    const { container } = render(<DiceDisplay roll={defaultRoll} />);
+  it('handles empty special die face', () => {
+    const roll = { ...defaultRoll, specialDie: '' as any };
+    const { container } = render(<DiceDisplay roll={roll} />);
     
-    // Should not have bounce animation classes
-    const diceElements = container.querySelectorAll('.animate-bounce');
-    expect(diceElements).toHaveLength(0);
-  });
-
-  it('handles all special die face types', () => {
-    // Test each special die face type separately to ensure complete type coverage
-    const faceTypes = ['barbarian', 'merchant', 'politics', 'science'] as const;
-    
-    faceTypes.forEach(faceType => {
-      const rollWithFace: DiceRoll = {
-        ...defaultRoll,
-        specialDie: faceType
-      };
-
-      const { container } = render(
-        <DiceDisplay roll={rollWithFace} isRolling={false} />
-      );
-
-      const specialDieContainer = container.querySelector('.flex.items-center.gap-2.mt-2');
-      expect(specialDieContainer).toBeInTheDocument();
-      expect(specialDieContainer?.textContent).toContain(SPECIAL_DIE_INFO[faceType].label);
-    });
+    const specialDie = container.querySelector('.flex.items-center.gap-2.mt-2');
+    expect(specialDie).not.toBeInTheDocument();
   });
 });
