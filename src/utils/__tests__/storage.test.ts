@@ -71,10 +71,18 @@ describe('StorageManager', () => {
       expect(savedData.version).toBe(1);
       expect(savedData.data).toBeDefined();
     });
+
+    it('loads non-existent state as null', () => {
+      const manager = StorageManager.getInstance();
+      mockLocalStorage.getItem.mockReturnValue(null);
+
+      const result = manager.loadGameState();
+      expect(result).toBeNull();
+    });
   });
 
   describe('error handling', () => {
-    it('handles quota exceeded error', async () => {
+    it('handles storage quota error with retry', async () => {
       const manager = StorageManager.getInstance();
       
       // Set up mock old data to be cleared
@@ -100,6 +108,33 @@ describe('StorageManager', () => {
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('gameState');
     });
 
+    it('handles non-quota storage error without retry', async () => {
+      const manager = StorageManager.getInstance();
+      
+      mockLocalStorage.setItem.mockImplementation(() => {
+        const error = new Error('Unknown storage error');
+        error.name = 'UnknownError';
+        throw error;
+      });
+
+      await expect(manager.saveGameState(createMockGameState()))
+        .rejects.toThrow('Unknown storage error');
+      
+      // Should not try to clear old data
+      expect(mockLocalStorage.removeItem).not.toHaveBeenCalled();
+    });
+
+    it('handles external storage error', async () => {
+      const manager = StorageManager.getInstance();
+      
+      mockStorage.estimate.mockImplementation(() => {
+        throw new Error('Storage API error');
+      });
+
+      await expect(manager.saveGameState(createMockGameState()))
+        .rejects.toThrow('Storage API error');
+    });
+
     it('handles corrupt data gracefully', () => {
       const manager = StorageManager.getInstance();
       mockLocalStorage.getItem.mockReturnValue('invalid json');
@@ -110,14 +145,53 @@ describe('StorageManager', () => {
   });
 
   describe('data migration', () => {
-    it('migrates old data format', () => {
+    it('migrates old data format with settings', () => {
       const manager = StorageManager.getInstance();
       
-      // Setup old format data
+      // Setup old format data with settings
       const oldData = {
         version: 0,
         data: {
-          settings: {},
+          settings: { theme: 'dark' },
+          events: []
+        }
+      };
+      
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(oldData));
+      
+      const result = manager.loadGameState();
+      expect(result?.version).toBe(1);
+      expect(result?.settings.autoSave).toBe(true);
+      expect(result?.settings.theme).toBe('dark');
+    });
+
+    it('migrates old data format without settings', () => {
+      const manager = StorageManager.getInstance();
+      
+      // Setup old format data without settings
+      const oldData = {
+        version: 0,
+        data: {
+          events: []
+        }
+      };
+      
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(oldData));
+      
+      const result = manager.loadGameState();
+      expect(result?.version).toBe(1);
+      expect(result?.settings.autoSave).toBe(true);
+      expect(result?.events).toEqual([]);
+    });
+
+    it('handles completely undefined settings in migration', () => {
+      const manager = StorageManager.getInstance();
+      
+      // Setup old format data with undefined settings
+      const oldData = {
+        version: 0,
+        data: {
+          settings: undefined,
           events: []
         }
       };
@@ -152,6 +226,13 @@ describe('StorageManager', () => {
       // Invalid data formats
       expect(await manager.importData('invalid json')).toBe(false);
       expect(await manager.importData(JSON.stringify({}))).toBe(false);
+      expect(await manager.importData(JSON.stringify({ version: 1 }))).toBe(false);
+      expect(await manager.importData(JSON.stringify({ version: 1, lastSaved: Date.now() }))).toBe(false);
+      expect(await manager.importData(JSON.stringify({ 
+        version: 1, 
+        lastSaved: Date.now(),
+        settings: 'not an object'
+      }))).toBe(false);
       
       // Valid data
       const validState = createMockGameState();
