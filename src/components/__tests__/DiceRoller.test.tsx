@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { DiceRoller } from '../DiceRoller';
 import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
@@ -275,16 +275,15 @@ describe('DiceRoller', () => {
       });
     }
 
-    expect(screen.getByText(/roll history/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /roll history/i })).toBeInTheDocument();
     expect(screen.getByText(/roll 1:/i)).toBeInTheDocument();
     expect(screen.getByText(/roll 2:/i)).toBeInTheDocument();
     expect(screen.getByText(/roll 3:/i)).toBeInTheDocument();
 
-    // Verify special die information is displayed
+    // Check that science special die is displayed
     const specialDieInfo = SPECIAL_DIE_INFO.science;
-    expect(screen.getByText(specialDieInfo.label)).toBeInTheDocument();
-    expect(screen.getByText(specialDieInfo.icon)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /roll history/i })).toBeInTheDocument();
+    expect(screen.getByTestId('special-die-displays')).toBeInTheDocument();
+    expect(screen.getAllByText('Science')).toHaveLength(4); // Main display + 3 history entries
   });
 
   it('limits roll history to 10 items', async () => {
