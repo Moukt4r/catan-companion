@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { GameEvents, GameEventsRef } from '../GameEvents';
 
 // Mock the icons
@@ -27,6 +27,15 @@ describe('GameEvents', () => {
     jest.clearAllTimers();
     jest.clearAllMocks();
   });
+
+  const clearAnyExistingEvents = async () => {
+    act(() => {
+      jest.advanceTimersByTime(10000);
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
+    });
+  };
 
   it('renders with defaults', () => {
     render(<GameEvents ref={ref} />);
@@ -142,44 +151,52 @@ describe('GameEvents', () => {
     expect(screen.getByTestId('current-event-text-neutral')).toBeInTheDocument();
   });
 
-  it('handles extreme event chance values', () => {
+  it('handles extreme event chance values', async () => {
     render(<GameEvents ref={ref} />);
-
-    // Clear any existing events and spies
-    act(() => {
-      jest.advanceTimersByTime(10000);
-    });
-    randomSpy.mockRestore();
+    await clearAnyExistingEvents();
 
     // Test with value > 100
-    randomSpy = jest.spyOn(Math, 'random').mockImplementation(() => 0.9); // Make sure no event triggers
+    randomSpy.mockImplementation(() => 0.9); // Make sure no event triggers
     
     fireEvent.click(screen.getByTitle('Configure events'));
     const input = screen.getByLabelText(/Event Chance/i);
 
-    act(() => {
+    await act(async () => {
       fireEvent.change(input, { target: { value: '150' } });
       ref.current?.checkForEvent();
+      jest.advanceTimersByTime(0); // Flush any pending timers
     });
+
     expect(input).toHaveValue(100);
-    expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
+    });
 
     // Test with negative value
-    act(() => {
+    await act(async () => {
       fireEvent.change(input, { target: { value: '-10' } });
       ref.current?.checkForEvent();
+      jest.advanceTimersByTime(0); // Flush any pending timers
     });
+
     expect(input).toHaveValue(0);
-    expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
+    });
   });
 
-  it('does not trigger event when chance is not met', () => {
+  it('does not trigger event when chance is not met', async () => {
     randomSpy.mockImplementation(() => 0.9); // Above threshold
     render(<GameEvents ref={ref} />);
+    await clearAnyExistingEvents();
+
     act(() => {
       ref.current?.checkForEvent();
     });
-    expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
+    });
   });
 
   it('toggles history visibility correctly', () => {
