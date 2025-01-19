@@ -144,38 +144,37 @@ describe('GameEvents', () => {
 
   it('handles extreme event chance values', () => {
     render(<GameEvents ref={ref} />);
-    fireEvent.click(screen.getByTitle('Configure events'));
-    const input = screen.getByLabelText(/Event Chance/i);
 
-    // Wait for any existing events to be dismissed
+    // Clear any existing events and spies
     act(() => {
       jest.advanceTimersByTime(10000);
     });
+    randomSpy.mockRestore();
 
     // Test with value > 100
-    randomSpy.mockReturnValue(0.9); // Make sure no event triggers
+    randomSpy = jest.spyOn(Math, 'random').mockImplementation(() => 0.9); // Make sure no event triggers
+    
+    fireEvent.click(screen.getByTitle('Configure events'));
+    const input = screen.getByLabelText(/Event Chance/i);
+
     act(() => {
       fireEvent.change(input, { target: { value: '150' } });
-    });
-    expect(input).toHaveValue(100);
-    act(() => {
       ref.current?.checkForEvent();
     });
+    expect(input).toHaveValue(100);
     expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
 
     // Test with negative value
     act(() => {
       fireEvent.change(input, { target: { value: '-10' } });
-    });
-    expect(input).toHaveValue(0);
-    act(() => {
       ref.current?.checkForEvent();
     });
+    expect(input).toHaveValue(0);
     expect(screen.queryByTestId('current-event')).not.toBeInTheDocument();
   });
 
   it('does not trigger event when chance is not met', () => {
-    randomSpy.mockReturnValueOnce(0.9); // Above threshold
+    randomSpy.mockImplementation(() => 0.9); // Above threshold
     render(<GameEvents ref={ref} />);
     act(() => {
       ref.current?.checkForEvent();
