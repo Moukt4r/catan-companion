@@ -21,6 +21,11 @@ describe('BarbarianTracker', () => {
     expect(tracker.isBarbarianMoving()).toBe(false);
   });
 
+  it('should throw error for invalid initial threshold', () => {
+    expect(() => new BarbarianTracker(0)).toThrow('Threshold must be greater than 0');
+    expect(() => new BarbarianTracker(-1)).toThrow('Threshold must be greater than 0');
+  });
+
   it('should handle knight management', () => {
     tracker.incrementKnights();
     expect(tracker.getKnightCount()).toBe(1);
@@ -43,6 +48,18 @@ describe('BarbarianTracker', () => {
 
     tracker.endMove();
     expect(tracker.isBarbarianMoving()).toBe(false);
+  });
+
+  it('should handle attack completion timing', () => {
+    // Move to threshold to trigger attack
+    for (let i = 0; i < 7; i++) {
+      tracker.advancePosition();
+    }
+    expect(tracker.isUnderAttack()).toBe(true);
+
+    // Run timer to completion
+    jest.runAllTimers();
+    expect(tracker.isUnderAttack()).toBe(false);
   });
 
   it('should handle position advancement', () => {
@@ -112,6 +129,40 @@ describe('BarbarianTracker', () => {
     expect(() => customTracker.setThreshold(-1)).toThrow();
   });
 
+  it('should handle attack triggering from threshold changes', () => {
+    // Move to position 4
+    for (let i = 0; i < 4; i++) {
+      tracker.advancePosition();
+    }
+    expect(tracker.getPosition()).toBe(4);
+    expect(tracker.getAttackCount()).toBe(0);
+
+    // Change threshold to 4 - should trigger attack since we're at position 4
+    tracker.setThreshold(4);
+    expect(tracker.getAttackCount()).toBe(1);
+    expect(tracker.getPosition()).toBe(0);
+    expect(tracker.isUnderAttack()).toBe(true);
+
+    jest.runAllTimers();
+    expect(tracker.isUnderAttack()).toBe(false);
+  });
+
+  it('should handle explicit attack control', () => {
+    // Start an attack
+    for (let i = 0; i < 7; i++) {
+      tracker.advancePosition();
+    }
+    expect(tracker.isUnderAttack()).toBe(true);
+
+    // End attack manually
+    tracker.endAttack();
+    expect(tracker.isUnderAttack()).toBe(false);
+
+    // Start moving again
+    tracker.advancePosition();
+    expect(tracker.isUnderAttack()).toBe(false);
+  });
+
   it('should reset position on demand', () => {
     // Advance position
     for (let i = 0; i < 3; i++) {
@@ -144,6 +195,9 @@ describe('BarbarianTracker', () => {
     expect(tracker.getAttackCount()).toBe(1);
     expect(tracker.getDefenseCount()).toBe(0);
 
+    // Wait for attack state to clear
+    jest.runAllTimers();
+
     // Second attack - partially defended (2 knights)
     tracker.incrementKnights();
     tracker.incrementKnights();
@@ -152,6 +206,9 @@ describe('BarbarianTracker', () => {
     }
     expect(tracker.getAttackCount()).toBe(2);
     expect(tracker.getDefenseCount()).toBe(0);
+
+    // Wait for attack state to clear
+    jest.runAllTimers();
 
     // Third attack - fully defended (3 knights)
     tracker.incrementKnights();
