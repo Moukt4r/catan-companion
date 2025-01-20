@@ -76,6 +76,54 @@ describe('DiceRoller - Core Functionality', () => {
       expect(screen.getByText('Remaining Rolls: 30')).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: /roll history/i })).not.toBeInTheDocument();
     });
+
+    // Add test for sound toggle functionality
+    it('toggles sound and correctly controls audio', async () => {
+      jest.useFakeTimers();
+      render(<DiceRoller />);
+      
+      // Initially sound should be enabled
+      const soundButton = screen.getByRole('button', { name: /disable sound/i });
+      expect(screen.getByText('Sound On')).toBeInTheDocument();
+      expect(soundButton).toHaveAccessibleName('Disable sound');
+      
+      // Roll with sound enabled
+      const rollButton = screen.getByRole('button', { name: /roll dice/i });
+      fireEvent.click(rollButton);
+      expect(mockAudio).toHaveBeenCalledWith('/dice-roll.mp3');
+      expect(mockPlay).toHaveBeenCalled();
+      
+      await act(async () => {
+        jest.advanceTimersByTime(600);
+      });
+      
+      mockAudio.mockClear();
+      mockPlay.mockClear();
+
+      // Disable sound
+      fireEvent.click(soundButton);
+      expect(screen.getByText('Sound Off')).toBeInTheDocument();
+      expect(soundButton).toHaveAccessibleName('Enable sound');
+      
+      // Roll with sound disabled
+      fireEvent.click(rollButton);
+      expect(mockAudio).not.toHaveBeenCalled();
+      expect(mockPlay).not.toHaveBeenCalled();
+      
+      await act(async () => {
+        jest.advanceTimersByTime(600);
+      });
+
+      // Re-enable sound
+      fireEvent.click(soundButton);
+      expect(screen.getByText('Sound On')).toBeInTheDocument();
+      expect(soundButton).toHaveAccessibleName('Disable sound');
+      
+      // Roll with sound re-enabled
+      fireEvent.click(rollButton);
+      expect(mockAudio).toHaveBeenCalledWith('/dice-roll.mp3');
+      expect(mockPlay).toHaveBeenCalled();
+    });
   });
 
   describe('rolling functionality', () => {
@@ -211,6 +259,11 @@ describe('DiceRoller - Core Functionality', () => {
       expect(input).toHaveValue(4);
       expect(mockSetDiscardCount).not.toHaveBeenCalled();
 
+      // Test empty value
+      fireEvent.change(input, { target: { value: '' } });
+      expect(input).toHaveValue(4);
+      expect(mockSetDiscardCount).not.toHaveBeenCalled();
+      
       // Test non-numeric values
       fireEvent.change(input, { target: { value: 'abc' } });
       expect(input).toHaveValue(4);
@@ -220,6 +273,23 @@ describe('DiceRoller - Core Functionality', () => {
       fireEvent.change(input, { target: { value: '5.5' } });
       expect(input).toHaveValue(5);
       expect(mockSetDiscardCount).toHaveBeenCalledWith(5);
+
+      // Test boundary values
+      mockSetDiscardCount.mockClear();
+      fireEvent.change(input, { target: { value: '0' } });
+      expect(input).toHaveValue(0);
+      expect(mockSetDiscardCount).toHaveBeenCalledWith(0);
+
+      mockSetDiscardCount.mockClear();
+      fireEvent.change(input, { target: { value: '35' } });
+      expect(input).toHaveValue(35);
+      expect(mockSetDiscardCount).toHaveBeenCalledWith(35);
+
+      // Test values in valid range
+      mockSetDiscardCount.mockClear();
+      fireEvent.change(input, { target: { value: '15' } });
+      expect(input).toHaveValue(15);
+      expect(mockSetDiscardCount).toHaveBeenCalledWith(15);
     });
 
     it('handles audio play errors gracefully', async () => {
