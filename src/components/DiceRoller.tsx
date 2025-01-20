@@ -3,7 +3,6 @@ import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 import { DiceDisplay } from './DiceDisplay';
 import { Loader, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import type { DiceRoll } from '@/types/diceTypes';
-import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
 
 interface DiceRollerProps {
   onRoll?: (roll: DiceRoll) => void;
@@ -20,9 +19,15 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
   const [rollHistory, setRollHistory] = useState<DiceRoll[]>([]);
 
   const playDiceSound = useCallback(() => {
-    if (isSoundEnabled) {
-      const audio = new Audio('/dice-roll.mp3');
-      audio.play().catch(() => {});
+    if (isSoundEnabled && typeof window !== 'undefined' && typeof window.Audio === 'function') {
+      try {
+        const audio = new Audio('/dice-roll.mp3');
+        if (typeof audio.play === 'function') {
+          audio.play().catch(() => {});
+        }
+      } catch (error) {
+        // Silently handle any audio errors
+      }
     }
   }, [isSoundEnabled]);
 
@@ -83,23 +88,6 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     setRollHistory([]);
   }, []);
 
-  const renderSpecialDie = (face: DiceRoll['specialDie']) => {
-    if (!face || !SPECIAL_DIE_INFO[face]) return null;
-    
-    const { color, icon, label } = SPECIAL_DIE_INFO[face];
-    return (
-      <div 
-        className="flex items-center gap-2 mt-2" 
-        title={`${label} Die Face`}
-        data-testid="special-die-display"
-      >
-        <span className={`w-3 h-3 rounded-full ${color}`} />
-        <span>{icon}</span>
-        <span className="text-sm text-gray-600 dark:text-gray-400">{label}</span>
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -158,6 +146,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
               onClick={resetStats}
               className="p-1.5 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
               title="Reset statistics"
+              aria-label="Reset statistics"
             >
               <RotateCcw size={18} />
             </button>
@@ -168,16 +157,6 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
                 <span>
                   Roll {rollHistory.length - index}: {roll.dice1} + {roll.dice2} = {roll.sum}
                 </span>
-                {roll.specialDie && (
-                  <span 
-                    className="inline-flex items-center gap-1"
-                    title={`${SPECIAL_DIE_INFO[roll.specialDie].label} Die Face`}
-                    data-testid="special-die-display"
-                  >
-                    <span className={`w-3 h-3 rounded-full ${SPECIAL_DIE_INFO[roll.specialDie].color}`} />
-                    <span>{SPECIAL_DIE_INFO[roll.specialDie].icon}</span>
-                  </span>
-                )}
               </div>
             ))}
           </div>
