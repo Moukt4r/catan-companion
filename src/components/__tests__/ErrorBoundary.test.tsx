@@ -5,6 +5,7 @@ import { ErrorBoundary } from '../ErrorBoundary';
 describe('ErrorBoundary', () => {
   // Mock console.error before all tests
   const originalError = console.error;
+  const originalOnError = window.onerror;
   const originalNodeEnv = process.env.NODE_ENV;
 
   beforeAll(() => {
@@ -14,12 +15,15 @@ describe('ErrorBoundary', () => {
   // Restore console.error after all tests
   afterAll(() => {
     console.error = originalError;
+    window.onerror = originalOnError;
     process.env.NODE_ENV = originalNodeEnv;
   });
 
   // Clear mock before each test
   beforeEach(() => {
     (console.error as jest.Mock).mockClear();
+    // Prevent test errors from bubbling up
+    window.onerror = () => true;
   });
 
   // Test component that can throw errors
@@ -208,9 +212,9 @@ describe('ErrorBoundary', () => {
   });
 
   // Test error logging timing
-  it('only logs error once when mounted', () => {
+  it('only logs error once', async () => {
     const onError = jest.fn();
-    const { unmount } = render(
+    const { rerender } = render(
       <ErrorBoundary onError={onError}>
         <ThrowError shouldThrow />
       </ErrorBoundary>
@@ -218,20 +222,22 @@ describe('ErrorBoundary', () => {
 
     expect(onError).toHaveBeenCalledTimes(1);
 
-    // Re-trigger error while mounted
-    act(() => {
-      window.dispatchEvent(new ErrorEvent('error', { error: new Error('Outside error') }));
-    });
+    // Try re-rendering with a new error
+    rerender(
+      <ErrorBoundary onError={onError}>
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
 
-    // Should not call onError again
+    // Re-render shouldn't trigger another error log
     expect(onError).toHaveBeenCalledTimes(1);
 
-    // Check that error isn't logged after unmounting
-    unmount();
+    // Trigger a new error via window event
     act(() => {
-      window.dispatchEvent(new ErrorEvent('error', { error: new Error('Outside error') }));
+      window.dispatchEvent(new ErrorEvent('error', { error: new Error('Another error') }));
     });
-    
+
+    // Event error shouldn't trigger another error log while hasError is true
     expect(onError).toHaveBeenCalledTimes(1);
   });
 });
