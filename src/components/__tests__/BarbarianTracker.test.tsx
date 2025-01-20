@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { BarbarianTracker, BarbarianTrackerRef } from '../BarbarianTracker';
 
 // Mock Audio
@@ -126,7 +126,7 @@ describe('BarbarianTracker', () => {
   });
 
   // New test for ref.advance function
-  it('exposes advance function through ref', () => {
+  it('exposes advance function through ref', async () => {
     const ref = React.createRef<BarbarianTrackerRef>();
     render(<BarbarianTracker ref={ref} defaultThreshold={7} />);
     
@@ -134,7 +134,9 @@ describe('BarbarianTracker', () => {
     const initialValue = parseInt(progressBar.getAttribute('aria-valuenow') || '0');
     
     // Use ref to advance progress
-    ref.current?.advance();
+    await act(async () => {
+      ref.current?.advance();
+    });
     
     const newValue = parseInt(progressBar.getAttribute('aria-valuenow') || '0');
     expect(newValue).toBeGreaterThan(initialValue);
