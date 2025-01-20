@@ -32,6 +32,21 @@ describe('ErrorBoundary', () => {
     return <div>No error</div>;
   };
 
+  // Helper to get instance access
+  const getErrorBoundaryInstance = (): Promise<ErrorBoundary> => {
+    return new Promise((resolve) => {
+      render(
+        <ErrorBoundary 
+          ref={(ref: ErrorBoundary) => { 
+            if (ref) resolve(ref);
+          }}
+        >
+          <div>Test content</div>
+        </ErrorBoundary>
+      );
+    });
+  };
+
   it('renders children when no error occurs', () => {
     const { container } = render(
       <ErrorBoundary>
@@ -112,24 +127,38 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('New content')).toBeInTheDocument();
   });
 
-  it('handles errors thrown outside React lifecycle', () => {
+  it('handles errors thrown outside React lifecycle', async () => {
     const onError = jest.fn();
-    const instance = (
-      render(
-        <ErrorBoundary onError={onError}>
-          <div>Test content</div>
-        </ErrorBoundary>
-      ).container.firstChild as any
-    )._reactInternals.child.stateNode;
+    let boundary: ErrorBoundary | null = null;
 
+    render(
+      <ErrorBoundary 
+        ref={(ref: ErrorBoundary) => { boundary = ref; }}
+        onError={onError}
+      >
+        <div>Test content</div>
+      </ErrorBoundary>
+    );
+
+    // Wait for ref to be set
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(boundary).not.toBeNull();
+    
     // Trigger handleGlobalError directly
-    instance.handleGlobalError({ preventDefault: () => {}, error: new Error('Outside error') });
+    act(() => {
+      (boundary as any).handleGlobalError({ preventDefault: () => {}, error: new Error('Outside error') });
+    });
 
     expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
     expect(onError).toHaveBeenCalledTimes(1);
 
     // Additional error while in error state shouldn't trigger onError again
-    instance.handleGlobalError({ preventDefault: () => {}, error: new Error('Another error') });
+    act(() => {
+      (boundary as any).handleGlobalError({ preventDefault: () => {}, error: new Error('Another error') });
+    });
     expect(onError).toHaveBeenCalledTimes(1);
   });
 
@@ -201,26 +230,42 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByTestId('error-details')).not.toBeInTheDocument();
   });
 
-  it('only logs error once in various scenarios', () => {
+  it('only logs error once in various scenarios', async () => {
     const onError = jest.fn();
-    const instance = (
-      render(
-        <ErrorBoundary onError={onError}>
-          <ThrowError shouldThrow />
-        </ErrorBoundary>
-      ).container.firstChild as any
-    )._reactInternals.child.stateNode;
+    let boundary: ErrorBoundary | null = null;
+
+    render(
+      <ErrorBoundary 
+        ref={(ref: ErrorBoundary) => { boundary = ref; }}
+        onError={onError}
+      >
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
 
     // First error should be logged
     expect(onError).toHaveBeenCalledTimes(1);
 
+    // Wait for ref to be set
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
     // Additional error while in error state shouldn't log
-    instance.handleGlobalError({ preventDefault: () => {}, error: new Error('Another error') });
+    act(() => {
+      (boundary as any).handleGlobalError({ preventDefault: () => {}, error: new Error('Another error') });
+    });
     expect(onError).toHaveBeenCalledTimes(1);
 
     // Reset error state
-    instance.handleReset();
-    instance.handleGlobalError({ preventDefault: () => {}, error: new Error('Yet another error') });
+    act(() => {
+      (boundary as any).handleReset();
+    });
+
+    // New error after reset should log
+    act(() => {
+      (boundary as any).handleGlobalError({ preventDefault: () => {}, error: new Error('Yet another error') });
+    });
     expect(onError).toHaveBeenCalledTimes(2);
   });
 });
