@@ -1,0 +1,1 @@
+// Moved to DiceRoller.core.test.tsx and DiceRoller.stats.test.tsx
