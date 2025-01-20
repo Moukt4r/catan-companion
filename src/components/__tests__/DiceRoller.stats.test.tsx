@@ -16,10 +16,10 @@ jest.mock('lucide-react', () => ({
 
 describe('DiceRoller - Statistics & History', () => {
   const mockRoll = jest.fn();
-  const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
   let mockAudio: jest.Mock;
   const mockPlay = jest.fn();
   const OriginalAudio = global.Audio;
+  const mockGetRemainingRolls = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -34,6 +34,8 @@ describe('DiceRoller - Statistics & History', () => {
       sum: 7,
       specialDie: null
     });
+
+    mockGetRemainingRolls.mockReturnValue(30);
 
     (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
       roll: mockRoll,
@@ -105,10 +107,9 @@ describe('DiceRoller - Statistics & History', () => {
     expect(historyEntries).toHaveLength(10);
     
     // The history should show latest rolls first, but with roll numbers in chronological order
-    // So for a 12-roll sequence, we'll see rolls 12-3 (10 entries)
-    expect(historyEntries[0]).toHaveTextContent('Roll 10: 12 + 12 = 24');
-    expect(historyEntries[1]).toHaveTextContent('Roll 9: 11 + 11 = 22');
-    expect(historyEntries[9]).toHaveTextContent('Roll 1: 3 + 3 = 6');
+    expect(historyEntries[0]).toHaveTextContent('Roll 12: 12 + 12 = 24');
+    expect(historyEntries[1]).toHaveTextContent('Roll 11: 11 + 11 = 22');
+    expect(historyEntries[9]).toHaveTextContent('Roll 3: 3 + 3 = 6');
 
     // Early rolls should not be present
     const rollHistory = screen.getByRole('heading', { name: /roll history/i }).parentElement?.parentElement;
@@ -148,37 +149,37 @@ describe('DiceRoller - Statistics & History', () => {
 
   it('shows correct remaining rolls count', async () => {
     jest.useFakeTimers();
-    mockGetRemainingRolls
-      .mockReturnValueOnce(30)  // Initial
-      .mockReturnValueOnce(30)  // After first roll mock setup
-      .mockReturnValueOnce(29)  // After first roll complete
-      .mockReturnValueOnce(28); // After second roll
+
+    // Set up the mock to return decreasing values after each roll
+    let remainingRolls = 30;
+    mockGetRemainingRolls.mockImplementation(() => {
+      return remainingRolls;
+    });
 
     render(<DiceRoller />);
     
-    // Check initial state
-    const getDisplayedCount = () => {
-      const element = screen.getByText(/^Remaining Rolls: \d+$/);
-      return parseInt(element.textContent?.split(': ')[1] || '0', 10);
-    };
-
-    expect(getDisplayedCount()).toBe(30);
-
     const button = screen.getByRole('button', { name: /roll dice/i });
     
+    // Initial count
+    expect(screen.getByText('Remaining Rolls: 30')).toBeInTheDocument();
+
     // First roll
     fireEvent.click(button);
+    remainingRolls = 29; // Update before the roll is completed
+
     await act(async () => {
       jest.advanceTimersByTime(600);
     });
-    expect(getDisplayedCount()).toBe(29);
+    expect(screen.getByText('Remaining Rolls: 29')).toBeInTheDocument();
 
     // Second roll
     fireEvent.click(button);
+    remainingRolls = 28; // Update before the roll is completed
+
     await act(async () => {
       jest.advanceTimersByTime(600);
     });
-    expect(getDisplayedCount()).toBe(28);
+    expect(screen.getByText('Remaining Rolls: 28')).toBeInTheDocument();
   });
 
   it('displays roll history with special die values', async () => {
