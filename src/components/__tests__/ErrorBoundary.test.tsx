@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ErrorBoundary } from '../ErrorBoundary';
 
 describe('ErrorBoundary', () => {
@@ -112,15 +112,19 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('New content')).toBeInTheDocument();
   });
 
-  it('handles errors thrown outside React lifecycle', () => {
+  it('handles errors thrown outside React lifecycle', async () => {
     const onError = jest.fn();
     render(
       <ErrorBoundary onError={onError}>
-        <ThrowError shouldThrow />
+        <div>Test content</div>
       </ErrorBoundary>
     );
 
-    // Error should already be handled by the boundary
+    // Directly dispatch error event after mounted
+    act(() => {
+      window.dispatchEvent(new ErrorEvent('error', { error: new Error('Outside error') }));
+    });
+
     expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
     expect(onError).toHaveBeenCalledWith(
       expect.any(Error),
@@ -206,7 +210,7 @@ describe('ErrorBoundary', () => {
   // Test error logging timing
   it('only logs error once when mounted', () => {
     const onError = jest.fn();
-    const { rerender } = render(
+    const { unmount } = render(
       <ErrorBoundary onError={onError}>
         <ThrowError shouldThrow />
       </ErrorBoundary>
@@ -214,14 +218,20 @@ describe('ErrorBoundary', () => {
 
     expect(onError).toHaveBeenCalledTimes(1);
 
-    // Re-render with same error
-    rerender(
-      <ErrorBoundary onError={onError}>
-        <ThrowError shouldThrow />
-      </ErrorBoundary>
-    );
+    // Re-trigger error while mounted
+    act(() => {
+      window.dispatchEvent(new ErrorEvent('error', { error: new Error('Outside error') }));
+    });
 
     // Should not call onError again
+    expect(onError).toHaveBeenCalledTimes(1);
+
+    // Check that error isn't logged after unmounting
+    unmount();
+    act(() => {
+      window.dispatchEvent(new ErrorEvent('error', { error: new Error('Outside error') }));
+    });
+    
     expect(onError).toHaveBeenCalledTimes(1);
   });
 });
