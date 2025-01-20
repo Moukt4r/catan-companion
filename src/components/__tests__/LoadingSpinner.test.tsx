@@ -1,6 +1,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { LoadingSpinner } from '../LoadingSpinner';
+import DefaultLoadingSpinner from '../LoadingSpinner';
 
 describe('LoadingSpinner', () => {
   it('renders spinner with correct styles', () => {
@@ -25,5 +26,12 @@ describe('LoadingSpinner', () => {
   it('is visible and accessible', () => {
     const { container } = render(<LoadingSpinner />);
     expect(container.firstChild).toBeVisible();
+  });
+
+  it('renders the same component when using default export', () => {
+    const { container: namedContainer } = render(<LoadingSpinner />);
+    const { container: defaultContainer } = render(<DefaultLoadingSpinner />);
+    
+    expect(namedContainer.innerHTML).toBe(defaultContainer.innerHTML);
   });
 });
