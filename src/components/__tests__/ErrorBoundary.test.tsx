@@ -118,7 +118,7 @@ describe('ErrorBoundary', () => {
 
   it('handles errors thrown outside React lifecycle', async () => {
     const onError = jest.fn();
-    render(
+    const { unmount } = render(
       <ErrorBoundary onError={onError}>
         <div>Test content</div>
       </ErrorBoundary>
@@ -136,6 +136,13 @@ describe('ErrorBoundary', () => {
         componentStack: expect.any(String)
       })
     );
+
+    // Unmounting should prevent further error handling
+    unmount();
+    act(() => {
+      window.dispatchEvent(new ErrorEvent('error', { error: new Error('Another error') }));
+    });
+    expect(onError).toHaveBeenCalledTimes(1);
   });
 
   it('cleans up properly when unmounted', () => {
@@ -211,33 +218,46 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByTestId('error-details')).not.toBeInTheDocument();
   });
 
-  // Test error logging timing
-  it('only logs error once', async () => {
+  // Test error logging behavior
+  it('only logs error once in various scenarios', () => {
     const onError = jest.fn();
-    const { rerender } = render(
+    const { rerender, unmount } = render(
       <ErrorBoundary onError={onError}>
         <ThrowError shouldThrow />
       </ErrorBoundary>
     );
 
+    // First error should be logged
     expect(onError).toHaveBeenCalledTimes(1);
 
-    // Try re-rendering with a new error
+    // Re-render with an error shouldn't log again
     rerender(
       <ErrorBoundary onError={onError}>
         <ThrowError shouldThrow />
       </ErrorBoundary>
     );
-
-    // Re-render shouldn't trigger another error log
     expect(onError).toHaveBeenCalledTimes(1);
 
-    // Trigger a new error via window event
+    // Global error while in error state shouldn't log again
     act(() => {
       window.dispatchEvent(new ErrorEvent('error', { error: new Error('Another error') }));
     });
-
-    // Event error shouldn't trigger another error log while hasError is true
     expect(onError).toHaveBeenCalledTimes(1);
+
+    // Reset error state
+    const resetButton = screen.getByRole('button', { name: /try again/i });
+    fireEvent.click(resetButton);
+
+    // New error after reset should be logged
+    rerender(
+      <ErrorBoundary onError={onError}>
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
+    expect(onError).toHaveBeenCalledTimes(2);
+
+    // Unmounting with error shouldn't trigger another log
+    unmount();
+    expect(onError).toHaveBeenCalledTimes(2);
   });
 });
