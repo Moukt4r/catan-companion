@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { BarbarianTracker } from '../BarbarianTracker';
+import { BarbarianTracker, BarbarianTrackerRef } from '../BarbarianTracker';
 
 // Mock Audio
 beforeEach(() => {
@@ -123,5 +123,35 @@ describe('BarbarianTracker', () => {
 
     // Attack should still happen
     expect(screen.getByText(/failed!/i)).toBeInTheDocument();
+  });
+
+  // New test for ref.advance function
+  it('exposes advance function through ref', () => {
+    const ref = React.createRef<BarbarianTrackerRef>();
+    render(<BarbarianTracker ref={ref} defaultThreshold={7} />);
+    
+    const progressBar = screen.getByRole('progressbar');
+    const initialValue = parseInt(progressBar.getAttribute('aria-valuenow') || '0');
+    
+    // Use ref to advance progress
+    ref.current?.advance();
+    
+    const newValue = parseInt(progressBar.getAttribute('aria-valuenow') || '0');
+    expect(newValue).toBeGreaterThan(initialValue);
+  });
+
+  // New test for invalid threshold input
+  it('ignores invalid threshold values', () => {
+    render(<BarbarianTracker defaultThreshold={7} />);
+    
+    // Open settings
+    fireEvent.click(screen.getByTitle('Configure threshold'));
+    const thresholdInput = screen.getByLabelText(/attack threshold/i);
+    
+    // Try setting an invalid value
+    fireEvent.change(thresholdInput, { target: { value: 'invalid' } });
+    
+    // Threshold should remain unchanged
+    expect(thresholdInput).toHaveValue(7);
   });
 });
