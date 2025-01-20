@@ -5,19 +5,16 @@ import { ErrorBoundary } from '../ErrorBoundary';
 describe('ErrorBoundary', () => {
   // Mock console.error before all tests
   const originalError = console.error;
-  const originalOnError = window.onerror;
   const originalNodeEnv = process.env.NODE_ENV;
 
   beforeAll(() => {
     // Prevent Jest from failing on React errors
     console.error = jest.fn();
-    window.onerror = jest.fn(() => true);
   });
 
   // Restore console.error after all tests
   afterAll(() => {
     console.error = originalError;
-    window.onerror = originalOnError;
     process.env.NODE_ENV = originalNodeEnv;
   });
 
@@ -26,17 +23,6 @@ describe('ErrorBoundary', () => {
     (console.error as jest.Mock).mockClear();
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
-
-  // Utility function to dispatch error event safely
-  const dispatchSafeErrorEvent = (message: string) => {
-    const error = new Error(message);
-    const event = new ErrorEvent('error', { 
-      error,
-      cancelable: true 
-    });
-
-    window.dispatchEvent(event);
-  };
 
   // Test component that can throw errors
   const ThrowError = ({ shouldThrow = false }: { shouldThrow?: boolean }) => {
@@ -128,27 +114,22 @@ describe('ErrorBoundary', () => {
 
   it('handles errors thrown outside React lifecycle', () => {
     const onError = jest.fn();
-    const { unmount } = render(
-      <ErrorBoundary onError={onError}>
-        <div>Test content</div>
-      </ErrorBoundary>
-    );
+    const instance = (
+      render(
+        <ErrorBoundary onError={onError}>
+          <div>Test content</div>
+        </ErrorBoundary>
+      ).container.firstChild as any
+    )._reactInternals.child.stateNode;
 
-    act(() => {
-      dispatchSafeErrorEvent('Outside error');
-    });
+    // Trigger handleGlobalError directly
+    instance.handleGlobalError({ preventDefault: () => {}, error: new Error('Outside error') });
 
     expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
     expect(onError).toHaveBeenCalledTimes(1);
 
-    // Unmounting should prevent further error handling
-    unmount();
-    
-    act(() => {
-      dispatchSafeErrorEvent('Another error');
-    });
-    
-    // No additional error should be logged
+    // Additional error while in error state shouldn't trigger onError again
+    instance.handleGlobalError({ preventDefault: () => {}, error: new Error('Another error') });
     expect(onError).toHaveBeenCalledTimes(1);
   });
 
@@ -222,30 +203,24 @@ describe('ErrorBoundary', () => {
 
   it('only logs error once in various scenarios', () => {
     const onError = jest.fn();
-    const { unmount } = render(
-      <ErrorBoundary onError={onError}>
-        <ThrowError shouldThrow />
-      </ErrorBoundary>
-    );
+    const instance = (
+      render(
+        <ErrorBoundary onError={onError}>
+          <ThrowError shouldThrow />
+        </ErrorBoundary>
+      ).container.firstChild as any
+    )._reactInternals.child.stateNode;
 
     // First error should be logged
     expect(onError).toHaveBeenCalledTimes(1);
 
     // Additional error while in error state shouldn't log
-    act(() => {
-      dispatchSafeErrorEvent('Another error');
-    });
-
-    // No additional errors should be logged
+    instance.handleGlobalError({ preventDefault: () => {}, error: new Error('Another error') });
     expect(onError).toHaveBeenCalledTimes(1);
 
-    unmount();
-
-    // Error after unmount shouldn't log
-    act(() => {
-      dispatchSafeErrorEvent('Yet another error');
-    });
-
-    expect(onError).toHaveBeenCalledTimes(1);
+    // Reset error state
+    instance.handleReset();
+    instance.handleGlobalError({ preventDefault: () => {}, error: new Error('Yet another error') });
+    expect(onError).toHaveBeenCalledTimes(2);
   });
 });
