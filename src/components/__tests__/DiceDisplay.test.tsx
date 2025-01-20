@@ -23,17 +23,26 @@ describe('DiceDisplay', () => {
     const { container } = render(
       <DiceDisplay roll={defaultRoll} isRolling={true} />
     );
-    const diceElements = container.querySelectorAll('.animate-bounce');
-    expect(diceElements).toHaveLength(2);
+    
+    const firstDie = screen.getByRole('img', { name: /first die showing 3/i });
+    const secondDie = screen.getByRole('img', { name: /second die showing 4/i });
+    
+    expect(firstDie).toHaveClass('animate-bounce');
+    expect(secondDie).toHaveClass('animate-bounce');
+    expect(secondDie).toHaveClass('delay-100');
   });
 
   it('renders without animation class when isRolling is not provided', () => {
-    // Test default value of isRolling prop
-    const { container } = render(
+    render(
       <DiceDisplay roll={defaultRoll} />
     );
-    const diceElements = container.querySelectorAll('.animate-bounce');
-    expect(diceElements).toHaveLength(0);
+    
+    const firstDie = screen.getByRole('img', { name: /first die showing 3/i });
+    const secondDie = screen.getByRole('img', { name: /second die showing 4/i });
+    
+    expect(firstDie).not.toHaveClass('animate-bounce');
+    expect(secondDie).not.toHaveClass('animate-bounce');
+    expect(secondDie).not.toHaveClass('delay-100');
   });
 
   it('renders special die with correct colors and layout', () => {
