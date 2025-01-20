@@ -5,6 +5,8 @@ import { ErrorBoundary } from '../ErrorBoundary';
 describe('ErrorBoundary', () => {
   // Mock console.error before all tests
   const originalError = console.error;
+  const originalNodeEnv = process.env.NODE_ENV;
+
   beforeAll(() => {
     console.error = jest.fn();
   });
@@ -12,6 +14,7 @@ describe('ErrorBoundary', () => {
   // Restore console.error after all tests
   afterAll(() => {
     console.error = originalError;
+    process.env.NODE_ENV = originalNodeEnv;
   });
 
   // Clear mock before each test
@@ -159,5 +162,66 @@ describe('ErrorBoundary', () => {
 
     // Error UI should still be visible with updated message
     expect(screen.getByRole('heading', { name: /updated error message/i })).toBeInTheDocument();
+  });
+
+  // New test for error handling without onError prop
+  it('handles errors without onError prop', () => {
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('error-details')).not.toBeInTheDocument();
+  });
+
+  // New test for error details in development mode
+  it('shows error details in development mode', () => {
+    process.env.NODE_ENV = 'development';
+    
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByTestId('error-details')).toBeInTheDocument();
+    expect(screen.getByTestId('error-details')).toHaveTextContent('Test error');
+  });
+
+  // New test for error details in production mode
+  it('hides error details in production mode', () => {
+    process.env.NODE_ENV = 'production';
+    
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
+
+    expect(screen.queryByTestId('error-details')).not.toBeInTheDocument();
+  });
+
+  // Test error logging timing
+  it('only logs error once when mounted', () => {
+    const onError = jest.fn();
+    const { rerender } = render(
+      <ErrorBoundary onError={onError}>
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
+
+    expect(onError).toHaveBeenCalledTimes(1);
+
+    // Re-render with same error
+    rerender(
+      <ErrorBoundary onError={onError}>
+        <ThrowError shouldThrow />
+      </ErrorBoundary>
+    );
+
+    // Should not call onError again
+    expect(onError).toHaveBeenCalledTimes(1);
   });
 });
