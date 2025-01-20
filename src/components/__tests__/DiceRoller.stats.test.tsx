@@ -100,15 +100,26 @@ describe('DiceRoller - Statistics & History', () => {
       });
     }
 
-    // Should show only last 10 rolls
-    const historyEntries = screen.getAllByText(/\d \+ \d = \d+/);
-    expect(historyEntries).toHaveLength(10);
-    
     // Should contain latest rolls but not earliest ones
-    expect(screen.queryByText('1 + 1 = 2')).not.toBeInTheDocument();
-    expect(screen.queryByText('2 + 2 = 4')).not.toBeInTheDocument();
-    expect(screen.getByText('12 + 12 = 24')).toBeInTheDocument();
-    expect(screen.getByText('11 + 11 = 22')).toBeInTheDocument();
+    expect(screen.queryByText((content, element) => {
+      return element?.textContent === 'Roll 1: 1 + 1 = 2';
+    })).not.toBeInTheDocument();
+
+    expect(screen.queryByText((content, element) => {
+      return element?.textContent === 'Roll 2: 2 + 2 = 4';
+    })).not.toBeInTheDocument();
+
+    expect(screen.getByText((content, element) => {
+      return element?.textContent === 'Roll 1: 12 + 12 = 24';
+    })).toBeInTheDocument();
+
+    expect(screen.getByText((content, element) => {
+      return element?.textContent === 'Roll 2: 11 + 11 = 22';
+    })).toBeInTheDocument();
+
+    // Get all history entries
+    const historyEntries = screen.getAllByText(/Roll \d+: \d+ \+ \d+ = \d+/);
+    expect(historyEntries).toHaveLength(10);
   });
 
   it('resets all statistics correctly', async () => {
@@ -128,16 +139,16 @@ describe('DiceRoller - Statistics & History', () => {
 
     expect(screen.getByText('Total Rolls: 3')).toBeInTheDocument();
     expect(screen.getByText(/average roll:/i)).toBeInTheDocument();
-    expect(screen.queryAllByText(/\d \+ \d = \d+/)).not.toHaveLength(0);
+    expect(screen.queryAllByText(/Roll \d+:/)).not.toHaveLength(0);
 
     // Reset stats
-    const resetButton = screen.getByRole('button', { name: /reset/i });
+    const resetButton = screen.getByRole('button', { name: /reset statistics/i });
     fireEvent.click(resetButton);
 
     // Verify reset state
     expect(screen.getByText('Total Rolls: 0')).toBeInTheDocument();
     expect(screen.getByText('Average Roll: 0.0')).toBeInTheDocument();
-    expect(screen.queryByText(/\d \+ \d = \d+/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Roll \d+:/)).not.toBeInTheDocument();
   });
 
   it('shows correct remaining rolls count', async () => {
@@ -148,7 +159,9 @@ describe('DiceRoller - Statistics & History', () => {
       .mockReturnValueOnce(28); // After second roll
 
     render(<DiceRoller />);
-    expect(screen.getByText('Remaining Rolls: 30')).toBeInTheDocument();
+    expect(screen.getByText((content, element) => {
+      return element?.textContent === 'Remaining Rolls: 30';
+    })).toBeInTheDocument();
 
     const button = screen.getByRole('button', { name: /roll dice/i });
     
@@ -157,14 +170,18 @@ describe('DiceRoller - Statistics & History', () => {
     await act(async () => {
       jest.advanceTimersByTime(600);
     });
-    expect(screen.getByText('Remaining Rolls: 29')).toBeInTheDocument();
+    expect(screen.getByText((content, element) => {
+      return element?.textContent === 'Remaining Rolls: 29';
+    })).toBeInTheDocument();
 
     // Second roll
     fireEvent.click(button);
     await act(async () => {
       jest.advanceTimersByTime(600);
     });
-    expect(screen.getByText('Remaining Rolls: 28')).toBeInTheDocument();
+    expect(screen.getByText((content, element) => {
+      return element?.textContent === 'Remaining Rolls: 28';
+    })).toBeInTheDocument();
   });
 
   it('displays roll history with special die values', async () => {
@@ -186,7 +203,9 @@ describe('DiceRoller - Statistics & History', () => {
       jest.advanceTimersByTime(600);
     });
 
-    expect(screen.getByText('5 + 5 = 10')).toBeInTheDocument();
+    expect(screen.getByText((content, element) => {
+      return element?.textContent === 'Roll 1: 5 + 5 = 10';
+    })).toBeInTheDocument();
   });
 
   it('updates history order correctly', async () => {
@@ -210,9 +229,9 @@ describe('DiceRoller - Statistics & History', () => {
       });
     }
 
-    const historyEntries = screen.getAllByText(/\d \+ \d = \d+/);
-    expect(historyEntries[0]).toHaveTextContent('5 + 6 = 11');
-    expect(historyEntries[1]).toHaveTextContent('3 + 4 = 7');
-    expect(historyEntries[2]).toHaveTextContent('1 + 2 = 3');
+    const historyEntries = screen.getAllByText(/Roll \d+: \d+ \+ \d+ = \d+/);
+    expect(historyEntries[0]).toHaveTextContent('Roll 1: 5 + 6 = 11');
+    expect(historyEntries[1]).toHaveTextContent('Roll 2: 3 + 4 = 7');
+    expect(historyEntries[2]).toHaveTextContent('Roll 3: 1 + 2 = 3');
   });
 });
