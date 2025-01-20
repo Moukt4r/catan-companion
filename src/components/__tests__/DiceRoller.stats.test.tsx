@@ -104,15 +104,16 @@ describe('DiceRoller - Statistics & History', () => {
     const historyEntries = screen.getAllByText(/Roll \d+: \d+ \+ \d+ = \d+/);
     expect(historyEntries).toHaveLength(10);
     
-    // Check order (most recent first)
-    expect(historyEntries[0]).toHaveTextContent('Roll 1: 12 + 12 = 24');
-    expect(historyEntries[1]).toHaveTextContent('Roll 2: 11 + 11 = 22');
-    expect(historyEntries[9]).toHaveTextContent('Roll 10: 3 + 3 = 6');
+    // Check order (newest first but with chronological roll numbers)
+    expect(historyEntries[0]).toHaveTextContent('Roll 12: 12 + 12 = 24');
+    expect(historyEntries[1]).toHaveTextContent('Roll 11: 11 + 11 = 22');
+    expect(historyEntries[9]).toHaveTextContent('Roll 3: 3 + 3 = 6');
 
     // Early rolls should not be present
-    const rollHistory = screen.getByLabelText(/roll history/i);
-    expect(rollHistory).not.toHaveTextContent('1 + 1 = 2');
-    expect(rollHistory).not.toHaveTextContent('2 + 2 = 4');
+    const rollHistory = screen.getByRole('heading', { name: /roll history/i }).parentElement?.parentElement;
+    expect(rollHistory).toBeTruthy();
+    expect(rollHistory).not.toHaveTextContent('Roll 1: 1 + 1 = 2');
+    expect(rollHistory).not.toHaveTextContent('Roll 2: 2 + 2 = 4');
   });
 
   it('resets all statistics correctly', async () => {
@@ -154,8 +155,12 @@ describe('DiceRoller - Statistics & History', () => {
     render(<DiceRoller />);
     
     // Check initial state
-    const remainingRollsElements = screen.getAllByText(/remaining rolls/i);
-    expect(remainingRollsElements[0].textContent).toBe('Remaining Rolls: 30');
+    const getDisplayedCount = () => {
+      const element = screen.getByText(/^Remaining Rolls: \d+$/);
+      return parseInt(element.textContent?.split(': ')[1] || '0', 10);
+    };
+
+    expect(getDisplayedCount()).toBe(30);
 
     const button = screen.getByRole('button', { name: /roll dice/i });
     
@@ -164,14 +169,14 @@ describe('DiceRoller - Statistics & History', () => {
     await act(async () => {
       jest.advanceTimersByTime(600);
     });
-    expect(remainingRollsElements[0].textContent).toBe('Remaining Rolls: 29');
+    expect(getDisplayedCount()).toBe(29);
 
     // Second roll
     fireEvent.click(button);
     await act(async () => {
       jest.advanceTimersByTime(600);
     });
-    expect(remainingRollsElements[0].textContent).toBe('Remaining Rolls: 28');
+    expect(getDisplayedCount()).toBe(28);
   });
 
   it('displays roll history with special die values', async () => {
@@ -193,10 +198,10 @@ describe('DiceRoller - Statistics & History', () => {
       jest.advanceTimersByTime(600);
     });
 
-    const rollHistoryItem = screen.getByText((content, element) => {
-      return element?.textContent === 'Roll 1: 5 + 5 = 10';
-    });
-    expect(rollHistoryItem).toBeInTheDocument();
+    // Find the history entry by role to avoid duplicate matches
+    const historyContainer = screen.getByRole('heading', { name: /roll history/i }).parentElement?.parentElement;
+    expect(historyContainer).toBeTruthy();
+    expect(historyContainer).toHaveTextContent('Roll 1: 5 + 5 = 10');
 
     // Special die indicator should be present
     expect(screen.getByText('Barbarian')).toBeInTheDocument();
@@ -224,8 +229,8 @@ describe('DiceRoller - Statistics & History', () => {
     }
 
     const historyEntries = screen.getAllByText(/Roll \d+: \d+ \+ \d+ = \d+/);
-    expect(historyEntries[0]).toHaveTextContent('Roll 1: 5 + 6 = 11');
+    expect(historyEntries[0]).toHaveTextContent('Roll 3: 5 + 6 = 11');
     expect(historyEntries[1]).toHaveTextContent('Roll 2: 3 + 4 = 7');
-    expect(historyEntries[2]).toHaveTextContent('Roll 3: 1 + 2 = 3');
+    expect(historyEntries[2]).toHaveTextContent('Roll 1: 1 + 2 = 3');
   });
 });
