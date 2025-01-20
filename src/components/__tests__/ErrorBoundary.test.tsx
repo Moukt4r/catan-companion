@@ -7,7 +7,6 @@ describe('ErrorBoundary', () => {
   const originalError = console.error;
   const originalOnError = window.onerror;
   const originalNodeEnv = process.env.NODE_ENV;
-  const originalConsoleError = console.error;
 
   beforeAll(() => {
     // Prevent Jest from failing on React errors
@@ -25,7 +24,19 @@ describe('ErrorBoundary', () => {
   // Clear mock before each test
   beforeEach(() => {
     (console.error as jest.Mock).mockClear();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
   });
+
+  // Utility function to dispatch error event safely
+  const dispatchSafeErrorEvent = (message: string) => {
+    const error = new Error(message);
+    const event = new ErrorEvent('error', { 
+      error,
+      cancelable: true 
+    });
+
+    window.dispatchEvent(event);
+  };
 
   // Test component that can throw errors
   const ThrowError = ({ shouldThrow = false }: { shouldThrow?: boolean }) => {
@@ -47,8 +58,6 @@ describe('ErrorBoundary', () => {
   });
 
   it('renders error UI when error occurs', () => {
-    console.error = jest.fn(); // Silence React error boundary warning
-    
     render(
       <ErrorBoundary>
         <ThrowError shouldThrow />
@@ -125,16 +134,8 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    // Mock error event that won't throw
-    const error = new Error('Outside error');
-    const errorEvent = new ErrorEvent('error', { 
-      error,
-      cancelable: true 
-    });
-
-    // Dispatch error event
     act(() => {
-      window.dispatchEvent(errorEvent);
+      dispatchSafeErrorEvent('Outside error');
     });
 
     expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
@@ -143,14 +144,8 @@ describe('ErrorBoundary', () => {
     // Unmounting should prevent further error handling
     unmount();
     
-    const anotherError = new Error('Another error');
-    const anotherEvent = new ErrorEvent('error', { 
-      error: anotherError,
-      cancelable: true 
-    });
-
     act(() => {
-      window.dispatchEvent(anotherEvent);
+      dispatchSafeErrorEvent('Another error');
     });
     
     // No additional error should be logged
@@ -180,18 +175,15 @@ describe('ErrorBoundary', () => {
 
     expect(screen.getByRole('heading', { name: /initial error message/i })).toBeInTheDocument();
 
-    // Re-render with different message
     rerender(
       <ErrorBoundary message="Updated error message">
         <ThrowError shouldThrow />
       </ErrorBoundary>
     );
 
-    // Error UI should still be visible with updated message
     expect(screen.getByRole('heading', { name: /updated error message/i })).toBeInTheDocument();
   });
 
-  // New test for error handling without onError prop
   it('handles errors without onError prop', () => {
     render(
       <ErrorBoundary>
@@ -203,7 +195,6 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByTestId('error-details')).not.toBeInTheDocument();
   });
 
-  // New test for error details in development mode
   it('shows error details in development mode', () => {
     process.env.NODE_ENV = 'development';
     
@@ -217,7 +208,6 @@ describe('ErrorBoundary', () => {
     expect(screen.getByTestId('error-details')).toHaveTextContent('Test error');
   });
 
-  // New test for error details in production mode
   it('hides error details in production mode', () => {
     process.env.NODE_ENV = 'production';
     
@@ -230,7 +220,6 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByTestId('error-details')).not.toBeInTheDocument();
   });
 
-  // Test error logging behavior
   it('only logs error once in various scenarios', () => {
     const onError = jest.fn();
     const { unmount } = render(
@@ -242,16 +231,9 @@ describe('ErrorBoundary', () => {
     // First error should be logged
     expect(onError).toHaveBeenCalledTimes(1);
 
-    // Mock cancelable error event
-    const error = new Error('Another error');
-    const errorEvent = new ErrorEvent('error', { 
-      error,
-      cancelable: true 
-    });
-
     // Additional error while in error state shouldn't log
     act(() => {
-      window.dispatchEvent(errorEvent);
+      dispatchSafeErrorEvent('Another error');
     });
 
     // No additional errors should be logged
@@ -261,7 +243,7 @@ describe('ErrorBoundary', () => {
 
     // Error after unmount shouldn't log
     act(() => {
-      window.dispatchEvent(errorEvent);
+      dispatchSafeErrorEvent('Yet another error');
     });
 
     expect(onError).toHaveBeenCalledTimes(1);
