@@ -26,7 +26,6 @@ describe('DiceRoller Core', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    jest.spyOn(console, 'error').mockImplementation();
     
     mockPlay.mockResolvedValue(undefined);
     mockAudio = jest.fn(() => ({ play: mockPlay }));
@@ -37,9 +36,9 @@ describe('DiceRoller Core', () => {
       sum: 7,
       specialDie: null
     });
-    
-    mockSetDiscardCount.mockImplementation(() => {});
 
+    mockSetDiscardCount.mockImplementation(() => {});
+    
     (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
       roll: mockRoll,
       setDiscardCount: mockSetDiscardCount,
@@ -52,7 +51,6 @@ describe('DiceRoller Core', () => {
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    jest.restoreAllMocks();
   });
 
   it('renders initial state', () => {
@@ -63,18 +61,36 @@ describe('DiceRoller Core', () => {
   });
 
   it('handles invalid discard counts', async () => {
-    // Setup error mock
+    // Mock console.error using spyOn
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation();
     const mockError = new Error('Failed to initialize');
-    mockSetDiscardCount.mockImplementationOnce(() => { throw mockError; });
     
+    // Create mock instance
+    const mockDiceRoller = {
+      roll: mockRoll,
+      setDiscardCount: jest.fn().mockImplementation(() => { throw mockError; }),
+      getRemainingRolls: mockGetRemainingRolls
+    };
+
+    // Set up mock to return our instance
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => mockDiceRoller);
+
     render(<DiceRoller />);
-
-    // Change discard count
     const input = screen.getByLabelText(/discard count/i);
-    fireEvent.change(input, { target: { value: '10' } });
 
-    // Verify error was logged correctly
-    expect(console.error).toHaveBeenCalledWith('Error setting discard count:', mockError);
+    // Trigger error
+    await act(async () => {
+      fireEvent.change(input, { target: { value: '10' } });
+      jest.runAllTimers();
+    });
+
+    // Check for error message
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Error setting discard count:', mockError);
+    });
+
+    // Clean up
+    errorSpy.mockRestore();
   });
 
   it('prevents simultaneous rolls', async () => {
