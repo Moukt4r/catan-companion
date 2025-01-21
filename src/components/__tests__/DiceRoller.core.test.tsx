@@ -22,13 +22,13 @@ describe('DiceRoller Core', () => {
   const mockRoll = jest.fn();
   const mockSetDiscardCount = jest.fn();
   const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
+  const originalConsoleError = console.error;
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     
-    // Spy on console.error
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    console.error = jest.fn();
     
     mockPlay.mockResolvedValue(undefined);
     mockAudio = jest.fn(() => ({ play: mockPlay }));
@@ -39,6 +39,8 @@ describe('DiceRoller Core', () => {
       sum: 7,
       specialDie: null
     });
+
+    mockSetDiscardCount.mockImplementation(() => {});
     
     (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
       roll: mockRoll,
@@ -52,7 +54,7 @@ describe('DiceRoller Core', () => {
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    jest.restoreAllMocks();
+    console.error = originalConsoleError;
   });
 
   it('renders initial state', () => {
@@ -62,15 +64,16 @@ describe('DiceRoller Core', () => {
     expect(screen.getByRole('button', { name: /roll dice/i })).toBeEnabled();
   });
 
-  it('handles invalid discard counts', () => {
-    // Mock implementation that throws
+  it('handles invalid discard counts', async () => {
     const mockError = new Error('Failed to initialize');
-    mockSetDiscardCount.mockImplementation(() => { throw mockError; });
+    mockSetDiscardCount.mockImplementation(() => {
+      throw mockError;
+    });
 
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
     
-    act(() => {
+    await act(async () => {
       fireEvent.change(input, { target: { value: '10' } });
     });
 
