@@ -19,7 +19,7 @@ jest.mock('lucide-react', () => ({
 describe('DiceRoller Core', () => {
   const mockPlay = jest.fn();
   let mockAudio: jest.Mock;
-  const mockConsoleError = jest.fn();
+  let originalError: any;
   const mockRoll = jest.fn();
   const mockSetDiscardCount = jest.fn();
   const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
@@ -45,12 +45,16 @@ describe('DiceRoller Core', () => {
     }));
 
     (global as any).Audio = mockAudio;
-    console.error = mockConsoleError;
+    // Store original console.error
+    originalError = console.error;
+    console.error = jest.fn();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
+    // Restore original console.error
+    console.error = originalError;
   });
 
   it('renders initial state', () => {
@@ -62,13 +66,7 @@ describe('DiceRoller Core', () => {
 
   it('handles invalid discard counts', () => {
     const mockError = new Error('Failed to initialize');
-    const utilInstance = {
-      roll: mockRoll,
-      setDiscardCount: jest.fn().mockImplementation(() => { throw mockError; }),
-      getRemainingRolls: mockGetRemainingRolls
-    };
-    
-    (DiceRollerUtil as jest.Mock).mockImplementation(() => utilInstance);
+    mockSetDiscardCount.mockImplementationOnce(() => { throw mockError; });
 
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
@@ -205,7 +203,6 @@ describe('DiceRoller Core', () => {
     expect(mockRoll).not.toHaveBeenCalled();
   });
 
-  // Add test for checking that roll count updates correctly
   it('updates roll count correctly', async () => {
     render(<DiceRoller />);
     const rollButton = screen.getByRole('button', { name: /roll dice/i });
@@ -222,7 +219,6 @@ describe('DiceRoller Core', () => {
     });
   });
 
-  // Add test for average roll calculation
   it('calculates average roll correctly', async () => {
     mockRoll.mockReturnValueOnce({ dice1: 3, dice2: 4, sum: 7, specialDie: null })
            .mockReturnValueOnce({ dice1: 2, dice2: 5, sum: 7, specialDie: null });
