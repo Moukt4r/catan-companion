@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 import { DiceDisplay } from './DiceDisplay';
 import { Loader, Volume2, VolumeX } from 'lucide-react';
@@ -12,7 +12,7 @@ interface DiceRollerProps {
 export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
   const [diceRoller, setDiceRoller] = useState(() => new DiceRollerUtil(4, true));
   const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
-  const [discardCount, setDiscardCount] = useState<number>(4);
+  const [discardCount, setDiscardCount] = useState(4);
   const [isRolling, setIsRolling] = useState(false);
   const [rollCount, setRollCount] = useState(0);
   const [totalPips, setTotalPips] = useState(0);
@@ -36,12 +36,13 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 600));
       const roll = diceRoller.roll();
-      setTotalRolls(prev => prev + 1);
+      const newTotalRolls = totalRolls + 1;
+      setTotalRolls(newTotalRolls);
       
       setCurrentRoll(roll);
       setRollCount(prev => prev + 1);
       setTotalPips(prev => prev + roll.sum);
-      setRollHistory(prev => [roll, ...prev].slice(0, 10));
+      setRollHistory(prev => [{ ...roll, rollNumber: newTotalRolls }, ...prev].slice(0, 10));
 
       if (onRoll) {
         onRoll(roll);
@@ -52,19 +53,17 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     } finally {
       setIsRolling(false);
     }
-  }, [diceRoller, discardCount, isRolling, playDiceSound, onRoll]);
+  }, [diceRoller, discardCount, isRolling, playDiceSound, onRoll, totalRolls]);
 
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    if (!isRolling && (event.key === 'r' || event.key === 'R')) {
+    if (event.key.toLowerCase() === 'r' && !isRolling) {
       handleRoll();
     }
   }, [handleRoll, isRolling]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.addEventListener('keydown', handleKeyPress);
-    return () => {
-      document.removeEventListener('keydown', handleKeyPress);
-    };
+    return () => document.removeEventListener('keydown', handleKeyPress);
   }, [handleKeyPress]);
 
   const handleDiscardChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,7 +119,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
             id="discardCount"
             min="0"
             max="35"
-            value={discardCount}
+            value={discardCount.toString()}
             onChange={handleDiscardChange}
             className="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white"
             data-testid="discard-count-input"
