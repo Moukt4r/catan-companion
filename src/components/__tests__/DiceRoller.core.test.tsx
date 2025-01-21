@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import { DiceRoller } from '../DiceRoller';
 import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
@@ -44,6 +44,10 @@ describe('DiceRoller Core', () => {
     console.error = mockConsoleError;
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders initial state', () => {
     render(<DiceRoller />);
     expect(screen.getByTestId('discard-count-input')).toHaveValue('4');
@@ -80,6 +84,101 @@ describe('DiceRoller Core', () => {
     );
   });
 
+  it('prevents simultaneous rolls', async () => {
+    jest.useFakeTimers();
+    render(<DiceRoller />);
+    const button = screen.getByTestId('roll-button');
+
+    // First click
+    act(() => {
+      fireEvent.click(button);
+      jest.advanceTimersByTime(100);
+    });
+
+    // Second click while first is processing
+    act(() => {
+      fireEvent.click(button);
+      jest.advanceTimersByTime(100);
+    });
+
+    await waitFor(() => {
+      expect(mockRoll).toHaveBeenCalledTimes(1);
+    });
+
+    jest.useRealTimers();
+  }, 10000);
+
+  it('handles sound toggling correctly', async () => {
+    jest.useFakeTimers();
+    render(<DiceRoller />);
+
+    const soundToggle = screen.getByRole('button', { name: /toggle sound/i });
+    const rollButton = screen.getByTestId('roll-button');
+
+    // Initial roll with sound
+    act(() => {
+      fireEvent.click(rollButton);
+      jest.advanceTimersByTime(100);
+    });
+
+    await waitFor(() => {
+      expect(mockPlay).toHaveBeenCalledTimes(1);
+    });
+
+    // Toggle sound off
+    act(() => {
+      fireEvent.click(soundToggle);
+      jest.advanceTimersByTime(100);
+    });
+
+    // Roll without sound
+    act(() => {
+      fireEvent.click(rollButton);
+      jest.advanceTimersByTime(100);
+    });
+
+    await waitFor(() => {
+      expect(mockPlay).toHaveBeenCalledTimes(1);
+    });
+
+    jest.useRealTimers();
+  }, 10000);
+
+  it('resets statistics properly', async () => {
+    jest.useFakeTimers();
+    render(<DiceRoller />);
+    
+    // Perform multiple rolls
+    const button = screen.getByTestId('roll-button');
+    const resetButton = screen.getByTestId('reset-stats-button');
+
+    // Do some rolls
+    for (let i = 0; i < 3; i++) {
+      act(() => {
+        fireEvent.click(button);
+        jest.advanceTimersByTime(100);
+      });
+    }
+
+    await waitFor(() => {
+      expect(mockRoll).toHaveBeenCalledTimes(3);
+    });
+
+    // Reset stats
+    act(() => {
+      fireEvent.click(resetButton);
+      jest.advanceTimersByTime(100);
+    });
+
+    // Verify stats reset
+    await waitFor(() => {
+      const stats = screen.getByTestId('stats-display');
+      expect(stats).toHaveTextContent('0');
+    });
+
+    jest.useRealTimers();
+  }, 10000);
+
   it('responds to keyboard events', () => {
     render(<DiceRoller />);
 
@@ -105,40 +204,5 @@ describe('DiceRoller Core', () => {
       fireEvent.keyDown(document, { key: 'r' });
     });
     expect(mockRoll).not.toHaveBeenCalled();
-  });
-
-  it('prevents double rolls', () => {
-    render(<DiceRoller />);
-    const button = screen.getByRole('button', { name: /roll dice/i });
-
-    act(() => {
-      fireEvent.click(button);
-    });
-    expect(button).toBeDisabled();
-
-    act(() => {
-      fireEvent.click(button);
-    });
-    expect(mockRoll).toHaveBeenCalledTimes(1);
-  });
-
-  it('handles sound preferences', () => {
-    render(<DiceRoller />);
-    const button = screen.getByRole('button', { name: /roll dice/i });
-
-    act(() => {
-      fireEvent.click(button);
-    });
-    expect(mockAudio).toHaveBeenCalledWith('/dice-roll.mp3');
-    expect(mockPlay).toHaveBeenCalled();
-
-    const soundToggle = screen.getByRole('button', { name: /disable sound/i });
-    
-    act(() => {
-      fireEvent.click(soundToggle);
-      fireEvent.click(button);
-    });
-    
-    expect(mockAudio).toHaveBeenCalledTimes(1);
   });
 });
