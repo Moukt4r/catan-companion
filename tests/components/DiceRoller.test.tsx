@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { DiceRoller } from '../../components/DiceRoller';
 import { DiceRoller as DiceRollerUtil } from '../../utils/diceRoller';
 
@@ -10,6 +10,7 @@ describe('DiceRoller', () => {
   beforeEach(() => {
     // Reset all mocks before each test
     jest.clearAllMocks();
+    jest.useFakeTimers();
     
     // Setup default mock implementations
     (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
@@ -18,6 +19,10 @@ describe('DiceRoller', () => {
       setUseSpecialDie: jest.fn(),
       getRemainingRolls: jest.fn().mockReturnValue(32),
     }));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   test('renders correctly with initial state', () => {
@@ -32,13 +37,23 @@ describe('DiceRoller', () => {
     render(<DiceRoller />);
     
     const input = screen.getByLabelText(/Discard Count/);
-    fireEvent.change(input, { target: { value: '10' } });
     
+    // Test minimum valid value
+    fireEvent.change(input, { target: { value: '0' } });
+    expect(input).toHaveValue(0);
+    
+    // Test maximum valid value
+    fireEvent.change(input, { target: { value: '35' } });
+    expect(input).toHaveValue(35);
+    
+    // Test middle range value
+    fireEvent.change(input, { target: { value: '10' } });
     expect(input).toHaveValue(10);
   });
 
   test('handles invalid discard count inputs', async () => {
-    render(<DiceRoller />);
+    const mockSetDiscardCount = jest.fn();
+    const { rerender } = render(<DiceRoller />);
     
     const input = screen.getByLabelText(/Discard Count/);
     
@@ -53,43 +68,103 @@ describe('DiceRoller', () => {
     // Test non-numeric input
     fireEvent.change(input, { target: { value: 'abc' } });
     expect(input).toHaveValue(4); // Should keep previous value
+    
+    // Test decimal number
+    fireEvent.change(input, { target: { value: '2.5' } });
+    expect(input).toHaveValue(4); // Should keep previous value
   });
 
   test('handles special die toggle', () => {
+    const mockSetUseSpecialDie = jest.fn();
     render(<DiceRoller />);
     
     const checkbox = screen.getByLabelText(/Cities & Knights/);
     fireEvent.click(checkbox);
-    
     expect(checkbox).toBeChecked();
+    
+    fireEvent.click(checkbox);
+    expect(checkbox).not.toBeChecked();
   });
 
-  test('handles dice rolling with loading state', async () => {
+  test('handles dice rolling with loading state and animation', async () => {
     render(<DiceRoller />);
     
     const button = screen.getByRole('button');
+    
+    // Click the button to start rolling
     fireEvent.click(button);
     
-    // Button should be disabled and show loading state
+    // Immediately after click, button should be disabled and show loading state
     expect(button).toBeDisabled();
     expect(button).toHaveTextContent('Rolling...');
+    expect(button.className).toContain('opacity-50');
+    expect(button.className).toContain('cursor-not-allowed');
     
-    // Wait for the roll animation to complete
+    // Fast-forward past the animation delay
+    act(() => {
+      jest.advanceTimersByTime(600);
+    });
+    
+    // After animation, button should be enabled and ready for next roll
     await waitFor(() => {
       expect(button).not.toBeDisabled();
       expect(button).toHaveTextContent('Roll Dice');
-    }, { timeout: 1000 });
+      expect(button.className).not.toContain('opacity-50');
+      expect(button.className).not.toContain('cursor-not-allowed');
+    });
   });
 
   test('updates statistics after rolling', async () => {
     render(<DiceRoller />);
     
     const button = screen.getByRole('button');
+    
+    // First roll
     fireEvent.click(button);
+    act(() => {
+      jest.advanceTimersByTime(600);
+    });
     
     await waitFor(() => {
       expect(screen.getByText(/Total Rolls: 1/)).toBeInTheDocument();
       expect(screen.getByText(/Average Roll: 3.0/)).toBeInTheDocument();
-    }, { timeout: 1000 });
+    });
+    
+    // Second roll
+    fireEvent.click(button);
+    act(() => {
+      jest.advanceTimersByTime(600);
+    });
+    
+    await waitFor(() => {
+      expect(screen.getByText(/Total Rolls: 2/)).toBeInTheDocument();
+      expect(screen.getByText(/Average Roll: 3.0/)).toBeInTheDocument();
+    });
+  });
+
+  test('disables roll button during animation', async () => {
+    render(<DiceRoller />);
+    
+    const button = screen.getByRole('button');
+    
+    // Click the button
+    fireEvent.click(button);
+    
+    // Button should be disabled immediately
+    expect(button).toBeDisabled();
+    
+    // Try clicking again while disabled
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    
+    // Fast-forward past the animation
+    act(() => {
+      jest.advanceTimersByTime(600);
+    });
+    
+    // Button should be enabled again
+    await waitFor(() => {
+      expect(button).not.toBeDisabled();
+    });
   });
 });
