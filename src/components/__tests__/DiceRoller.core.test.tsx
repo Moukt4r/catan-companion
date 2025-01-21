@@ -22,7 +22,6 @@ describe('DiceRoller Core', () => {
   const mockRoll = jest.fn();
   const mockSetDiscardCount = jest.fn();
   const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
-  let originalError: typeof console.error;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -47,13 +46,12 @@ describe('DiceRoller Core', () => {
     }));
 
     (global as any).Audio = mockAudio;
-    originalError = console.error;
   });
 
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    console.error = originalError;
+    jest.restoreAllMocks();
   });
 
   it('renders initial state', () => {
@@ -64,27 +62,24 @@ describe('DiceRoller Core', () => {
   });
 
   it('handles invalid discard counts', () => {
-    // Create instance that will throw on setDiscardCount
-    const mockError = new Error('Failed to initialize');
-    const mockDiceRoller = {
-      roll: mockRoll,
-      setDiscardCount: jest.fn(() => { throw mockError; }),
-      getRemainingRolls: mockGetRemainingRolls
-    };
-
-    // Let component initialize with working instance first
-    (DiceRollerUtil as jest.Mock)
-      .mockImplementationOnce(() => ({
-        roll: mockRoll,
-        setDiscardCount: mockSetDiscardCount,
-        getRemainingRolls: mockGetRemainingRolls
-      }))
-      // Then return instance that throws on next initialization
-      .mockImplementationOnce(() => mockDiceRoller);
-
     // Mock console.error
     const mockConsoleError = jest.fn();
     console.error = mockConsoleError;
+
+    // Mock setDiscardCount to throw
+    const mockError = new Error('Failed to initialize');
+    const diceRollerInstance = {
+      roll: mockRoll,
+      setDiscardCount: jest.fn().mockImplementation(() => { throw mockError; }),
+      getRemainingRolls: mockGetRemainingRolls
+    };
+
+    // First return normal instance, then throw on second creation
+    (DiceRollerUtil as jest.Mock)
+      .mockImplementationOnce(() => diceRollerInstance)  // Initial render
+      .mockImplementationOnce(() => {                    // When trying to create new instance
+        throw mockError;
+      });
 
     // Render and trigger error
     render(<DiceRoller />);
