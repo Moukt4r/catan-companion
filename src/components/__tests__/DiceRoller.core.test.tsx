@@ -22,13 +22,11 @@ describe('DiceRoller Core', () => {
   const mockRoll = jest.fn();
   const mockSetDiscardCount = jest.fn();
   const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
-  const originalConsoleError = console.error;
+  const spyConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    
-    console.error = jest.fn();
     
     mockPlay.mockResolvedValue(undefined);
     mockAudio = jest.fn(() => ({ play: mockPlay }));
@@ -39,8 +37,6 @@ describe('DiceRoller Core', () => {
       sum: 7,
       specialDie: null
     });
-
-    mockSetDiscardCount.mockImplementation(() => {});
     
     (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
       roll: mockRoll,
@@ -54,7 +50,7 @@ describe('DiceRoller Core', () => {
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    console.error = originalConsoleError;
+    jest.restoreAllMocks();
   });
 
   it('renders initial state', () => {
@@ -66,18 +62,25 @@ describe('DiceRoller Core', () => {
 
   it('handles invalid discard counts', async () => {
     const mockError = new Error('Failed to initialize');
-    mockSetDiscardCount.mockImplementation(() => {
-      throw mockError;
-    });
+    const mockInstance = {
+      roll: mockRoll,
+      setDiscardCount: jest.fn(() => { throw mockError; }),
+      getRemainingRolls: mockGetRemainingRolls
+    };
+    (DiceRollerUtil as jest.Mock).mockReturnValue(mockInstance);
 
     render(<DiceRoller />);
+    
+    // Must be rendered first for hooks to initialize
     const input = screen.getByLabelText(/discard count/i);
     
+    // Change value to trigger error
     await act(async () => {
       fireEvent.change(input, { target: { value: '10' } });
     });
 
-    expect(console.error).toHaveBeenCalledWith('Error setting discard count:', mockError);
+    // Verify error was logged
+    expect(spyConsoleError).toHaveBeenCalledWith('Error setting discard count:', mockError);
   });
 
   it('prevents simultaneous rolls', async () => {
