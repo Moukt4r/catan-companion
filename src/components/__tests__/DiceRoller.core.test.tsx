@@ -22,6 +22,7 @@ describe('DiceRoller Core', () => {
   const mockRoll = jest.fn();
   const mockSetDiscardCount = jest.fn();
   const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
+  let errorSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -46,11 +47,16 @@ describe('DiceRoller Core', () => {
     }));
 
     (global as any).Audio = mockAudio;
+
+    // Spy on console.error
+    errorSpy = jest.spyOn(console, 'error');
+    errorSpy.mockImplementation(() => {});
   });
 
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
+    errorSpy.mockRestore();
   });
 
   it('renders initial state', () => {
@@ -61,36 +67,27 @@ describe('DiceRoller Core', () => {
   });
 
   it('handles invalid discard counts', async () => {
-    // Mock console.error using spyOn
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation();
     const mockError = new Error('Failed to initialize');
+    mockSetDiscardCount.mockImplementationOnce(() => {
+      throw mockError;
+    });
     
-    // Create mock instance
-    const mockDiceRoller = {
+    (DiceRollerUtil as jest.Mock).mockImplementationOnce(() => ({
       roll: mockRoll,
-      setDiscardCount: jest.fn().mockImplementation(() => { throw mockError; }),
+      setDiscardCount: mockSetDiscardCount,
       getRemainingRolls: mockGetRemainingRolls
-    };
-
-    // Set up mock to return our instance
-    (DiceRollerUtil as jest.Mock).mockImplementation(() => mockDiceRoller);
+    }));
 
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
 
-    // Trigger error
     await act(async () => {
       fireEvent.change(input, { target: { value: '10' } });
+      await Promise.resolve();
       jest.runAllTimers();
     });
 
-    // Check for error message
-    await waitFor(() => {
-      expect(errorSpy).toHaveBeenCalledWith('Error setting discard count:', mockError);
-    });
-
-    // Clean up
-    errorSpy.mockRestore();
+    expect(errorSpy).toHaveBeenCalledWith('Error setting discard count:', mockError);
   });
 
   it('prevents simultaneous rolls', async () => {
