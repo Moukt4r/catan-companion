@@ -12,7 +12,7 @@ interface DiceRollerProps {
 export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
   const [diceRoller, setDiceRoller] = useState(() => new DiceRollerUtil(4, true));
   const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
-  const [discardCount, setDiscardCount] = useState<string>('4');
+  const [discardCount, setDiscardCount] = useState('4');
   const [isRolling, setIsRolling] = useState(false);
   const [rollCount, setRollCount] = useState(0);
   const [totalPips, setTotalPips] = useState(0);
@@ -56,37 +56,31 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
   }, [diceRoller, discardCount, isRolling, playDiceSound, onRoll, totalRolls]);
 
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    if (!isRolling && (event.key === 'r' || event.key === 'R')) {
+    if (event.key.toLowerCase() === 'r' && !isRolling) {
       handleRoll();
     }
   }, [handleRoll, isRolling]);
 
   React.useEffect(() => {
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
+    const handler = (e: KeyboardEvent) => handleKeyPress(e);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleKeyPress]);
-
-  const initializeDiceRoller = useCallback((count: number) => {
-    try {
-      return new DiceRollerUtil(count, true);
-    } catch (error) {
-      console.error('Error setting discard count:', error);
-      return null;
-    }
-  }, []);
 
   const handleDiscardChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
     const newCount = parseInt(newValue, 10);
     
     if (!isNaN(newCount) && newCount >= 0 && newCount <= 35) {
-      const newRoller = initializeDiceRoller(newCount);
-      if (newRoller) {
-        setDiceRoller(newRoller);
+      try {
         setDiscardCount(newValue);
+        const newRoller = new DiceRollerUtil(newCount, true);
+        setDiceRoller(newRoller);
+      } catch (error) {
+        console.error('Error setting discard count:', error);
       }
     }
-  }, [initializeDiceRoller]);
+  }, []);
 
   const resetStats = useCallback(() => {
     setRollCount(0);
@@ -122,10 +116,10 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
             Discard Count (0-35):
           </label>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="\d*"
             id="discardCount"
-            min="0"
-            max="35"
             value={discardCount}
             onChange={handleDiscardChange}
             className="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white"
