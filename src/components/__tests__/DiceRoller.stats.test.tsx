@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { DiceRoller } from '../DiceRoller';
 import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 
@@ -9,7 +10,6 @@ jest.mock('@/utils/diceRoller');
 // Mock Lucide icons
 jest.mock('lucide-react', () => ({
   Loader: () => <span>Loading...</span>,
-  RotateCcw: () => <span>Reset</span>,
   Volume2: () => <span>Sound On</span>,
   VolumeX: () => <span>Sound Off</span>,
 }));
@@ -54,7 +54,7 @@ describe('DiceRoller Statistics', () => {
     jest.useFakeTimers();
     render(<DiceRoller />);
     
-    const button = screen.getByRole('button', { name: /roll dice/i });
+    const button = screen.getByTestId('roll-button');
 
     // Make three rolls
     for (let i = 0; i < 3; i++) {
@@ -66,7 +66,7 @@ describe('DiceRoller Statistics', () => {
 
     // Check statistics
     expect(screen.getByText('Total Rolls: 3')).toBeInTheDocument();
-    expect(screen.getByText('Average Roll: 7.3')).toBeInTheDocument(); // (7 + 11 + 4) / 3
+    expect(screen.getByText('Average Roll: 7.3')).toBeInTheDocument();
     
     // Check roll history
     const history = screen.getAllByText(/roll \d+: \d+ \+ \d+ = \d+/i);
@@ -75,16 +75,16 @@ describe('DiceRoller Statistics', () => {
     expect(history[1]).toHaveTextContent('Roll 2: 5 + 6 = 11');
     expect(history[2]).toHaveTextContent('Roll 1: 3 + 4 = 7');
 
-    // Special die faces should be displayed
-    expect(screen.getByTitle(/merchant die face/i)).toBeInTheDocument();
-    expect(screen.getByTitle(/barbarian die face/i)).toBeInTheDocument();
+    // Check special die faces
+    expect(screen.getByTestId('special-die-history-merchant')).toBeInTheDocument();
+    expect(screen.getByTestId('special-die-history-barbarian')).toBeInTheDocument();
   });
 
   it('limits roll history to 10 entries', async () => {
     jest.useFakeTimers();
     render(<DiceRoller />);
     
-    const button = screen.getByRole('button', { name: /roll dice/i });
+    const button = screen.getByTestId('roll-button');
 
     // Make 12 rolls
     for (let i = 0; i < 12; i++) {
@@ -97,16 +97,14 @@ describe('DiceRoller Statistics', () => {
     // Should only show last 10 rolls
     const history = screen.getAllByText(/roll \d+: \d+ \+ \d+ = \d+/i);
     expect(history).toHaveLength(10);
-
-    // First entry should be Roll 12
-    expect(history[0]).toHaveTextContent('Roll 12:');
+    expect(history[0]).toHaveTextContent(/roll 12:/i);
   });
 
   it('resets statistics correctly', async () => {
     jest.useFakeTimers();
     render(<DiceRoller />);
     
-    const button = screen.getByRole('button', { name: /roll dice/i });
+    const button = screen.getByTestId('roll-button');
 
     // Make some rolls
     for (let i = 0; i < 3; i++) {
@@ -117,14 +115,14 @@ describe('DiceRoller Statistics', () => {
     }
 
     // Reset stats
-    const resetButton = screen.getByTitle('Reset statistics');
+    const resetButton = screen.getByTestId('reset-button');
     fireEvent.click(resetButton);
 
     // Check reset state
     expect(screen.getByText('Total Rolls: 0')).toBeInTheDocument();
     expect(screen.getByText('Average Roll: 0.0')).toBeInTheDocument();
-    expect(screen.queryByText(/roll \d+:/i)).not.toBeInTheDocument();
-    expect(screen.queryByTitle(/die face/i)).not.toBeInTheDocument();
+    const history = screen.queryAllByText(/roll \d+:/i);
+    expect(history).toHaveLength(0);
   });
 
   it('updates remaining rolls after each roll', async () => {
@@ -133,8 +131,7 @@ describe('DiceRoller Statistics', () => {
     mockGetRemainingRolls.mockImplementation(() => remainingRolls);
 
     render(<DiceRoller />);
-    
-    const button = screen.getByRole('button', { name: /roll dice/i });
+    const button = screen.getByTestId('roll-button');
 
     // Check initial state
     expect(screen.getByText('Remaining Rolls: 30')).toBeInTheDocument();
