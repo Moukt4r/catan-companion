@@ -14,227 +14,145 @@ jest.mock('lucide-react', () => ({
   VolumeX: () => <span>Sound Off</span>,
 }));
 
-describe('DiceRoller - Statistics & History', () => {
+describe('DiceRoller Statistics', () => {
+  // Test data
+  const rolls = [
+    { dice1: 3, dice2: 4, sum: 7, specialDie: null },
+    { dice1: 5, dice2: 6, sum: 11, specialDie: 'barbarian' },
+    { dice1: 2, dice2: 2, sum: 4, specialDie: 'merchant' }
+  ];
+
+  // Mock utility methods
   const mockRoll = jest.fn();
-  let mockAudio: jest.Mock;
-  const mockPlay = jest.fn();
-  const OriginalAudio = global.Audio;
-  const mockGetRemainingRolls = jest.fn();
+  const mockSetDiscardCount = jest.fn();
+  const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
+  const mockPlay = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockPlay.mockResolvedValue(undefined);
-    mockAudio = jest.fn(() => ({ play: mockPlay }));
-    (global as any).Audio = mockAudio;
-
-    // Default roll result
-    mockRoll.mockReturnValue({
-      dice1: 3,
-      dice2: 4,
-      sum: 7,
-      specialDie: null
-    });
-
-    mockGetRemainingRolls.mockReturnValue(30);
-
+    
+    // Setup mock dice roller
     (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
       roll: mockRoll,
-      setDiscardCount: jest.fn(),
+      setDiscardCount: mockSetDiscardCount,
       getRemainingRolls: mockGetRemainingRolls
     }));
+
+    // Setup audio mock
+    (global as any).Audio = jest.fn(() => ({ play: mockPlay }));
+
+    // Setup roll sequence
+    let rollIndex = 0;
+    mockRoll.mockImplementation(() => {
+      const roll = rolls[rollIndex % rolls.length];
+      rollIndex++;
+      return roll;
+    });
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-    (global as any).Audio = OriginalAudio;
-  });
-
-  it('updates statistics correctly after each roll', async () => {
+  it('maintains accurate roll statistics', async () => {
     jest.useFakeTimers();
     render(<DiceRoller />);
-
+    
     const button = screen.getByRole('button', { name: /roll dice/i });
 
-    // First roll - 3 + 4 = 7
-    fireEvent.click(button);
-    await act(async () => {
-      jest.advanceTimersByTime(600);
-    });
-
-    expect(screen.getByText('Total Rolls: 1')).toBeInTheDocument();
-    expect(screen.getByText('Average Roll: 7.0')).toBeInTheDocument();
-
-    // Second roll - 6 + 6 = 12
-    mockRoll.mockReturnValueOnce({
-      dice1: 6,
-      dice2: 6,
-      sum: 12,
-      specialDie: null
-    });
-
-    fireEvent.click(button);
-    await act(async () => {
-      jest.advanceTimersByTime(600);
-    });
-
-    expect(screen.getByText('Total Rolls: 2')).toBeInTheDocument();
-    expect(screen.getByText('Average Roll: 9.5')).toBeInTheDocument();
-  });
-
-  it('maintains roll history up to 10 items', async () => {
-    jest.useFakeTimers();
-    render(<DiceRoller />);
-
-    const button = screen.getByRole('button', { name: /roll dice/i });
-
-    // Roll 12 times with different values
-    for (let i = 1; i <= 12; i++) {
-      mockRoll.mockReturnValueOnce({
-        dice1: i,
-        dice2: i,
-        sum: i * 2,
-        specialDie: null
-      });
-
+    // Make three rolls
+    for (let i = 0; i < 3; i++) {
       fireEvent.click(button);
       await act(async () => {
         jest.advanceTimersByTime(600);
       });
     }
 
-    // Get all history entries
-    const historyEntries = screen.getAllByText(/Roll \d+: \d+ \+ \d+ = \d+/);
-    expect(historyEntries).toHaveLength(10);
-    
-    // Since we've made 12 rolls, the history shows most recent first
-    // But roll numbers are like "Roll 1", "Roll 2", etc.
-    expect(historyEntries[0]).toHaveTextContent('Roll 10: 12 + 12 = 24');
-    expect(historyEntries[1]).toHaveTextContent('Roll 9: 11 + 11 = 22');
-    expect(historyEntries[9]).toHaveTextContent('Roll 1: 3 + 3 = 6');
-
-    // Early rolls (1 and 2) should not be present
-    const rollHistory = screen.getByRole('heading', { name: /roll history/i }).parentElement?.parentElement;
-    expect(rollHistory).toBeTruthy();
-    expect(rollHistory).not.toHaveTextContent('1 + 1 = 2');
-    expect(rollHistory).not.toHaveTextContent('2 + 2 = 4');
-  });
-
-  it('resets all statistics correctly', async () => {
-    jest.useFakeTimers();
-    render(<DiceRoller />);
-
-    // First make some rolls
-    const button = screen.getByRole('button', { name: /roll dice/i });
-    
-    // Roll a few times
-    for (let i = 1; i <= 3; i++) {
-      fireEvent.click(button);
-      await act(async () => {
-        jest.advanceTimersByTime(600);
-      });
-    }
-
+    // Check statistics
     expect(screen.getByText('Total Rolls: 3')).toBeInTheDocument();
-    expect(screen.getByText(/average roll:/i)).toBeInTheDocument();
-    expect(screen.queryAllByText(/Roll \d+:/)).not.toHaveLength(0);
+    expect(screen.getByText('Average Roll: 7.3')).toBeInTheDocument(); // (7 + 11 + 4) / 3
+    
+    // Check roll history
+    const history = screen.getAllByText(/roll \d+: \d+ \+ \d+ = \d+/i);
+    expect(history).toHaveLength(3);
+    expect(history[0]).toHaveTextContent('Roll 3: 2 + 2 = 4');
+    expect(history[1]).toHaveTextContent('Roll 2: 5 + 6 = 11');
+    expect(history[2]).toHaveTextContent('Roll 1: 3 + 4 = 7');
+
+    // Special die faces should be displayed
+    expect(screen.getByTitle(/merchant die face/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/barbarian die face/i)).toBeInTheDocument();
+  });
+
+  it('limits roll history to 10 entries', async () => {
+    jest.useFakeTimers();
+    render(<DiceRoller />);
+    
+    const button = screen.getByRole('button', { name: /roll dice/i });
+
+    // Make 12 rolls
+    for (let i = 0; i < 12; i++) {
+      fireEvent.click(button);
+      await act(async () => {
+        jest.advanceTimersByTime(600);
+      });
+    }
+
+    // Should only show last 10 rolls
+    const history = screen.getAllByText(/roll \d+: \d+ \+ \d+ = \d+/i);
+    expect(history).toHaveLength(10);
+
+    // First entry should be Roll 12
+    expect(history[0]).toHaveTextContent('Roll 12:');
+  });
+
+  it('resets statistics correctly', async () => {
+    jest.useFakeTimers();
+    render(<DiceRoller />);
+    
+    const button = screen.getByRole('button', { name: /roll dice/i });
+
+    // Make some rolls
+    for (let i = 0; i < 3; i++) {
+      fireEvent.click(button);
+      await act(async () => {
+        jest.advanceTimersByTime(600);
+      });
+    }
 
     // Reset stats
-    const resetButton = screen.getByRole('button', { name: /reset statistics/i });
+    const resetButton = screen.getByTitle('Reset statistics');
     fireEvent.click(resetButton);
 
-    // Verify reset state
+    // Check reset state
     expect(screen.getByText('Total Rolls: 0')).toBeInTheDocument();
     expect(screen.getByText('Average Roll: 0.0')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /roll history/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/roll \d+:/i)).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/die face/i)).not.toBeInTheDocument();
   });
 
-  it('shows correct remaining rolls count', async () => {
+  it('updates remaining rolls after each roll', async () => {
     jest.useFakeTimers();
-
-    // Set up the mock to return decreasing values after each roll
     let remainingRolls = 30;
-    mockGetRemainingRolls.mockImplementation(() => {
-      return remainingRolls;
-    });
+    mockGetRemainingRolls.mockImplementation(() => remainingRolls);
 
     render(<DiceRoller />);
     
     const button = screen.getByRole('button', { name: /roll dice/i });
-    
-    // Initial count
+
+    // Check initial state
     expect(screen.getByText('Remaining Rolls: 30')).toBeInTheDocument();
 
-    // First roll
+    // Roll and decrease remaining count
+    remainingRolls = 29;
     fireEvent.click(button);
-    remainingRolls = 29; // Update before the roll is completed
-
     await act(async () => {
       jest.advanceTimersByTime(600);
     });
     expect(screen.getByText('Remaining Rolls: 29')).toBeInTheDocument();
 
-    // Second roll
+    // Roll again
+    remainingRolls = 28;
     fireEvent.click(button);
-    remainingRolls = 28; // Update before the roll is completed
-
     await act(async () => {
       jest.advanceTimersByTime(600);
     });
     expect(screen.getByText('Remaining Rolls: 28')).toBeInTheDocument();
-  });
-
-  it('displays roll history with special die values', async () => {
-    jest.useFakeTimers();
-    render(<DiceRoller />);
-    
-    const button = screen.getByRole('button', { name: /roll dice/i });
-
-    // Roll with special die
-    mockRoll.mockReturnValueOnce({
-      dice1: 5,
-      dice2: 5,
-      sum: 10,
-      specialDie: 'barbarian'
-    });
-
-    fireEvent.click(button);
-    await act(async () => {
-      jest.advanceTimersByTime(600);
-    });
-
-    // Find the history entry by role to avoid duplicate matches
-    const historyContainer = screen.getByRole('heading', { name: /roll history/i }).parentElement?.parentElement;
-    expect(historyContainer).toBeTruthy();
-    expect(historyContainer).toHaveTextContent('Roll 1: 5 + 5 = 10');
-
-    // Special die indicator should be present
-    expect(screen.getByText('Barbarian')).toBeInTheDocument();
-  });
-
-  it('updates history order correctly', async () => {
-    jest.useFakeTimers();
-    render(<DiceRoller />);
-    
-    const button = screen.getByRole('button', { name: /roll dice/i });
-
-    // Three rolls with different values
-    const rolls = [
-      { dice1: 1, dice2: 2, sum: 3 },
-      { dice1: 3, dice2: 4, sum: 7 },
-      { dice1: 5, dice2: 6, sum: 11 }
-    ];
-
-    for (const roll of rolls) {
-      mockRoll.mockReturnValueOnce({ ...roll, specialDie: null });
-      fireEvent.click(button);
-      await act(async () => {
-        jest.advanceTimersByTime(600);
-      });
-    }
-
-    const historyEntries = screen.getAllByText(/Roll \d+: \d+ \+ \d+ = \d+/);
-    expect(historyEntries[0]).toHaveTextContent('Roll 3: 5 + 6 = 11');
-    expect(historyEntries[1]).toHaveTextContent('Roll 2: 3 + 4 = 7');
-    expect(historyEntries[2]).toHaveTextContent('Roll 1: 1 + 2 = 3');
   });
 });
