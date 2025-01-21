@@ -62,7 +62,7 @@ describe('DiceRoller Core', () => {
 
   it('handles invalid discard counts', () => {
     const mockError = new Error('Failed to initialize');
-    (DiceRollerUtil as jest.Mock).mockImplementationOnce(() => {
+    mockSetDiscardCount.mockImplementation(() => {
       throw mockError;
     });
 
@@ -73,7 +73,6 @@ describe('DiceRoller Core', () => {
       fireEvent.change(input, { target: { value: '10' } });
     });
 
-    // Check that console.error was called with 'Error setting discard count:' and the error
     expect(mockConsoleError).toHaveBeenCalledWith('Error setting discard count:', mockError);
   });
 
@@ -139,7 +138,7 @@ describe('DiceRoller Core', () => {
     render(<DiceRoller />);
     const rollButton = screen.getByRole('button', { name: /roll dice/i });
 
-    // Perform three rolls
+    // Perform multiple rolls
     for (let i = 0; i < 3; i++) {
       act(() => {
         fireEvent.click(rollButton);
@@ -152,9 +151,7 @@ describe('DiceRoller Core', () => {
       });
     }
 
-    await waitFor(() => {
-      expect(mockRoll).toHaveBeenCalledTimes(3);
-    });
+    expect(mockRoll).toHaveBeenCalledTimes(3);
 
     // Wait for roll history to appear and click reset
     const resetButton = await screen.findByTitle('Reset statistics');
