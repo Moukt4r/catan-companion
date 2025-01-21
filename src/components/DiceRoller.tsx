@@ -49,22 +49,21 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
       }
     } catch (error) {
       console.error('Error rolling dice:', error);
-      setDiceRoller(new DiceRollerUtil(parseInt(discardCount, 10), true));
+      setDiceRoller(new DiceRollerUtil(parseInt(discardCount), true));
     } finally {
       setIsRolling(false);
     }
   }, [diceRoller, discardCount, isRolling, playDiceSound, onRoll, totalRolls]);
 
-  const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    if (!isRolling && (event.key === 'r' || event.key === 'R')) {
-      handleRoll();
-    }
-  }, [handleRoll, isRolling]);
-
   React.useEffect(() => {
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [handleKeyPress]);
+    const handler = (event: KeyboardEvent) => {
+      if (!isRolling && (event.key === 'r' || event.key === 'R')) {
+        handleRoll();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [handleRoll, isRolling]);
 
   const handleDiscardChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
