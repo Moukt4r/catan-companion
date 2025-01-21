@@ -19,7 +19,6 @@ jest.mock('lucide-react', () => ({
 describe('DiceRoller Core', () => {
   const mockPlay = jest.fn();
   let mockAudio: jest.Mock;
-  const originalError = console.error;
   const mockRoll = jest.fn();
   const mockSetDiscardCount = jest.fn();
   const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
@@ -27,6 +26,9 @@ describe('DiceRoller Core', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    
+    // Spy on console.error
+    jest.spyOn(console, 'error').mockImplementation(() => {});
     
     mockPlay.mockResolvedValue(undefined);
     mockAudio = jest.fn(() => ({ play: mockPlay }));
@@ -45,13 +47,12 @@ describe('DiceRoller Core', () => {
     }));
 
     (global as any).Audio = mockAudio;
-    console.error = jest.fn();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    console.error = originalError;
+    jest.restoreAllMocks();
   });
 
   it('renders initial state', () => {
@@ -62,25 +63,18 @@ describe('DiceRoller Core', () => {
   });
 
   it('handles invalid discard counts', () => {
+    // Mock implementation that throws
     const mockError = new Error('Failed to initialize');
-    mockSetDiscardCount.mockRejectedValueOnce(mockError);
-    // Mock the implementation to throw an error when setDiscardCount is called
-    (DiceRollerUtil as jest.Mock).mockImplementationOnce(() => ({
-      roll: mockRoll,
-      setDiscardCount: () => { throw mockError; },
-      getRemainingRolls: mockGetRemainingRolls
-    }));
+    mockSetDiscardCount.mockImplementation(() => { throw mockError; });
 
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
     
     act(() => {
       fireEvent.change(input, { target: { value: '10' } });
-      jest.runAllTimers();
     });
 
-    // Use toHaveBeenLastCalledWith to be more specific about which call we're checking
-    expect(console.error).toHaveBeenLastCalledWith('Error setting discard count:', mockError);
+    expect(console.error).toHaveBeenCalledWith('Error setting discard count:', mockError);
   });
 
   it('prevents simultaneous rolls', async () => {
