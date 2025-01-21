@@ -22,15 +22,31 @@ describe('DiceRoller Core', () => {
   const mockRoll = jest.fn();
   const mockSetDiscardCount = jest.fn();
   const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
-  let errorSpy: jest.SpyInstance;
+
+  // Create a DiceRoller instance
+  const createDiceRollerInstance = (shouldFail = false) => {
+    if (shouldFail) {
+      return {
+        roll: mockRoll,
+        setDiscardCount: () => { throw new Error('Failed to initialize'); },
+        getRemainingRolls: mockGetRemainingRolls
+      };
+    }
+    return {
+      roll: mockRoll,
+      setDiscardCount: mockSetDiscardCount,
+      getRemainingRolls: mockGetRemainingRolls
+    };
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     
+    // Reset all mocks
     mockPlay.mockResolvedValue(undefined);
     mockAudio = jest.fn(() => ({ play: mockPlay }));
-
+    mockSetDiscardCount.mockImplementation(() => {});
     mockRoll.mockReturnValue({
       dice1: 3,
       dice2: 4,
@@ -38,25 +54,20 @@ describe('DiceRoller Core', () => {
       specialDie: null
     });
 
-    mockSetDiscardCount.mockImplementation(() => {});
-    
-    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
-      roll: mockRoll,
-      setDiscardCount: mockSetDiscardCount,
-      getRemainingRolls: mockGetRemainingRolls
-    }));
+    // Mock DiceRollerUtil to return our instance
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => createDiceRollerInstance());
 
+    // Mock Audio
     (global as any).Audio = mockAudio;
 
     // Spy on console.error
-    errorSpy = jest.spyOn(console, 'error');
-    errorSpy.mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    errorSpy.mockRestore();
+    jest.restoreAllMocks();
   });
 
   it('renders initial state', () => {
@@ -68,26 +79,29 @@ describe('DiceRoller Core', () => {
 
   it('handles invalid discard counts', async () => {
     const mockError = new Error('Failed to initialize');
-    mockSetDiscardCount.mockImplementationOnce(() => {
-      throw mockError;
-    });
-    
-    (DiceRollerUtil as jest.Mock).mockImplementationOnce(() => ({
-      roll: mockRoll,
-      setDiscardCount: mockSetDiscardCount,
-      getRemainingRolls: mockGetRemainingRolls
-    }));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Ensure we're creating a new instance that will throw
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => createDiceRollerInstance(true));
 
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
 
+    // Change value to trigger error
     await act(async () => {
       fireEvent.change(input, { target: { value: '10' } });
+      // Let any promises resolve
       await Promise.resolve();
+      // Run all timers
       jest.runAllTimers();
     });
 
-    expect(errorSpy).toHaveBeenCalledWith('Error setting discard count:', mockError);
+    // Verify error was logged
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Error setting discard count:', mockError);
+    });
+
+    errorSpy.mockRestore();
   });
 
   it('prevents simultaneous rolls', async () => {
