@@ -53,7 +53,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
   }, [diceRoller, discardCount, isRolling, playDiceSound, onRoll]);
 
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    if (!isRolling && event.key.toLowerCase() === 'r') {
+    if (event.key.toLowerCase() === 'r' && !isRolling) {
       handleRoll();
     }
   }, [handleRoll, isRolling]);
@@ -66,7 +66,9 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
   }, [handleKeyPress]);
 
   const handleDiscardChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const newCount = parseInt(event.target.value, 10);
+    const newValue = event.target.value;
+    const newCount = parseInt(newValue, 10);
+    
     try {
       if (!isNaN(newCount) && newCount >= 0 && newCount <= 35) {
         const newRoller = new DiceRollerUtil(newCount, true);
@@ -89,13 +91,12 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     if (!face || !SPECIAL_DIE_INFO[face]) return null;
     
     const { color, icon, label } = SPECIAL_DIE_INFO[face];
-    const id = inHistory ? `history-${face}` : face;
+    const dataTestId = `special-die-${inHistory ? 'history-' : ''}${face}`;
     
     return (
       <div 
         className="flex items-center gap-2"
-        title={`${face} die face`}
-        data-testid={`special-die-${id}`}
+        data-testid={dataTestId}
       >
         <span className={`w-3 h-3 rounded-full ${color}`} />
         <span>{icon}</span>
@@ -148,12 +149,14 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
         ) : 'Roll Dice (Press R)'}
       </button>
 
-      {currentRoll && (
-        <div aria-live="polite" className="mt-6 text-center">
-          <DiceDisplay roll={currentRoll} isRolling={isRolling} />
-          {currentRoll.specialDie && renderSpecialDie(currentRoll.specialDie)}
-        </div>
-      )}
+      <div aria-live="polite" className="mt-6 text-center">
+        {currentRoll && (
+          <>
+            <DiceDisplay roll={currentRoll} isRolling={isRolling} />
+            {currentRoll.specialDie && renderSpecialDie(currentRoll.specialDie)}
+          </>
+        )}
+      </div>
 
       <div className="space-y-2">
         <div>Total Rolls: {rollCount}</div>
@@ -177,7 +180,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
           </div>
           <div className="space-y-1 text-sm">
             {rollHistory.map((roll, index) => (
-              <div key={index} className="flex justify-between items-center">
+              <div key={`roll-${rollHistory.length - index}`} className="flex justify-between items-center">
                 <span>
                   Roll {rollHistory.length - index}: {roll.dice1} + {roll.dice2} = {roll.sum}
                 </span>
