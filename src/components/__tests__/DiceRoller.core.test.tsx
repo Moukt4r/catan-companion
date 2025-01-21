@@ -22,7 +22,7 @@ describe('DiceRoller Core', () => {
   const mockRoll = jest.fn();
   const mockSetDiscardCount = jest.fn();
   const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
-  let originalError: any;
+  let originalError: typeof console.error;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -47,8 +47,6 @@ describe('DiceRoller Core', () => {
     }));
 
     (global as any).Audio = mockAudio;
-
-    // Store original console.error
     originalError = console.error;
   });
 
@@ -66,30 +64,35 @@ describe('DiceRoller Core', () => {
   });
 
   it('handles invalid discard counts', () => {
-    // Set up error mock
+    // Create instance that will throw on setDiscardCount
     const mockError = new Error('Failed to initialize');
     const mockDiceRoller = {
       roll: mockRoll,
-      setDiscardCount: jest.fn().mockImplementation(() => { throw mockError; }),
+      setDiscardCount: jest.fn(() => { throw mockError; }),
       getRemainingRolls: mockGetRemainingRolls
     };
 
+    // Let component initialize with working instance first
+    (DiceRollerUtil as jest.Mock)
+      .mockImplementationOnce(() => ({
+        roll: mockRoll,
+        setDiscardCount: mockSetDiscardCount,
+        getRemainingRolls: mockGetRemainingRolls
+      }))
+      // Then return instance that throws on next initialization
+      .mockImplementationOnce(() => mockDiceRoller);
+
     // Mock console.error
-    const calls: any[][] = [];
-    console.error = (...args: any[]) => {
-      calls.push(args);
-    };
+    const mockConsoleError = jest.fn();
+    console.error = mockConsoleError;
 
-    // Mock the DiceRollerUtil class
-    (DiceRollerUtil as jest.Mock).mockImplementation(() => mockDiceRoller);
-
-    // Render component and trigger error
+    // Render and trigger error
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
+    
     fireEvent.change(input, { target: { value: '10' } });
 
-    // Check error was logged correctly
-    expect(calls).toEqual([['Error setting discard count:', mockError]]);
+    expect(mockConsoleError).toHaveBeenCalledWith('Error setting discard count:', mockError);
   });
 
   it('prevents simultaneous rolls', async () => {
