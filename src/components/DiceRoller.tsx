@@ -53,10 +53,10 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
   }, [diceRoller, discardCount, isRolling, playDiceSound, onRoll]);
 
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    if (event.key.toLowerCase() === 'r' && !event.repeat) {
+    if (!isRolling && event.key.toLowerCase() === 'r') {
       handleRoll();
     }
-  }, [handleRoll]);
+  }, [handleRoll, isRolling]);
 
   React.useEffect(() => {
     document.addEventListener('keydown', handleKeyPress);
@@ -67,14 +67,14 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
 
   const handleDiscardChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const newCount = parseInt(event.target.value, 10);
-    if (!isNaN(newCount) && newCount >= 0 && newCount <= 35) {
-      setDiscardCount(newCount);
-      try {
+    try {
+      if (!isNaN(newCount) && newCount >= 0 && newCount <= 35) {
         const newRoller = new DiceRollerUtil(newCount, true);
         setDiceRoller(newRoller);
-      } catch (error) {
-        console.error('Error setting discard count:', error);
+        setDiscardCount(newCount);
       }
+    } catch (error) {
+      console.error('Error setting discard count:', error);
     }
   }, []);
 
@@ -85,21 +85,21 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
     setCurrentRoll(null);
   }, []);
 
-  const renderSpecialDie = (face: DiceRoll['specialDie']) => {
+  const renderSpecialDie = (face: DiceRoll['specialDie'], inHistory: boolean = false) => {
     if (!face || !SPECIAL_DIE_INFO[face]) return null;
     
     const { color, icon, label } = SPECIAL_DIE_INFO[face];
+    const id = inHistory ? `history-${face}` : face;
+    
     return (
       <div 
-        className="flex items-center gap-2 mt-2"
+        className="flex items-center gap-2"
         title={`${face} die face`}
-        data-testid={`special-die-${face}`}
+        data-testid={`special-die-${id}`}
       >
         <span className={`w-3 h-3 rounded-full ${color}`} />
         <span>{icon}</span>
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {label}
-        </span>
+        <span className="text-sm text-gray-600 dark:text-gray-400">{label}</span>
       </div>
     );
   };
@@ -129,7 +129,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
             className="p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
             aria-label={isSoundEnabled ? 'Disable sound' : 'Enable sound'}
           >
-            <span>{isSoundEnabled ? 'Sound On' : 'Sound Off'}</span>
+            {isSoundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
           </button>
         </div>
       </div>
@@ -170,8 +170,9 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
               className="p-1.5 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
               title="Reset statistics"
               aria-label="Reset statistics"
+              data-testid="reset-button"
             >
-              <span>Reset</span>
+              Reset
             </button>
           </div>
           <div className="space-y-1 text-sm">
@@ -180,7 +181,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
                 <span>
                   Roll {rollHistory.length - index}: {roll.dice1} + {roll.dice2} = {roll.sum}
                 </span>
-                {roll.specialDie && renderSpecialDie(roll.specialDie)}
+                {roll.specialDie && renderSpecialDie(roll.specialDie, true)}
               </div>
             ))}
           </div>
