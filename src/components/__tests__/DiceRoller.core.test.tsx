@@ -51,7 +51,6 @@ describe('DiceRoller Core', () => {
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    jest.restoreAllMocks();
   });
 
   it('renders initial state', () => {
@@ -61,33 +60,24 @@ describe('DiceRoller Core', () => {
     expect(screen.getByRole('button', { name: /roll dice/i })).toBeEnabled();
   });
 
-  it('handles invalid discard counts', async () => {
-    // Save original console.error
-    const originalConsoleError = console.error;
-    
-    // Create mock that will log our calls
-    const calls: any[][] = [];
-    console.error = (...args: any[]) => {
-      calls.push(args);
-    };
-
-    // Setup error to be thrown
+  it('handles invalid discard counts', () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation();
     const mockError = new Error('Failed to initialize');
-    mockSetDiscardCount.mockImplementationOnce(() => { throw mockError; });
 
-    // Render and trigger error
+    // Set up error mock
+    mockSetDiscardCount.mockImplementation(() => {
+      throw mockError;
+    });
+
+    // Render and change value
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
     
-    act(() => {
-      fireEvent.change(input, { target: { value: '10' } });
-    });
+    fireEvent.change(input, { target: { value: '10' } });
 
-    // Restore console.error
-    console.error = originalConsoleError;
+    expect(consoleError).toHaveBeenCalledWith('Error setting discard count:', mockError);
 
-    // Verify error was logged with correct arguments
-    expect(calls).toEqual([['Error setting discard count:', mockError]]);
+    consoleError.mockRestore();
   });
 
   it('prevents simultaneous rolls', async () => {
