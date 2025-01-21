@@ -22,11 +22,11 @@ describe('DiceRoller Core', () => {
   const mockRoll = jest.fn();
   const mockSetDiscardCount = jest.fn();
   const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
-  const spyConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    jest.spyOn(console, 'error').mockImplementation();
     
     mockPlay.mockResolvedValue(undefined);
     mockAudio = jest.fn(() => ({ play: mockPlay }));
@@ -38,6 +38,8 @@ describe('DiceRoller Core', () => {
       specialDie: null
     });
     
+    mockSetDiscardCount.mockImplementation(() => {});
+
     (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
       roll: mockRoll,
       setDiscardCount: mockSetDiscardCount,
@@ -61,26 +63,18 @@ describe('DiceRoller Core', () => {
   });
 
   it('handles invalid discard counts', async () => {
+    // Setup error mock
     const mockError = new Error('Failed to initialize');
-    const mockInstance = {
-      roll: mockRoll,
-      setDiscardCount: jest.fn(() => { throw mockError; }),
-      getRemainingRolls: mockGetRemainingRolls
-    };
-    (DiceRollerUtil as jest.Mock).mockReturnValue(mockInstance);
-
+    mockSetDiscardCount.mockImplementationOnce(() => { throw mockError; });
+    
     render(<DiceRoller />);
-    
-    // Must be rendered first for hooks to initialize
-    const input = screen.getByLabelText(/discard count/i);
-    
-    // Change value to trigger error
-    await act(async () => {
-      fireEvent.change(input, { target: { value: '10' } });
-    });
 
-    // Verify error was logged
-    expect(spyConsoleError).toHaveBeenCalledWith('Error setting discard count:', mockError);
+    // Change discard count
+    const input = screen.getByLabelText(/discard count/i);
+    fireEvent.change(input, { target: { value: '10' } });
+
+    // Verify error was logged correctly
+    expect(console.error).toHaveBeenCalledWith('Error setting discard count:', mockError);
   });
 
   it('prevents simultaneous rolls', async () => {
