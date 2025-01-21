@@ -19,7 +19,7 @@ jest.mock('lucide-react', () => ({
 describe('DiceRoller Core', () => {
   const mockPlay = jest.fn();
   let mockAudio: jest.Mock;
-  let originalError: any;
+  const originalError = console.error;
   const mockRoll = jest.fn();
   const mockSetDiscardCount = jest.fn();
   const mockGetRemainingRolls = jest.fn().mockReturnValue(30);
@@ -45,15 +45,12 @@ describe('DiceRoller Core', () => {
     }));
 
     (global as any).Audio = mockAudio;
-    // Store original console.error
-    originalError = console.error;
     console.error = jest.fn();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    // Restore original console.error
     console.error = originalError;
   });
 
@@ -66,16 +63,24 @@ describe('DiceRoller Core', () => {
 
   it('handles invalid discard counts', () => {
     const mockError = new Error('Failed to initialize');
-    mockSetDiscardCount.mockImplementationOnce(() => { throw mockError; });
+    mockSetDiscardCount.mockRejectedValueOnce(mockError);
+    // Mock the implementation to throw an error when setDiscardCount is called
+    (DiceRollerUtil as jest.Mock).mockImplementationOnce(() => ({
+      roll: mockRoll,
+      setDiscardCount: () => { throw mockError; },
+      getRemainingRolls: mockGetRemainingRolls
+    }));
 
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
     
     act(() => {
       fireEvent.change(input, { target: { value: '10' } });
+      jest.runAllTimers();
     });
 
-    expect(console.error).toHaveBeenCalledWith('Error setting discard count:', mockError);
+    // Use toHaveBeenLastCalledWith to be more specific about which call we're checking
+    expect(console.error).toHaveBeenLastCalledWith('Error setting discard count:', mockError);
   });
 
   it('prevents simultaneous rolls', async () => {
