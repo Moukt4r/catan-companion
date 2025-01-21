@@ -62,9 +62,13 @@ describe('DiceRoller Core', () => {
 
   it('handles invalid discard counts', () => {
     const mockError = new Error('Failed to initialize');
-    mockSetDiscardCount.mockImplementation(() => {
-      throw mockError;
-    });
+    const utilInstance = {
+      roll: mockRoll,
+      setDiscardCount: jest.fn().mockImplementation(() => { throw mockError; }),
+      getRemainingRolls: mockGetRemainingRolls
+    };
+    
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => utilInstance);
 
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
@@ -73,7 +77,7 @@ describe('DiceRoller Core', () => {
       fireEvent.change(input, { target: { value: '10' } });
     });
 
-    expect(mockConsoleError).toHaveBeenCalledWith('Error setting discard count:', mockError);
+    expect(console.error).toHaveBeenCalledWith('Error setting discard count:', mockError);
   });
 
   it('prevents simultaneous rolls', async () => {
