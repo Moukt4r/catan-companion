@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 import { DiceDisplay } from './DiceDisplay';
-import { Loader, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Loader, Volume2, VolumeX } from 'lucide-react';
 import type { DiceRoll } from '@/types/diceTypes';
+import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
 
 interface DiceRollerProps {
   onRoll?: (roll: DiceRoll) => void;
@@ -19,15 +20,9 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
   const [rollHistory, setRollHistory] = useState<DiceRoll[]>([]);
 
   const playDiceSound = useCallback(() => {
-    if (isSoundEnabled && typeof window !== 'undefined' && typeof window.Audio === 'function') {
-      try {
-        const audio = new Audio('/dice-roll.mp3');
-        if (typeof audio.play === 'function') {
-          audio.play().catch(() => {});
-        }
-      } catch (error) {
-        // Silently handle any audio errors
-      }
+    if (isSoundEnabled) {
+      const audio = new Audio('/dice-roll.mp3');
+      audio.play().catch(() => {});
     }
   }, [isSoundEnabled]);
 
@@ -51,7 +46,6 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
       }
     } catch (error) {
       console.error('Error rolling dice:', error);
-      // Reinitialize dice roller if something went wrong
       setDiceRoller(new DiceRollerUtil(discardCount, true));
     } finally {
       setIsRolling(false);
@@ -59,37 +53,59 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
   }, [diceRoller, discardCount, isRolling, playDiceSound, onRoll]);
 
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    if (event.key === 'r' || event.key === 'R') {
+    if (event.key.toLowerCase() === 'r' && !event.repeat) {
       handleRoll();
     }
   }, [handleRoll]);
 
   React.useEffect(() => {
     document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress);
+    };
   }, [handleKeyPress]);
 
   const handleDiscardChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const newCount = parseInt(event.target.value, 10);
-    if (!isNaN(newCount) && newCount >= 0 && newCount < 36) {
+    if (!isNaN(newCount) && newCount >= 0 && newCount <= 35) {
       setDiscardCount(newCount);
       try {
-        diceRoller.setDiscardCount(newCount);
+        const newRoller = new DiceRollerUtil(newCount, true);
+        setDiceRoller(newRoller);
       } catch (error) {
         console.error('Error setting discard count:', error);
-        setDiceRoller(new DiceRollerUtil(newCount, true));
       }
     }
-  }, [diceRoller]);
+  }, []);
 
   const resetStats = useCallback(() => {
     setRollCount(0);
     setTotalPips(0);
     setRollHistory([]);
+    setCurrentRoll(null);
   }, []);
 
+  const renderSpecialDie = (face: DiceRoll['specialDie']) => {
+    if (!face || !SPECIAL_DIE_INFO[face]) return null;
+    
+    const { color, icon, label } = SPECIAL_DIE_INFO[face];
+    return (
+      <div 
+        className="flex items-center gap-2 mt-2"
+        title={`${face} die face`}
+        data-testid={`special-die-${face}`}
+      >
+        <span className={`w-3 h-3 rounded-full ${color}`} />
+        <span>{icon}</span>
+        <span className="text-sm text-gray-600 dark:text-gray-400">
+          {label}
+        </span>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="dice-roller">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="discardCount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -103,6 +119,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
             value={discardCount}
             onChange={handleDiscardChange}
             className="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white"
+            data-testid="discard-count-input"
           />
         </div>
         
@@ -110,9 +127,9 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
           <button
             onClick={() => setIsSoundEnabled(!isSoundEnabled)}
             className="p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
-            aria-label={`${isSoundEnabled ? 'Disable' : 'Enable'} sound`}
+            aria-label={isSoundEnabled ? 'Disable sound' : 'Enable sound'}
           >
-            {isSoundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            <span>{isSoundEnabled ? 'Sound On' : 'Sound Off'}</span>
           </button>
         </div>
       </div>
@@ -121,6 +138,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
         onClick={handleRoll}
         disabled={isRolling}
         className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg shadow transition-colors disabled:opacity-50"
+        data-testid="roll-button"
       >
         {isRolling ? (
           <span className="flex items-center justify-center">
@@ -130,7 +148,12 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
         ) : 'Roll Dice (Press R)'}
       </button>
 
-      {currentRoll && <DiceDisplay roll={currentRoll} isRolling={isRolling} />}
+      {currentRoll && (
+        <div aria-live="polite" className="mt-6 text-center">
+          <DiceDisplay roll={currentRoll} isRolling={isRolling} />
+          {currentRoll.specialDie && renderSpecialDie(currentRoll.specialDie)}
+        </div>
+      )}
 
       <div className="space-y-2">
         <div>Total Rolls: {rollCount}</div>
@@ -148,7 +171,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
               title="Reset statistics"
               aria-label="Reset statistics"
             >
-              <RotateCcw size={18} />
+              <span>Reset</span>
             </button>
           </div>
           <div className="space-y-1 text-sm">
@@ -157,6 +180,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
                 <span>
                   Roll {rollHistory.length - index}: {roll.dice1} + {roll.dice2} = {roll.sum}
                 </span>
+                {roll.specialDie && renderSpecialDie(roll.specialDie)}
               </div>
             ))}
           </div>
