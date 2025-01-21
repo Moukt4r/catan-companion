@@ -1,5 +1,6 @@
 import React from 'react';
 import type { DiceRoll } from '@/types/diceTypes';
+import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
 
 interface DiceDisplayProps {
   roll: DiceRoll;
@@ -7,6 +8,19 @@ interface DiceDisplayProps {
 }
 
 export const DiceDisplay: React.FC<DiceDisplayProps> = ({ roll, isRolling }) => {
+  const renderSpecialDie = () => {
+    if (!roll.specialDie || !SPECIAL_DIE_INFO[roll.specialDie]) return null;
+    
+    const { color, icon, label } = SPECIAL_DIE_INFO[roll.specialDie];
+    return (
+      <div className="flex items-center gap-2 mt-2" data-testid="special-die">
+        <span className={`w-3 h-3 rounded-full ${color}`} />
+        <span>{icon}</span>
+        <span className="text-sm text-gray-600 dark:text-gray-400">{label}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col items-center justify-center space-y-4" aria-live="polite">
       <div className="flex justify-center space-x-4">
@@ -30,6 +44,7 @@ export const DiceDisplay: React.FC<DiceDisplayProps> = ({ roll, isRolling }) => 
       <div className="text-xl font-bold dark:text-white">
         Sum: {roll.sum}
       </div>
+      {roll.specialDie && renderSpecialDie()}
     </div>
   );
 };
