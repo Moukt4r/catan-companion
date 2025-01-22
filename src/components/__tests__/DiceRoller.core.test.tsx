@@ -6,6 +6,14 @@ import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 // Mock the dice roller utility
 jest.mock('@/utils/diceRoller');
 
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Volume2: () => <span data-testid="volume-2-icon">Volume2</span>,
+  VolumeX: () => <span data-testid="volume-x-icon">VolumeX</span>,
+  Loader: () => <span data-testid="loader-icon">Loader</span>,
+  RotateCcw: () => <span data-testid="rotate-ccw-icon">RotateCcw</span>
+}));
+
 // Mock Audio
 const mockPlay = jest.fn();
 global.Audio = jest.fn().mockImplementation(() => ({
@@ -20,8 +28,9 @@ describe('DiceRoller', () => {
 
   it('renders with initial state', () => {
     render(<DiceRoller />);
-    expect(screen.getByText(/Roll Dice \(Press R\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Discard Count \(0-35\):/i)).toBeInTheDocument();
+    expect(screen.getByText(/Roll Dice \\(Press R\\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Discard Count \\(0-35\\):/i)).toBeInTheDocument();
+    expect(screen.getByTestId('volume-2-icon')).toBeInTheDocument();
   });
 
   it('handles dice rolling', async () => {
@@ -48,7 +57,7 @@ describe('DiceRoller', () => {
     });
 
     expect(onRoll).toHaveBeenCalledWith(mockRoll);
-    expect(screen.getByText(/3 \+ 4 = 7/)).toBeInTheDocument();
+    expect(screen.getByText(/3 \\+ 4 = 7/)).toBeInTheDocument();
   });
 
   it('handles discard count changes', () => {
@@ -134,14 +143,17 @@ describe('DiceRoller', () => {
       await new Promise(resolve => setTimeout(resolve, 600));
     });
 
-    expect(screen.getByText(/3 \+ 4 = 7/)).toBeInTheDocument();
+    expect(screen.getByText(/3 \\+ 4 = 7/)).toBeInTheDocument();
   });
 
   it('toggles sound', () => {
     render(<DiceRoller />);
     const soundButton = screen.getByLabelText(/Disable sound/i);
+    expect(screen.getByTestId('volume-2-icon')).toBeInTheDocument();
+    
     fireEvent.click(soundButton);
     expect(screen.getByLabelText(/Enable sound/i)).toBeInTheDocument();
+    expect(screen.getByTestId('volume-x-icon')).toBeInTheDocument();
   });
 
   it('resets statistics', async () => {
@@ -166,7 +178,9 @@ describe('DiceRoller', () => {
     });
 
     // Reset stats
-    fireEvent.click(screen.getByTitle(/Reset statistics/i));
+    const resetButton = screen.getByTitle(/Reset statistics/i);
+    expect(screen.getByTestId('rotate-ccw-icon')).toBeInTheDocument();
+    fireEvent.click(resetButton);
 
     expect(screen.getByText('Total Rolls: 0')).toBeInTheDocument();
     expect(screen.getByText('Average Roll: 0.0')).toBeInTheDocument();
