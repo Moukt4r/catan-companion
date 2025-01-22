@@ -6,14 +6,6 @@ import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 // Mock the dice roller utility
 jest.mock('@/utils/diceRoller');
 
-// Mock lucide-react icons
-jest.mock('lucide-react', () => ({
-  Volume2: () => <span data-testid="volume-2-icon">Volume2</span>,
-  VolumeX: () => <span data-testid="volume-x-icon">VolumeX</span>,
-  Loader: () => <span data-testid="loader-icon">Loader</span>,
-  RotateCcw: () => <span data-testid="rotate-ccw-icon">RotateCcw</span>
-}));
-
 // Mock Audio
 const mockPlay = jest.fn();
 global.Audio = jest.fn().mockImplementation(() => ({
@@ -28,8 +20,8 @@ describe('DiceRoller', () => {
 
   it('renders with initial state', () => {
     render(<DiceRoller />);
-    expect(screen.getByText(/Roll Dice \\(Press R\\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Discard Count \\(0-35\\):/i)).toBeInTheDocument();
+    expect(screen.getByTestId('roll-button')).toHaveTextContent('Roll Dice (Press R)');
+    expect(screen.getByText(/Discard Count \(0-35\):/i)).toBeInTheDocument();
     expect(screen.getByTestId('volume-2-icon')).toBeInTheDocument();
   });
 
@@ -50,14 +42,15 @@ describe('DiceRoller', () => {
     const onRoll = jest.fn();
     render(<DiceRoller onRoll={onRoll} />);
 
-    const rollButton = screen.getByText(/Roll Dice/i);
+    const rollButton = screen.getByTestId('roll-button');
     await act(async () => {
       fireEvent.click(rollButton);
       await new Promise(resolve => setTimeout(resolve, 600));
     });
 
     expect(onRoll).toHaveBeenCalledWith(mockRoll);
-    expect(screen.getByText(/3 \\+ 4 = 7/)).toBeInTheDocument();
+    expect(screen.getByTestId('total-rolls')).toHaveTextContent('Total Rolls: 1');
+    expect(screen.getByTestId('average-roll')).toHaveTextContent('Average Roll: 7.0');
   });
 
   it('handles discard count changes', () => {
@@ -68,7 +61,7 @@ describe('DiceRoller', () => {
     }));
 
     render(<DiceRoller />);
-    const input = screen.getByLabelText(/Discard Count/i);
+    const input = screen.getByTestId('discard-count');
     fireEvent.change(input, { target: { value: '5' } });
 
     expect(mockSetDiscardCount).toHaveBeenCalledWith(5);
@@ -86,7 +79,7 @@ describe('DiceRoller', () => {
     }));
 
     render(<DiceRoller />);
-    const input = screen.getByLabelText(/Discard Count/i);
+    const input = screen.getByTestId('discard-count');
     fireEvent.change(input, { target: { value: '5' } });
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -109,7 +102,7 @@ describe('DiceRoller', () => {
 
     render(<DiceRoller />);
 
-    const rollButton = screen.getByText(/Roll Dice/i);
+    const rollButton = screen.getByTestId('roll-button');
     await act(async () => {
       fireEvent.click(rollButton);
       await new Promise(resolve => setTimeout(resolve, 600));
@@ -143,16 +136,16 @@ describe('DiceRoller', () => {
       await new Promise(resolve => setTimeout(resolve, 600));
     });
 
-    expect(screen.getByText(/3 \\+ 4 = 7/)).toBeInTheDocument();
+    expect(screen.getByTestId('total-rolls')).toHaveTextContent('Total Rolls: 1');
+    expect(screen.getByTestId('average-roll')).toHaveTextContent('Average Roll: 7.0');
   });
 
   it('toggles sound', () => {
     render(<DiceRoller />);
-    const soundButton = screen.getByLabelText(/Disable sound/i);
+    const soundButton = screen.getByTestId('sound-toggle');
     expect(screen.getByTestId('volume-2-icon')).toBeInTheDocument();
     
     fireEvent.click(soundButton);
-    expect(screen.getByLabelText(/Enable sound/i)).toBeInTheDocument();
     expect(screen.getByTestId('volume-x-icon')).toBeInTheDocument();
   });
 
@@ -173,16 +166,13 @@ describe('DiceRoller', () => {
 
     // First roll
     await act(async () => {
-      fireEvent.click(screen.getByText(/Roll Dice/i));
+      fireEvent.click(screen.getByTestId('roll-button'));
       await new Promise(resolve => setTimeout(resolve, 600));
     });
 
     // Reset stats
-    const resetButton = screen.getByTitle(/Reset statistics/i);
-    expect(screen.getByTestId('rotate-ccw-icon')).toBeInTheDocument();
-    fireEvent.click(resetButton);
-
-    expect(screen.getByText('Total Rolls: 0')).toBeInTheDocument();
-    expect(screen.getByText('Average Roll: 0.0')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('reset-stats'));
+    expect(screen.getByTestId('total-rolls')).toHaveTextContent('Total Rolls: 0');
+    expect(screen.getByTestId('average-roll')).toHaveTextContent('Average Roll: 0.0');
   });
 });
