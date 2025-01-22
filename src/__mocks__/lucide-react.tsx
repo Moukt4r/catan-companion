@@ -1,19 +1,16 @@
-import React from 'react';
+import * as React from 'react';
 
-// Create a mock component factory
-const createMockIcon = (name: string) => 
-  React.forwardRef((props: any, ref: any) => {
-    const MockIcon = () => (
-      <div data-testid={`${name.toLowerCase()}-icon`} ref={ref} {...props} style={{ width: props.size, height: props.size }} />
-    );
-    MockIcon.displayName = name;
-    return <MockIcon />;
-  });
+const createMockIcon = (name: string) => {
+  const IconComponent = (props: any) => (
+    <div data-testid={`${name.toLowerCase()}-icon`} {...props} />
+  );
+  IconComponent.displayName = name;
+  return IconComponent;
+};
 
-// Export all icon components
-export const Volume2 = createMockIcon('Volume2');
-export const VolumeX = createMockIcon('VolumeX');
-export const RotateCcw = createMockIcon('RotateCcw');
-export const Loader = createMockIcon('Loader');
-export const Swords = createMockIcon('Swords');
-export const Settings = createMockIcon('Settings');
+export const Volume2 = createMockIcon('volume-2');
+export const VolumeX = createMockIcon('volumex');
+export const RotateCcw = createMockIcon('rotate-ccw');
+export const Loader = createMockIcon('loader');
+export const Swords = createMockIcon('swords');
+export const Settings = createMockIcon('settings');
