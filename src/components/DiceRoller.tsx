@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 import { DiceDisplay } from './DiceDisplay';
-import { Volume2, VolumeX, RotateCcw, Loader } from 'lucide-react';
+import { Loader, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import type { DiceRoll } from '@/types/diceTypes';
 import { SPECIAL_DIE_INFO } from '@/types/diceTypes';
 
