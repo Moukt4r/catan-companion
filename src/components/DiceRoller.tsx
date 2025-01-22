@@ -130,6 +130,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
       <button
         onClick={handleRoll}
         disabled={isRolling}
+        data-testid="roll-button"
         className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg shadow transition-colors disabled:opacity-50"
       >
         {isRolling ? (
@@ -156,6 +157,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
               onClick={resetStats}
               className="p-1.5 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
               title="Reset statistics"
+              data-testid="reset-stats"
             >
               <RotateCcw size={18} />
             </button>
