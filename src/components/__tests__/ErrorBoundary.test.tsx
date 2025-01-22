@@ -150,19 +150,14 @@ describe('ErrorBoundary', () => {
     // First unmount the component
     unmount();
 
-    // Create a mock error object
-    const error = new Error('Post-unmount error');
-    
-    // Then simulate an error after unmount
-    const errorEvent = new ErrorEvent('error', {
-      error,
+    // Simulate an error after unmount
+    const mockError = {
+      error: 'Post-unmount error',
       message: 'Post-unmount error'
-    });
-    Object.defineProperty(errorEvent, 'error', { value: error });
-
-    // Dispatch the error event
+    };
+    
     act(() => {
-      window.dispatchEvent(errorEvent);
+      window.dispatchEvent(new CustomEvent('error', { detail: mockError }));
     });
 
     expect(onErrorMock).not.toHaveBeenCalled();
