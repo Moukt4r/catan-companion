@@ -1,26 +1,19 @@
 import React from 'react';
 
+// Create a mock component factory
 const createMockIcon = (name: string) => 
-  React.forwardRef(({ size = 24, ...props }: any, ref: any) => (
-    <div
-      data-testid={`${name.toLowerCase()}-icon`}
-      ref={ref}
-      {...props}
-      style={{ width: size, height: size }}
-    />
-  ));
+  React.forwardRef((props: any, ref: any) => {
+    const MockIcon = () => (
+      <div data-testid={`${name.toLowerCase()}-icon`} ref={ref} {...props} style={{ width: props.size, height: props.size }} />
+    );
+    MockIcon.displayName = name;
+    return <MockIcon />;
+  });
 
-export const Volume2 = createMockIcon('volume-2');
-export const VolumeX = createMockIcon('volume-x');
-export const RotateCcw = createMockIcon('rotate-ccw');
-export const Loader = createMockIcon('loader');
-export const Swords = createMockIcon('swords');
-export const Settings = createMockIcon('settings');
-
-// Add display names for easier debugging
-Volume2.displayName = 'Volume2';
-VolumeX.displayName = 'VolumeX';
-RotateCcw.displayName = 'RotateCcw';
-Loader.displayName = 'Loader';
-Swords.displayName = 'Swords';
-Settings.displayName = 'Settings';
+// Export all icon components
+export const Volume2 = createMockIcon('Volume2');
+export const VolumeX = createMockIcon('VolumeX');
+export const RotateCcw = createMockIcon('RotateCcw');
+export const Loader = createMockIcon('Loader');
+export const Swords = createMockIcon('Swords');
+export const Settings = createMockIcon('Settings');
