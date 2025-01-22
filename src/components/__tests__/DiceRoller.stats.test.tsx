@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DiceRoller } from '../DiceRoller';
+import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 
 // Mock the audio API
 const mockAudio = {
@@ -9,6 +10,18 @@ const mockAudio = {
 
 // Mock the Audio constructor
 (global as any).Audio = jest.fn(() => mockAudio);
+
+// Mock DiceRollerUtil
+jest.mock('@/utils/diceRoller', () => ({
+  DiceRoller: jest.fn().mockImplementation(() => ({
+    roll: jest.fn()
+      .mockReturnValueOnce({ dice1: 2, dice2: 3, sum: 5 })
+      .mockReturnValueOnce({ dice1: 4, dice2: 5, sum: 9 }),
+    setDiscardCount: jest.fn(),
+    getRemainingRolls: jest.fn().mockReturnValue(31),
+    setUseSpecialDie: jest.fn()
+  }))
+}));
 
 describe('DiceRoller statistics', () => {
   beforeEach(() => {
@@ -19,13 +32,6 @@ describe('DiceRoller statistics', () => {
     render(<DiceRoller />);
 
     const rollButton = screen.getByText(/Roll Dice/i);
-
-    // Mock the random dice rolls to test statistics
-    jest.spyOn(Math, 'random')
-      .mockReturnValueOnce(0.2) // First roll: dice1 = 2
-      .mockReturnValueOnce(0.4) // First roll: dice2 = 3
-      .mockReturnValueOnce(0.6) // Second roll: dice1 = 4
-      .mockReturnValueOnce(0.8); // Second roll: dice2 = 5
 
     // First roll
     await act(async () => {
@@ -53,11 +59,6 @@ describe('DiceRoller statistics', () => {
 
     const rollButton = screen.getByText(/Roll Dice/i);
 
-    // Do one roll first
-    jest.spyOn(Math, 'random')
-      .mockReturnValueOnce(0.2)
-      .mockReturnValueOnce(0.4);
-
     await act(async () => {
       fireEvent.click(rollButton);
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -73,5 +74,40 @@ describe('DiceRoller statistics', () => {
     // Verify stats are reset
     expect(screen.getByText(/Total Rolls: 0/)).toBeInTheDocument();
     expect(screen.getByText(/Average Roll: 0.0/)).toBeInTheDocument();
+  });
+
+  it('handles discard count changes', async () => {
+    const { container } = render(<DiceRoller />);
+
+    const input = screen.getByTestId('discard-count');
+    
+    // Test valid discard count
+    fireEvent.change(input, { target: { value: '10' } });
+    expect(input).toHaveValue(10);
+
+    // Test invalid discard count (should keep previous value)
+    fireEvent.change(input, { target: { value: '36' } });
+    expect(input).toHaveValue(10);
+
+    // Test negative value (should keep previous value)
+    fireEvent.change(input, { target: { value: '-1' } });
+    expect(input).toHaveValue(10);
+  });
+  
+  it('toggles sound', () => {
+    render(<DiceRoller />);
+    
+    const soundToggle = screen.getByTestId('sound-toggle');
+    
+    // Sound starts enabled by default
+    expect(soundToggle).toHaveAttribute('aria-label', 'Disable sound');
+    
+    // Toggle sound off
+    fireEvent.click(soundToggle);
+    expect(soundToggle).toHaveAttribute('aria-label', 'Enable sound');
+    
+    // Toggle sound back on
+    fireEvent.click(soundToggle);
+    expect(soundToggle).toHaveAttribute('aria-label', 'Disable sound');
   });
 });
