@@ -112,6 +112,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
             max="35"
             value={discardCount}
             onChange={handleDiscardChange}
+            data-testid="discard-count"
             className="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white"
           />
         </div>
@@ -120,7 +121,8 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
           <button
             onClick={() => setIsSoundEnabled(!isSoundEnabled)}
             className="p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
-            aria-label={`${isSoundEnabled ? 'Disable' : 'Enable'} sound`}
+            aria-label={isSoundEnabled ? 'Disable sound' : 'Enable sound'}
+            data-testid="sound-toggle"
           >
             {isSoundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
           </button>
@@ -144,9 +146,9 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
       {currentRoll && <DiceDisplay roll={currentRoll} isRolling={isRolling} />}
 
       <div className="space-y-2">
-        <div>Total Rolls: {rollCount}</div>
-        <div>Average Roll: {rollCount > 0 ? (totalPips / rollCount).toFixed(1) : '0.0'}</div>
-        <div>Remaining Rolls: {diceRoller.getRemainingRolls()}</div>
+        <div data-testid="total-rolls">Total Rolls: {rollCount}</div>
+        <div data-testid="average-roll">Average Roll: {rollCount > 0 ? (totalPips / rollCount).toFixed(1) : '0.0'}</div>
+        <div data-testid="remaining-rolls">Remaining Rolls: {diceRoller.getRemainingRolls()}</div>
       </div>
 
       {rollHistory.length > 0 && (
@@ -155,9 +157,9 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({ onRoll }) => {
             <h3 className="font-medium">Roll History</h3>
             <button
               onClick={resetStats}
+              data-testid="reset-stats"
               className="p-1.5 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-300"
               title="Reset statistics"
-              data-testid="reset-stats"
             >
               <RotateCcw size={18} />
             </button>
