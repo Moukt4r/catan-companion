@@ -1,15 +1,11 @@
 import React from 'react';
 
 // Create a mock component factory
-const mockIcon = {
-  name: '',
-  size: 24
-};
-
 const createMockIcon = (name: string) => {
-  const MockIcon = ({ size = 24, ...props }: any) => (
+  const MockIcon = ({ size = 24, className, ...props }: any) => (
     <span
       data-testid={`${name.toLowerCase()}-icon`}
+      className={className}
       {...props}
       style={{ width: size, height: size }}
     />
@@ -18,10 +14,10 @@ const createMockIcon = (name: string) => {
   return MockIcon;
 };
 
-// Export all icon components
-export const Volume2 = createMockIcon('volume-2');
-export const VolumeX = createMockIcon('volumex');
-export const RotateCcw = createMockIcon('rotate-ccw');
-export const Loader = createMockIcon('loader');
-export const Swords = createMockIcon('swords');
-export const Settings = createMockIcon('settings');
+// Export all icon components that are used in the application
+export const Volume2 = createMockIcon('Volume2');
+export const VolumeX = createMockIcon('VolumeX');
+export const RotateCcw = createMockIcon('RotateCcw');
+export const Loader = createMockIcon('Loader');
+export const Swords = createMockIcon('Swords');
+export const Settings = createMockIcon('Settings');
