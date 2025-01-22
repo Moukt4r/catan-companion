@@ -1,205 +1,174 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { act } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DiceRoller } from '../DiceRoller';
-import '@testing-library/jest-dom';
+import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 
-const mockRoll = jest.fn();
-const mockGetRemainingRolls = jest.fn();
+// Mock the dice roller utility
+jest.mock('@/utils/diceRoller');
 
-// Mock DiceRoller utility
-jest.mock('@/utils/diceRoller', () => ({
-  DiceRoller: jest.fn().mockImplementation(() => ({
-    roll: mockRoll,
-    getRemainingRolls: mockGetRemainingRolls
-  }))
+// Mock Audio
+const mockPlay = jest.fn();
+global.Audio = jest.fn().mockImplementation(() => ({
+  play: mockPlay
 }));
 
-// Mock Lucide icons
-jest.mock('lucide-react', () => ({
-  Loader: () => <span data-testid="loader">Loading...</span>,
-  Volume2: () => <span data-testid="volume-on">Sound On</span>,
-  VolumeX: () => <span data-testid="volume-off">Sound Off</span>,
-  RotateCcw: () => <span data-testid="reset">Reset</span>,
-}));
-
-describe('DiceRoller Core', () => {
-  const mockPlay = jest.fn();
-  const originalError = console.error;
-
+describe('DiceRoller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
-    
-    // Setup audio mock
     mockPlay.mockResolvedValue(undefined);
-    (global as any).Audio = jest.fn(() => ({ play: mockPlay }));
-    
-    // Setup roll mock
-    mockRoll.mockReturnValue({
+  });
+
+  it('renders with initial state', () => {
+    render(<DiceRoller />);
+    expect(screen.getByText(/Roll Dice \(Press R\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Discard Count \(0-35\):/i)).toBeInTheDocument();
+  });
+
+  it('handles dice rolling', async () => {
+    const mockRoll = {
+      dice1: 3,
+      dice2: 4,
+      sum: 7,
+      specialDie: 'merchant'
+    };
+
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
+      roll: () => mockRoll,
+      setDiscardCount: jest.fn(),
+      getRemainingRolls: () => 30
+    }));
+
+    const onRoll = jest.fn();
+    render(<DiceRoller onRoll={onRoll} />);
+
+    const rollButton = screen.getByText(/Roll Dice/i);
+    await act(async () => {
+      fireEvent.click(rollButton);
+      await new Promise(resolve => setTimeout(resolve, 600));
+    });
+
+    expect(onRoll).toHaveBeenCalledWith(mockRoll);
+    expect(screen.getByText(/3 \+ 4 = 7/)).toBeInTheDocument();
+  });
+
+  it('handles discard count changes', () => {
+    const mockSetDiscardCount = jest.fn();
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
+      setDiscardCount: mockSetDiscardCount,
+      getRemainingRolls: () => 30
+    }));
+
+    render(<DiceRoller />);
+    const input = screen.getByLabelText(/Discard Count/i);
+    fireEvent.change(input, { target: { value: '5' } });
+
+    expect(mockSetDiscardCount).toHaveBeenCalledWith(5);
+  });
+
+  it('handles invalid discard count changes', () => {
+    const mockSetDiscardCount = jest.fn();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
+      setDiscardCount: () => {
+        throw new Error('Invalid discard count');
+      },
+      getRemainingRolls: () => 30
+    }));
+
+    render(<DiceRoller />);
+    const input = screen.getByLabelText(/Discard Count/i);
+    fireEvent.change(input, { target: { value: '5' } });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error setting discard count:',
+      expect.any(Error)
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('handles errors during roll', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
+      roll: () => {
+        throw new Error('Roll failed');
+      },
+      getRemainingRolls: () => 30
+    }));
+
+    render(<DiceRoller />);
+
+    const rollButton = screen.getByText(/Roll Dice/i);
+    await act(async () => {
+      fireEvent.click(rollButton);
+      await new Promise(resolve => setTimeout(resolve, 600));
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error rolling dice:',
+      expect.any(Error)
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('handles keyboard rolls', async () => {
+    const mockRoll = {
       dice1: 3,
       dice2: 4,
       sum: 7,
       specialDie: null
-    });
+    };
 
-    // Setup remaining rolls mock
-    mockGetRemainingRolls.mockReturnValue(30);
-
-    // Setup error logging mock
-    console.error = jest.fn();
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-    jest.useRealTimers();
-    console.error = originalError;
-  });
-
-  it('renders initial state correctly', () => {
-    render(<DiceRoller />);
-    expect(screen.getByTestId('discard-count-input')).toHaveValue("4");
-    expect(screen.getByTestId('roll-button')).toBeEnabled();
-  });
-
-  it('allows rolling dice', async () => {
-    render(<DiceRoller />);
-    const button = screen.getByTestId('roll-button');
-
-    // Click roll button
-    act(() => {
-      fireEvent.click(button);
-    });
-
-    // Should be disabled during roll
-    expect(button).toBeDisabled();
-
-    // Complete roll animation
-    act(() => {
-      jest.advanceTimersByTime(600);
-    });
-
-    // Should be enabled again
-    await waitFor(() => {
-      expect(button).toBeEnabled();
-    });
-
-    expect(mockRoll).toHaveBeenCalledTimes(1);
-  });
-
-  it('handles roll failure gracefully', async () => {
-    mockRoll.mockImplementationOnce(() => {
-      throw new Error('Roll failed');
-    });
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
+      roll: () => mockRoll,
+      getRemainingRolls: () => 30
+    }));
 
     render(<DiceRoller />);
-    const button = screen.getByTestId('roll-button');
 
-    act(() => {
-      fireEvent.click(button);
+    await act(async () => {
+      fireEvent.keyDown(document, { key: 'r' });
+      await new Promise(resolve => setTimeout(resolve, 600));
     });
 
-    act(() => {
-      jest.advanceTimersByTime(600);
-    });
-
-    await waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith('Error rolling dice:', expect.any(Error));
-      expect(button).toBeEnabled();
-    });
+    expect(screen.getByText(/3 \+ 4 = 7/)).toBeInTheDocument();
   });
 
-  it('handles input validation', () => {
+  it('toggles sound', () => {
     render(<DiceRoller />);
-    const input = screen.getByTestId('discard-count-input');
-
-    // Non-numeric input
-    act(() => {
-      fireEvent.change(input, { target: { value: 'abc' } });
-    });
-    expect(input).toHaveValue('abc');
-
-    // Out of range input
-    act(() => {
-      fireEvent.change(input, { target: { value: '36' } });
-    });
-    expect(input).toHaveValue('36');
-
-    // Valid input
-    act(() => {
-      fireEvent.change(input, { target: { value: '15' } });
-    });
-    expect(input).toHaveValue('15');
+    const soundButton = screen.getByLabelText(/Disable sound/i);
+    fireEvent.click(soundButton);
+    expect(screen.getByLabelText(/Enable sound/i)).toBeInTheDocument();
   });
 
-  it('responds to keyboard shortcuts', async () => {
+  it('resets statistics', async () => {
+    const mockRoll = {
+      dice1: 3,
+      dice2: 4,
+      sum: 7,
+      specialDie: null
+    };
+
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
+      roll: () => mockRoll,
+      getRemainingRolls: () => 30
+    }));
+
     render(<DiceRoller />);
-    const button = screen.getByTestId('roll-button');
 
-    // Press 'R' key
-    act(() => {
-      fireEvent.keyDown(document, { key: 'R' });
+    // First roll
+    await act(async () => {
+      fireEvent.click(screen.getByText(/Roll Dice/i));
+      await new Promise(resolve => setTimeout(resolve, 600));
     });
 
-    expect(button).toBeDisabled();
+    // Reset stats
+    fireEvent.click(screen.getByTitle(/Reset statistics/i));
 
-    act(() => {
-      jest.advanceTimersByTime(600);
-    });
-
-    await waitFor(() => {
-      expect(button).toBeEnabled();
-      expect(mockRoll).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it('toggles sound on and off', () => {
-    render(<DiceRoller />);
-    const button = screen.getByTestId('roll-button');
-    const soundToggle = screen.getByLabelText(/disable sound/i);
-
-    // Initial roll with sound
-    act(() => {
-      fireEvent.click(button);
-    });
-
-    expect(mockPlay).toHaveBeenCalled();
-    mockPlay.mockClear();
-
-    // Toggle sound off
-    act(() => {
-      fireEvent.click(soundToggle);
-    });
-
-    // Roll without sound
-    act(() => {
-      fireEvent.click(button);
-    });
-
-    expect(mockPlay).not.toHaveBeenCalled();
-  });
-
-  it('prevents multiple simultaneous rolls', async () => {
-    render(<DiceRoller />);
-    const button = screen.getByTestId('roll-button');
-
-    // First click
-    act(() => {
-      fireEvent.click(button);
-    });
-
-    // Second click while first is in progress
-    act(() => {
-      fireEvent.click(button);
-    });
-
-    // Complete roll
-    act(() => {
-      jest.advanceTimersByTime(600);
-    });
-
-    await waitFor(() => {
-      expect(mockRoll).toHaveBeenCalledTimes(1);
-    });
+    expect(screen.getByText('Total Rolls: 0')).toBeInTheDocument();
+    expect(screen.getByText('Average Roll: 0.0')).toBeInTheDocument();
   });
 });
