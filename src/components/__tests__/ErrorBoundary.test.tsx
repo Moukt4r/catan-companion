@@ -79,11 +79,15 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
+    // Create a mock error object
+    const error = new Error('Global error');
+    
     // Simulate a global error
     const errorEvent = new ErrorEvent('error', {
-      error: new Error('Global error'),
+      error,
       message: 'Global error'
     });
+    Object.defineProperty(errorEvent, 'error', { value: error });
 
     act(() => {
       window.dispatchEvent(errorEvent);
@@ -143,14 +147,20 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
+    // First unmount the component
     unmount();
 
-    // Simulate an error after unmount
+    // Create a mock error object
+    const error = new Error('Post-unmount error');
+    
+    // Then simulate an error after unmount
     const errorEvent = new ErrorEvent('error', {
-      error: new Error('Post-unmount error'),
+      error,
       message: 'Post-unmount error'
     });
+    Object.defineProperty(errorEvent, 'error', { value: error });
 
+    // Dispatch the error event
     act(() => {
       window.dispatchEvent(errorEvent);
     });
@@ -166,13 +176,15 @@ describe('ErrorBoundary', () => {
     );
 
     const preventDefault = jest.fn();
+    const error = new Error('Global error');
     const errorEvent = new ErrorEvent('error', {
-      error: new Error('Global error'),
+      error,
       message: 'Global error'
     });
     Object.defineProperty(errorEvent, 'preventDefault', {
       value: preventDefault
     });
+    Object.defineProperty(errorEvent, 'error', { value: error });
 
     act(() => {
       window.dispatchEvent(errorEvent);
