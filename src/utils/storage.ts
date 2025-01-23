@@ -9,7 +9,7 @@ export class StorageManager {
   private static instance: StorageManager;
   private subscribers: Set<StorageSubscriber> = new Set();
   private static readonly CURRENT_VERSION = 1;
-  private static readonly STORAGE_KEY = 'gameState';  // Fixed storage key
+  private static readonly STORAGE_KEY = 'gameState';
 
   private constructor() {}
 
@@ -24,7 +24,7 @@ export class StorageManager {
     this.subscribers.add(subscriber);
   }
 
-  unsubscribe(subscriber: StorageSubscriber): void {  // Added explicit unsubscribe method
+  unsubscribe(subscriber: StorageSubscriber): void {
     this.subscribers.delete(subscriber);
   }
 
@@ -38,7 +38,7 @@ export class StorageManager {
       if (!stored) return null;
 
       const data: StorageData = JSON.parse(stored);
-      return {  // Include version in returned data
+      return {
         ...this.migrateData(data),
         version: StorageManager.CURRENT_VERSION
       };
@@ -48,42 +48,34 @@ export class StorageManager {
   }
 
   async saveGameState(state: any): Promise<void> {
+    const data: StorageData = {
+      version: StorageManager.CURRENT_VERSION,
+      data: state
+    };
+
+    const serializedData = JSON.stringify(data);
+
     try {
-      // Check storage quota
       const { quota, usage } = await navigator.storage.estimate();
       if (quota && usage && (quota - usage) < 1000000) {
         throw new Error('Storage quota exceeded');
       }
 
-      const data: StorageData = {
-        version: StorageManager.CURRENT_VERSION,
-        data: state
-      };
-
-      try {
-        localStorage.setItem(StorageManager.STORAGE_KEY, JSON.stringify(data));
-      } catch (error) {
-        if (this.isQuotaError(error)) {
-          // Try to clear some space
-          await this.clearOldData();
-          try {
-            // Retry save
-            localStorage.setItem(StorageManager.STORAGE_KEY, JSON.stringify(data));
-          } catch (retryError) {
-            if (this.isQuotaError(retryError)) {
-              throw new Error('Storage quota exceeded');
-            }
-            throw retryError;
-          }
-        } else {
-          throw error;
-        }
-      }
-
+      localStorage.setItem(StorageManager.STORAGE_KEY, serializedData);
       this.notifySubscribers();
     } catch (error) {
       if (this.isQuotaError(error)) {
-        throw new Error('Storage quota exceeded');
+        await this.clearOldData();
+        try {
+          localStorage.setItem(StorageManager.STORAGE_KEY, serializedData);
+          this.notifySubscribers();
+          return;
+        } catch (retryError) {
+          if (this.isQuotaError(retryError)) {
+            throw new Error('Storage quota exceeded');
+          }
+          throw retryError;
+        }
       }
       throw error;
     }
@@ -93,12 +85,11 @@ export class StorageManager {
     return (
       error.name === 'QuotaExceededError' ||
       error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
-      error.message.includes('quota')
+      error.message?.toLowerCase().includes('quota')
     );
   }
 
   private migrateData(data: StorageData): any {
-    // Migrate from version 0 to 1 (add autoSave setting)
     if (!data.version || data.version === 0) {
       return {
         ...data.data,
@@ -137,7 +128,6 @@ export class StorageManager {
   }
 
   private async clearOldData(): Promise<void> {
-    // Always remove old data when clearing
     localStorage.removeItem(StorageManager.STORAGE_KEY);
   }
 }
