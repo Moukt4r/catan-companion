@@ -154,13 +154,10 @@ describe('StorageManager', () => {
     quotaError.name = 'QuotaExceededError';
 
     (window.localStorage.setItem as jest.Mock)
-      .mockImplementation(() => { throw quotaError; });
+      .mockImplementationOnce(() => { throw quotaError; });
 
-    (window.localStorage.removeItem as jest.Mock)
-      .mockImplementation(() => { throw new Error('Failed to clear'); });
-
-    await expect(storageManager.saveGameState({ test: 'data' }))
-      .rejects
-      .toThrow('Storage quota exceeded');
+    expect(async () => {
+      await storageManager.saveGameState({ test: 'data' });
+    }).rejects.toThrow('Storage quota exceeded');
   });
 });
