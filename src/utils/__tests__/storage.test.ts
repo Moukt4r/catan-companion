@@ -26,7 +26,8 @@ describe('StorageManager', () => {
 
     Object.defineProperty(window.navigator, 'storage', {
       value: mockNavigatorStorage,
-      writable: true
+      writable: true,
+      configurable: true
     });
 
     storageManager = StorageManager.getInstance();
@@ -37,18 +38,23 @@ describe('StorageManager', () => {
     subscribers.forEach(sub => storageManager.unsubscribe(sub));
   });
 
-  it('manages subscribers correctly', () => {
+  it('manages subscribers correctly', async () => {
     const subscriber = jest.fn();
     storageManager.subscribe(subscriber);
-    
+
+    mockNavigatorStorage.estimate.mockResolvedValue({
+      quota: 10000000,
+      usage: 1000
+    });
+
     // Save should notify subscribers
-    storageManager.saveGameState({ test: 'data' });
+    await storageManager.saveGameState({ test: 'data' });
     expect(subscriber).toHaveBeenCalled();
 
     // Unsubscribe should work
     storageManager.unsubscribe(subscriber);
     subscriber.mockClear();
-    storageManager.saveGameState({ test: 'data2' });
+    await storageManager.saveGameState({ test: 'data2' });
     expect(subscriber).not.toHaveBeenCalled();
   });
 
@@ -59,9 +65,9 @@ describe('StorageManager', () => {
       usage: 999900
     });
 
-    await expect(storageManager.saveGameState({ test: 'data' }))
-      .rejects
-      .toThrow('Storage quota exceeded');
+    await expect(async () => {
+      await storageManager.saveGameState({ test: 'data' });
+    }).rejects.toThrow('Storage quota exceeded');
 
     // Test when there's plenty of space
     mockNavigatorStorage.estimate.mockResolvedValue({
@@ -69,9 +75,9 @@ describe('StorageManager', () => {
       usage: 1000
     });
 
-    await expect(storageManager.saveGameState({ test: 'data' }))
-      .resolves
-      .not.toThrow();
+    await expect(async () => {
+      await storageManager.saveGameState({ test: 'data' });
+    }).resolves.not.toThrow();
   });
 
   it('handles localStorage quota errors', async () => {
@@ -85,12 +91,9 @@ describe('StorageManager', () => {
 
     (window.localStorage.setItem as jest.Mock)
       .mockImplementationOnce(() => { throw quotaError; })
-      .mockImplementationOnce(() => {}); // Allow retry after clearOldData
+      .mockImplementationOnce(() => {});
 
-    await expect(storageManager.saveGameState({ test: 'data' }))
-      .resolves
-      .not.toThrow();
-
+    await storageManager.saveGameState({ test: 'data' });
     expect(window.localStorage.removeItem).toHaveBeenCalled();
   });
 
@@ -133,6 +136,12 @@ describe('StorageManager', () => {
       lastSaved: new Date().toISOString(),
       settings: { autoSave: true }
     };
+
+    mockNavigatorStorage.estimate.mockResolvedValue({
+      quota: 10000000,
+      usage: 1000
+    });
+
     expect(await storageManager.importData(JSON.stringify(validData))).toBe(true);
   });
 
@@ -153,8 +162,8 @@ describe('StorageManager', () => {
     (window.localStorage.setItem as jest.Mock)
       .mockImplementationOnce(() => { throw quotaError; });
 
-    await expect(storageManager.saveGameState({ test: 'data' }))
-      .rejects
-      .toThrow('Storage quota exceeded');
+    await expect(async () => {
+      await storageManager.saveGameState({ test: 'data' });
+    }).rejects.toThrow('Storage quota exceeded');
   });
 });
