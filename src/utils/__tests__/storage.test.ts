@@ -83,16 +83,13 @@ describe('StorageManager', () => {
     });
 
     const error = new Error('Non-quota error');
+    error.name = 'NotQuotaError';
     (window.localStorage.setItem as jest.Mock)
-      .mockImplementation(() => { throw error; });
+      .mockImplementationOnce(() => { throw error; });
 
-    await expect(async () => {
-      try {
-        await storageManager.saveGameState({ test: 'data' });
-      } catch (error) {
-        throw error;
-      }
-    }).rejects.toThrow('Non-quota error');
+    await expect(storageManager.saveGameState({ test: 'data' }))
+      .rejects
+      .toThrow('Non-quota error');
   });
 
   it('handles various quota error types', async () => {
