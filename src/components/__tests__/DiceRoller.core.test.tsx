@@ -67,6 +67,35 @@ describe('DiceRoller', () => {
     expect(mockSetDiscardCount).toHaveBeenCalledWith(5);
   });
 
+  it('handles invalid discard count changes', () => {
+    const mockSetDiscardCount = jest.fn(() => {
+      throw new Error('Invalid discard count');
+    });
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
+      setDiscardCount: mockSetDiscardCount,
+      getRemainingRolls: () => 30
+    }));
+
+    render(<DiceRoller />);
+    const input = screen.getByTestId('discard-count');
+    
+    act(() => {
+      fireEvent.change(input, { target: { value: '5' } });
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error setting discard count:',
+      expect.any(Error)
+    );
+
+    // Verify that a new DiceRollerUtil instance was created
+    expect(DiceRollerUtil).toHaveBeenCalledWith(5, true);
+
+    consoleErrorSpy.mockRestore();
+  });
+
   it('handles errors during roll', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
@@ -89,6 +118,9 @@ describe('DiceRoller', () => {
       'Error rolling dice:',
       expect.any(Error)
     );
+
+    // Verify that a new DiceRollerUtil instance was created
+    expect(DiceRollerUtil).toHaveBeenCalledWith(4, true);
 
     consoleErrorSpy.mockRestore();
   });
@@ -142,36 +174,6 @@ describe('DiceRoller', () => {
     
     // Should continue without error
     expect(mockPlay).toHaveBeenCalled();
-  });
-
-  it('handles invalid discard count changes properly', () => {
-    const mockSetDiscardCount = jest.fn(() => {
-      throw new Error('Invalid discard count');
-    });
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
-      setDiscardCount: mockSetDiscardCount,
-      getRemainingRolls: () => 30
-    }));
-
-    render(<DiceRoller />);
-    const input = screen.getByTestId('discard-count');
-
-    // Try setting an invalid value
-    act(() => {
-      fireEvent.change(input, { target: { value: '5' } });
-    });
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Error setting discard count:',
-      expect.any(Error)
-    );
-
-    // Verify that a new DiceRollerUtil instance was created
-    expect(DiceRollerUtil).toHaveBeenCalledWith(5, true);
-
-    consoleErrorSpy.mockRestore();
   });
 
   it('resets statistics', async () => {
