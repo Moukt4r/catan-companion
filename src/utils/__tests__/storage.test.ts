@@ -63,12 +63,8 @@ describe('StorageManager', () => {
       usage: 999900
     });
 
-    try {
-      await storageManager.saveGameState({ test: 'data' });
-      throw new Error('Expected error was not thrown');
-    } catch (error) {
-      expect(error.message).toBe('Storage quota exceeded');
-    }
+    const savePromise = storageManager.saveGameState({ test: 'data' });
+    await expect(savePromise).rejects.toThrow('Storage quota exceeded');
 
     mockNavigatorStorage.estimate.mockResolvedValue({
       quota: 10000000,
@@ -88,14 +84,10 @@ describe('StorageManager', () => {
     const error = new Error('Non-quota error');
     error.name = 'NotQuotaError';
     (window.localStorage.setItem as jest.Mock)
-      .mockImplementationOnce(() => { throw error; });
+      .mockImplementation(() => { throw error; });
 
-    try {
-      await storageManager.saveGameState({ test: 'data' });
-      throw new Error('Expected error was not thrown');
-    } catch (error) {
-      expect(error.message).toBe('Non-quota error');
-    }
+    const savePromise = storageManager.saveGameState({ test: 'data' });
+    await expect(savePromise).rejects.toThrow('Non-quota error');
   });
 
   it('handles various quota error types', async () => {
@@ -171,16 +163,13 @@ describe('StorageManager', () => {
     const quotaError = new Error('Quota exceeded');
     quotaError.name = 'QuotaExceededError';
 
-    (window.localStorage.setItem as jest.Mock).mockImplementation(() => { 
-      throw quotaError; 
-    });
+    (window.localStorage.setItem as jest.Mock)
+      .mockImplementation(() => { 
+        throw quotaError; 
+      });
 
-    try {
-      await storageManager.saveGameState({ test: 'data' });
-      throw new Error('Expected error was not thrown');
-    } catch (error) {
-      expect(error.message).toBe('Storage quota exceeded');
-    }
+    const savePromise = storageManager.saveGameState({ test: 'data' });
+    await expect(savePromise).rejects.toThrow('Storage quota exceeded');
   });
 
   it('handles initial low storage', async () => {
@@ -189,11 +178,7 @@ describe('StorageManager', () => {
       usage: 499900
     });
 
-    try {
-      await storageManager.saveGameState({ test: 'data' });
-      throw new Error('Expected error was not thrown');
-    } catch (error) {
-      expect(error.message).toBe('Storage quota exceeded');
-    }
+    const savePromise = storageManager.saveGameState({ test: 'data' });
+    await expect(savePromise).rejects.toThrow('Storage quota exceeded');
   });
 });
