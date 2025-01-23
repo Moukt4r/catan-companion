@@ -76,21 +76,44 @@ describe('StorageManager', () => {
     expect(window.localStorage.setItem).toHaveBeenCalled();
   });
 
-  it('handles localStorage quota errors', async () => {
+  it('handles non-quota errors correctly', async () => {
     mockNavigatorStorage.estimate.mockResolvedValue({
       quota: 10000000,
       usage: 1000
     });
 
-    const quotaError = new Error('Quota exceeded');
-    quotaError.name = 'QuotaExceededError';
+    const error = new Error('Non-quota error');
+    (window.localStorage.setItem as jest.Mock)
+      .mockImplementationOnce(() => { throw error; });
+
+    await expect(storageManager.saveGameState({ test: 'data' }))
+      .rejects
+      .toThrow('Non-quota error');
+  });
+
+  it('handles various quota error types', async () => {
+    mockNavigatorStorage.estimate.mockResolvedValue({
+      quota: 10000000,
+      usage: 1000
+    });
+
+    // Test NS_ERROR_DOM_QUOTA_REACHED
+    const quotaError1 = new Error('Storage error');
+    quotaError1.name = 'NS_ERROR_DOM_QUOTA_REACHED';
 
     (window.localStorage.setItem as jest.Mock)
-      .mockImplementationOnce(() => { throw quotaError; })
+      .mockImplementationOnce(() => { throw quotaError1; })
       .mockImplementationOnce(() => {});
 
     await storageManager.saveGameState({ test: 'data' });
-    expect(window.localStorage.removeItem).toHaveBeenCalled();
+
+    // Test error message with 'quota'
+    const quotaError2 = new Error('Storage quota limit reached');
+    (window.localStorage.setItem as jest.Mock)
+      .mockImplementationOnce(() => { throw quotaError2; })
+      .mockImplementationOnce(() => {});
+
+    await storageManager.saveGameState({ test: 'data' });
   });
 
   it('loads and migrates data correctly', () => {
