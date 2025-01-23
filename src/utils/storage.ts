@@ -66,8 +66,15 @@ export class StorageManager {
         if (this.isQuotaError(error)) {
           // Try to clear some space
           await this.clearOldData();
-          // Retry save
-          localStorage.setItem(StorageManager.STORAGE_KEY, JSON.stringify(data));
+          try {
+            // Retry save
+            localStorage.setItem(StorageManager.STORAGE_KEY, JSON.stringify(data));
+          } catch (retryError) {
+            if (this.isQuotaError(retryError)) {
+              throw new Error('Storage quota exceeded');
+            }
+            throw retryError;
+          }
         } else {
           throw error;
         }
