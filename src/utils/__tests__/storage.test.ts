@@ -144,7 +144,7 @@ describe('StorageManager', () => {
     expect(await storageManager.importData(JSON.stringify(validData))).toBe(true);
   });
 
-  it('handles errors during data clearing and quota errors', async () => {
+  it('handles failed clearing during quota error', async () => {
     mockNavigatorStorage.estimate.mockResolvedValue({
       quota: 10000000,
       usage: 1000
@@ -153,21 +153,14 @@ describe('StorageManager', () => {
     const quotaError = new Error('Quota exceeded');
     quotaError.name = 'QuotaExceededError';
 
-    (window.localStorage.removeItem as jest.Mock).mockImplementation(() => {
-      throw new Error('Failed to clear');
-    });
-
     (window.localStorage.setItem as jest.Mock)
-      .mockImplementationOnce(() => { throw quotaError; });
+      .mockImplementation(() => { throw quotaError; });
 
-    let error;
-    try {
-      await storageManager.saveGameState({ test: 'data' });
-    } catch (e) {
-      error = e;
-    }
+    (window.localStorage.removeItem as jest.Mock)
+      .mockImplementation(() => { throw new Error('Failed to clear'); });
 
-    expect(error).toBeDefined();
-    expect(error.message).toBe('Storage quota exceeded');
+    await expect(storageManager.saveGameState({ test: 'data' }))
+      .rejects
+      .toThrow('Storage quota exceeded');
   });
 });
