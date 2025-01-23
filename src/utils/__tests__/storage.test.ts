@@ -86,12 +86,9 @@ describe('StorageManager', () => {
     (window.localStorage.setItem as jest.Mock)
       .mockImplementationOnce(() => { throw error; });
 
-    try {
-      await storageManager.saveGameState({ test: 'data' });
-      fail('Expected error to be thrown');
-    } catch (error) {
-      expect(error.message).toBe('Non-quota error');
-    }
+    await expect(storageManager.saveGameState({ test: 'data' }))
+      .rejects
+      .toThrow('Non-quota error');
   });
 
   it('handles various quota error types', async () => {
@@ -171,11 +168,8 @@ describe('StorageManager', () => {
       throw quotaError; 
     });
 
-    try {
-      await storageManager.saveGameState({ test: 'data' });
-      fail('Expected error to be thrown');
-    } catch (error) {
-      expect(error.message).toBe('Storage quota exceeded');
-    }
+    await expect(storageManager.saveGameState({ test: 'data' }))
+      .rejects
+      .toThrow('Storage quota exceeded');
   });
 });
