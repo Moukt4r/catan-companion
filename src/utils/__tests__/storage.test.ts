@@ -21,7 +21,8 @@ describe('StorageManager', () => {
           delete mockLocalStorage[key];
         })
       },
-      writable: true
+      writable: true,
+      configurable: true
     });
 
     Object.defineProperty(window.navigator, 'storage', {
@@ -47,11 +48,9 @@ describe('StorageManager', () => {
       usage: 1000
     });
 
-    // Save should notify subscribers
     await storageManager.saveGameState({ test: 'data' });
     expect(subscriber).toHaveBeenCalled();
 
-    // Unsubscribe should work
     storageManager.unsubscribe(subscriber);
     subscriber.mockClear();
     await storageManager.saveGameState({ test: 'data2' });
@@ -59,7 +58,6 @@ describe('StorageManager', () => {
   });
 
   it('handles storage quota checks correctly', async () => {
-    // Test when storage is nearly full
     mockNavigatorStorage.estimate.mockResolvedValue({
       quota: 1000000,
       usage: 999900
@@ -69,7 +67,6 @@ describe('StorageManager', () => {
       .rejects
       .toThrow('Storage quota exceeded');
 
-    // Test when there's plenty of space
     mockNavigatorStorage.estimate.mockResolvedValue({
       quota: 10000000,
       usage: 1000
@@ -97,14 +94,11 @@ describe('StorageManager', () => {
   });
 
   it('loads and migrates data correctly', () => {
-    // Test loading non-existent data
     expect(storageManager.loadGameState()).toBeNull();
 
-    // Test loading invalid JSON
     mockLocalStorage['gameState'] = 'invalid json';
     expect(storageManager.loadGameState()).toBeNull();
 
-    // Test loading v0 data
     const v0Data = {
       version: 0,
       data: { settings: {} }
@@ -113,7 +107,6 @@ describe('StorageManager', () => {
     const migratedData = storageManager.loadGameState();
     expect(migratedData.settings.autoSave).toBe(true);
 
-    // Test loading current version
     const currentData = {
       version: 1,
       data: { test: 'data' }
@@ -123,24 +116,19 @@ describe('StorageManager', () => {
   });
 
   it('validates imported data correctly', async () => {
-    // Test invalid JSON
     expect(await storageManager.importData('invalid json')).toBe(false);
-
-    // Test missing required fields
     expect(await storageManager.importData(JSON.stringify({}))).toBe(false);
-
-    // Test valid data
-    const validData = {
-      version: 1,
-      lastSaved: new Date().toISOString(),
-      settings: { autoSave: true }
-    };
 
     mockNavigatorStorage.estimate.mockResolvedValue({
       quota: 10000000,
       usage: 1000
     });
 
+    const validData = {
+      version: 1,
+      lastSaved: new Date().toISOString(),
+      settings: { autoSave: true }
+    };
     expect(await storageManager.importData(JSON.stringify(validData))).toBe(true);
   });
 
@@ -153,11 +141,15 @@ describe('StorageManager', () => {
     const quotaError = new Error('Quota exceeded');
     quotaError.name = 'QuotaExceededError';
 
-    (window.localStorage.setItem as jest.Mock)
-      .mockImplementationOnce(() => { throw quotaError; });
+    (window.localStorage.setItem as jest.Mock).mockImplementation(() => { 
+      throw quotaError; 
+    });
 
-    expect(async () => {
+    try {
       await storageManager.saveGameState({ test: 'data' });
-    }).rejects.toThrow('Storage quota exceeded');
+      fail('Expected error to be thrown');
+    } catch (error) {
+      expect(error.message).toBe('Storage quota exceeded');
+    }
   });
 });
