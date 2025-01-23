@@ -48,6 +48,13 @@ export class StorageManager {
   }
 
   async saveGameState(state: any): Promise<void> {
+    // Check storage quota first
+    const { quota, usage } = await navigator.storage.estimate();
+    if (quota && usage && (quota - usage) < 1000000) {
+      throw new Error('Storage quota exceeded');
+    }
+
+    // Prepare data
     const data: StorageData = {
       version: StorageManager.CURRENT_VERSION,
       data: state
@@ -56,15 +63,11 @@ export class StorageManager {
     const serializedData = JSON.stringify(data);
 
     try {
-      const { quota, usage } = await navigator.storage.estimate();
-      if (quota && usage && (quota - usage) < 1000000) {
-        throw new Error('Storage quota exceeded');
-      }
-
       localStorage.setItem(StorageManager.STORAGE_KEY, serializedData);
       this.notifySubscribers();
     } catch (error) {
       if (this.isQuotaError(error)) {
+        // Try to clear space and retry
         await this.clearOldData();
         try {
           localStorage.setItem(StorageManager.STORAGE_KEY, serializedData);
@@ -77,7 +80,7 @@ export class StorageManager {
           throw retryError;
         }
       }
-      throw error;
+      throw error; // Rethrow non-quota errors directly
     }
   }
 
