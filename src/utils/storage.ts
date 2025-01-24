@@ -62,26 +62,30 @@ export class StorageManager {
 
     const serializedData = JSON.stringify(data);
 
+    let error: any = null;
     try {
       localStorage.setItem(StorageManager.STORAGE_KEY, serializedData);
       this.notifySubscribers();
-    } catch (initialError) {
-      // Handle quota errors with retry
-      if (this.isQuotaError(initialError)) {
-        await this.clearOldData();
-        try {
-          localStorage.setItem(StorageManager.STORAGE_KEY, serializedData);
-          this.notifySubscribers();
-        } catch (retryError) {
-          if (this.isQuotaError(retryError)) {
-            throw new Error('Storage quota exceeded');
-          }
-          throw retryError;
-        }
-      } else {
-        // Non-quota errors are propagated as-is
-        throw initialError;
+      return;
+    } catch (err) {
+      error = err;
+    }
+
+    // Check if it was a quota error
+    if (!this.isQuotaError(error)) {
+      throw error;
+    }
+
+    // Try to clear space and retry
+    await this.clearOldData();
+    try {
+      localStorage.setItem(StorageManager.STORAGE_KEY, serializedData);
+      this.notifySubscribers();
+    } catch (retryError) {
+      if (this.isQuotaError(retryError)) {
+        throw new Error('Storage quota exceeded');
       }
+      throw retryError;
     }
   }
 
