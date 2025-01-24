@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DiceRoller } from '../DiceRoller';
+import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 
 describe('DiceRoller Edge Cases', () => {
   beforeEach(() => {
@@ -12,13 +13,13 @@ describe('DiceRoller Edge Cases', () => {
     jest.clearAllMocks();
   });
 
-  it('handles promise timing during roll', async () => {
+  it('handles dice roll timing and display', async () => {
     const mockSetTimeout = jest.spyOn(global, 'setTimeout');
     render(<DiceRoller />);
 
     // Initial state
     const rollButton = screen.getByTestId('roll-button');
-    expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /first die/i })).not.toBeInTheDocument();
 
     // Click and start roll
     fireEvent.click(rollButton);
@@ -32,7 +33,7 @@ describe('DiceRoller Edge Cases', () => {
 
     // Verify promise timing
     expect(mockSetTimeout).toHaveBeenCalledWith(expect.any(Function), 600);
-    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /first die/i })).toBeInTheDocument();
   });
 
   it('handles discard count validation edge cases', () => {
@@ -114,5 +115,24 @@ describe('DiceRoller Edge Cases', () => {
     expect(input).toHaveValue(10);
     
     consoleSpy.mockRestore();
+  });
+
+  it('handles key press for roll', async () => {
+    render(<DiceRoller />);
+    const rollButton = screen.getByTestId('roll-button');
+
+    // Simulate 'R' key press
+    fireEvent.keyDown(document, { key: 'R' });
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    expect(rollButton).toBeDisabled(); // Should trigger roll
+    
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    expect(rollButton).not.toBeDisabled();
   });
 });
