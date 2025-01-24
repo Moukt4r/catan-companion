@@ -62,24 +62,24 @@ export class StorageManager {
 
     const serializedData = JSON.stringify(data);
 
-    let error: any = null;
     try {
       localStorage.setItem(StorageManager.STORAGE_KEY, serializedData);
       this.notifySubscribers();
       return;
-    } catch (err) {
-      error = err;
+    } catch (initialError) {
+      // Handle quota errors
+      if (this.isQuotaError(initialError)) {
+        await this.handleQuotaError(serializedData);
+        return;
+      }
+      throw initialError;
     }
+  }
 
-    // Check if it was a quota error
-    if (!this.isQuotaError(error)) {
-      throw error;
-    }
-
-    // Try to clear space and retry
+  private async handleQuotaError(data: string): Promise<void> {
     await this.clearOldData();
     try {
-      localStorage.setItem(StorageManager.STORAGE_KEY, serializedData);
+      localStorage.setItem(StorageManager.STORAGE_KEY, data);
       this.notifySubscribers();
     } catch (retryError) {
       if (this.isQuotaError(retryError)) {
