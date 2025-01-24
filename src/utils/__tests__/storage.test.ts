@@ -81,13 +81,12 @@ describe('StorageManager', () => {
       usage: 1000
     });
 
-    const error = new Error('Non-quota error');
-    error.name = 'NotQuotaError';
+    const customError = new Error('Permission denied');
     (window.localStorage.setItem as jest.Mock)
-      .mockImplementation(() => { throw error; });
+      .mockImplementation(() => { throw customError; });
 
     const savePromise = storageManager.saveGameState({ test: 'data' });
-    await expect(savePromise).rejects.toThrow('Non-quota error');
+    await expect(savePromise).rejects.toThrow('Permission denied');
   });
 
   it('handles various quota error types', async () => {
@@ -163,10 +162,9 @@ describe('StorageManager', () => {
     const quotaError = new Error('Quota exceeded');
     quotaError.name = 'QuotaExceededError';
 
-    (window.localStorage.setItem as jest.Mock)
-      .mockImplementation(() => { 
-        throw quotaError; 
-      });
+    (window.localStorage.setItem as jest.Mock).mockImplementation(() => { 
+      throw quotaError; 
+    });
 
     const savePromise = storageManager.saveGameState({ test: 'data' });
     await expect(savePromise).rejects.toThrow('Storage quota exceeded');
