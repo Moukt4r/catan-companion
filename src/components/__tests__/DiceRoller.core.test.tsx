@@ -3,10 +3,8 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DiceRoller } from '../DiceRoller';
 import { DiceRoller as DiceRollerUtil } from '@/utils/diceRoller';
 
-// Mock the dice roller utility
 jest.mock('@/utils/diceRoller');
 
-// Mock Audio
 const mockPlay = jest.fn();
 global.Audio = jest.fn().mockImplementation(() => ({
   play: mockPlay
@@ -67,35 +65,6 @@ describe('DiceRoller', () => {
     expect(mockSetDiscardCount).toHaveBeenCalledWith(5);
   });
 
-  it('handles invalid discard count changes', () => {
-    const mockSetDiscardCount = jest.fn(() => {
-      throw new Error('Invalid discard count');
-    });
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
-      setDiscardCount: mockSetDiscardCount,
-      getRemainingRolls: () => 30
-    }));
-
-    render(<DiceRoller />);
-    const input = screen.getByTestId('discard-count');
-    
-    act(() => {
-      fireEvent.change(input, { target: { value: '5' } });
-    });
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Error setting discard count:',
-      expect.any(Error)
-    );
-
-    // Verify that a new DiceRollerUtil instance was created
-    expect(DiceRollerUtil).toHaveBeenCalledWith(5, true);
-
-    consoleErrorSpy.mockRestore();
-  });
-
   it('handles errors during roll', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
@@ -119,7 +88,6 @@ describe('DiceRoller', () => {
       expect.any(Error)
     );
 
-    // Verify that a new DiceRollerUtil instance was created
     expect(DiceRollerUtil).toHaveBeenCalledWith(4, true);
 
     consoleErrorSpy.mockRestore();
@@ -149,31 +117,51 @@ describe('DiceRoller', () => {
     expect(screen.getByTestId('average-roll')).toHaveTextContent('Average Roll: 7.0');
   });
 
-  it('toggles sound and handles audio play errors', async () => {
-    // Mock audio.play to reject
-    mockPlay.mockRejectedValue(new Error('Audio playback failed'));
+  it('toggles sound and handles audio errors', async () => {
+    mockPlay.mockRejectedValue(new Error('Audio error'));
     
     render(<DiceRoller />);
     const soundButton = screen.getByTestId('sound-toggle');
     expect(screen.getByTestId('volume-2-icon')).toBeInTheDocument();
     
-    // Test sound toggle
     fireEvent.click(soundButton);
     expect(screen.getByTestId('volume-x-icon')).toBeInTheDocument();
     
-    // Enable sound again
     fireEvent.click(soundButton);
     expect(screen.getByTestId('volume-2-icon')).toBeInTheDocument();
     
-    // Try to roll with sound on but audio.play failing
     const rollButton = screen.getByTestId('roll-button');
     await act(async () => {
       fireEvent.click(rollButton);
       await new Promise(resolve => setTimeout(resolve, 600));
     });
     
-    // Should continue without error
     expect(mockPlay).toHaveBeenCalled();
+  });
+
+  it('handles errors in discard count updates', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    const error = new Error('Invalid discard count');
+    
+    (DiceRollerUtil as jest.Mock).mockImplementation(() => ({
+      setDiscardCount: () => { throw error; },
+      getRemainingRolls: () => 30
+    }));
+
+    render(<DiceRoller />);
+    const input = screen.getByTestId('discard-count');
+
+    act(() => {
+      fireEvent.change(input, { target: { value: '5' } });
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error setting discard count:',
+      error
+    );
+    expect(DiceRollerUtil).toHaveBeenCalledWith(5, true);
+
+    consoleErrorSpy.mockRestore();
   });
 
   it('resets statistics', async () => {
@@ -191,13 +179,11 @@ describe('DiceRoller', () => {
 
     render(<DiceRoller />);
 
-    // First roll
     await act(async () => {
       fireEvent.click(screen.getByTestId('roll-button'));
       await new Promise(resolve => setTimeout(resolve, 600));
     });
 
-    // Reset stats
     fireEvent.click(screen.getByTestId('reset-stats'));
     expect(screen.getByTestId('total-rolls')).toHaveTextContent('Total Rolls: 0');
     expect(screen.getByTestId('average-roll')).toHaveTextContent('Average Roll: 0.0');
