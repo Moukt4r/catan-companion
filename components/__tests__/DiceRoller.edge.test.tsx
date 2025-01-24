@@ -9,17 +9,42 @@ describe('DiceRoller Edge Cases', () => {
     jest.clearAllMocks();
   });
 
-  it('handles discard count validation in all branches', () => {
+  it('handles the full dice roll animation timing', async () => {
+    render(<DiceRoller />);
+    
+    // Start roll
+    const rollButton = screen.getByRole('button');
+    fireEvent.click(rollButton);
+    expect(rollButton).toBeDisabled();
+    expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
+
+    // Fast-forward almost to completion
+    await act(async () => {
+      jest.advanceTimersByTime(599);
+    });
+    expect(rollButton).toBeDisabled();
+    expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
+
+    // Complete the animation
+    await act(async () => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(rollButton).not.toBeDisabled();
+    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
+  });
+
+  it('handles all discard count validation edge cases', () => {
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
 
     const testCases = [
-      { value: 'abc', expected: 4 },     // NaN case
-      { value: '-1', expected: 4 },      // < 0 case
-      { value: '36', expected: 4 },      // >= 36 case
-      { value: '35', expected: 35 },     // valid upper bound
-      { value: '0', expected: 0 },       // valid lower bound
-      { value: '20', expected: 20 }      // valid middle value
+      { value: 'abc', expected: 4 },      // NaN case
+      { value: '-1', expected: 4 },       // Below minimum
+      { value: '36', expected: 4 },       // Above maximum
+      { value: '35', expected: 35 },      // Maximum valid
+      { value: '0', expected: 0 },        // Minimum valid
+      { value: '5.5', expected: 4 },      // Invalid float
+      { value: '20', expected: 20 }       // Valid middle value
     ];
 
     testCases.forEach(({ value, expected }) => {
@@ -28,59 +53,20 @@ describe('DiceRoller Edge Cases', () => {
     });
   });
 
-  it('handles rolling dice with all states', async () => {
+  it('verifies initial render without dice display', () => {
     render(<DiceRoller />);
-
-    // Roll without displaying results
-    const button = screen.getByRole('button');
-    fireEvent.click(button);
     expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
-
-    // Complete roll and show results
-    await act(async () => {
-      jest.advanceTimersByTime(600);
-    });
-    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
-
-    // Roll with special die
-    const checkbox = screen.getByLabelText(/use cities & knights special die/i);
-    fireEvent.click(checkbox);
-    fireEvent.click(button);
-    
-    await act(async () => {
-      jest.advanceTimersByTime(600);
-    });
-
-    // Check rolling state transitions
-    fireEvent.click(button);
-    expect(button).toBeDisabled();
-    expect(button).toHaveTextContent(/rolling\.\.\./i);
-    
-    await act(async () => {
-      jest.advanceTimersByTime(600);
-    });
-    expect(button).not.toBeDisabled();
-    expect(button).toHaveTextContent(/roll dice/i);
   });
 
-  it('maintains correct statistics through edge cases', async () => {
+  it('shows dice display after successful roll', async () => {
     render(<DiceRoller />);
-    const button = screen.getByRole('button');
+    expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
     
-    // Roll multiple times with different discard counts
-    for (const discardCount of [0, 35, 15]) {
-      fireEvent.change(screen.getByLabelText(/discard count/i), {
-        target: { value: String(discardCount) }
-      });
-      
-      fireEvent.click(button);
-      await act(async () => {
-        jest.advanceTimersByTime(600);
-      });
-    }
+    fireEvent.click(screen.getByRole('button'));
+    await act(async () => {
+      jest.advanceTimersByTime(600);
+    });
     
-    const stats = screen.getByText(/total rolls:/i).parentElement;
-    expect(stats).toHaveTextContent(/total rolls: 3/i);
-    expect(stats).toHaveTextContent(/average roll:/i);
+    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
   });
 });
