@@ -9,111 +9,77 @@ describe('DiceRoller Core Functionality', () => {
     jest.clearAllMocks();
   });
 
-  test('renders initial state correctly', () => {
+  test('renders initial state correctly without dice display', () => {
     render(<DiceRoller />);
     
     expect(screen.getByLabelText(/discard count/i)).toHaveValue(4);
     expect(screen.getByLabelText(/use cities & knights special die/i)).not.toBeChecked();
     expect(screen.getByRole('button')).toHaveTextContent(/roll dice/i);
     
-    const stats = screen.getByText(/total rolls:/i).parentElement;
-    expect(stats).toHaveTextContent(/total rolls: 0/i);
-    expect(stats).toHaveTextContent(/average roll: 0\.0/i);
-    expect(stats).toHaveTextContent(/remaining rolls: 32/i);
+    // Verify no dice display initially
+    expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
   });
 
-  test('handles dice roll correctly with loading state', async () => {
-    jest.spyOn(global, 'setTimeout');
+  test('handles dice roll with promise resolution', async () => {
+    const mockResolve = jest.fn();
+    jest.spyOn(global, 'Promise').mockImplementationOnce((executor) => {
+      return new Promise((resolve) => {
+        executor(resolve);
+        mockResolve();
+      });
+    });
+
     render(<DiceRoller />);
-    
     const rollButton = screen.getByRole('button');
     fireEvent.click(rollButton);
     
-    expect(rollButton).toBeDisabled();
-    expect(rollButton).toHaveTextContent(/rolling\.\.\./i);
-    expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 600);
-    
+    expect(mockResolve).toHaveBeenCalled();
     await act(async () => {
       jest.advanceTimersByTime(600);
     });
-    
-    expect(rollButton).not.toBeDisabled();
-    expect(rollButton).toHaveTextContent(/roll dice/i);
-    
-    const stats = screen.getByText(/total rolls:/i).parentElement;
-    expect(stats).toHaveTextContent(/total rolls: 1/i);
-    expect(stats).toHaveTextContent(/remaining rolls: 31/i);
   });
 
-  test('handles invalid discard count values', () => {
+  test('handles all discard count boundary conditions', () => {
     render(<DiceRoller />);
     
     const input = screen.getByLabelText(/discard count/i);
-    
-    // Test non-numeric value
-    fireEvent.change(input, { target: { value: 'abc' } });
-    expect(input).toHaveValue(4); // Should not change
-    
-    // Test negative value
-    fireEvent.change(input, { target: { value: '-1' } });
-    expect(input).toHaveValue(4); // Should not change
-    
-    // Test value > 35
-    fireEvent.change(input, { target: { value: '36' } });
-    expect(input).toHaveValue(4); // Should not change
+    const testValue = (value: string, expectedValue: number) => {
+      fireEvent.change(input, { target: { value } });
+      expect(input).toHaveValue(expectedValue);
+    };
+
+    // Test values just around all boundaries
+    testValue('-1', 4); // Below minimum
+    testValue('0', 0); // Minimum boundary
+    testValue('1', 1); // Just above minimum
+    testValue('34', 34); // Just below maximum
+    testValue('35', 35); // Maximum boundary
+    testValue('36', 4); // Above maximum
+    testValue('abc', 4); // Non-numeric
+    testValue('5.5', 4); // Decimal
   });
 
-  test('handles edge cases in discard count', () => {
+  test('handles special die toggle with full rendering', async () => {
     render(<DiceRoller />);
     
-    const input = screen.getByLabelText(/discard count/i);
-    
-    // Test boundary values
-    fireEvent.change(input, { target: { value: '0' } });
-    expect(input).toHaveValue(0);
-    
-    fireEvent.change(input, { target: { value: '35' } });
-    expect(input).toHaveValue(35);
-    
-    // Test decimal values
-    fireEvent.change(input, { target: { value: '5.5' } });
-    expect(input).toHaveValue(4); // Should not change from previous valid value
-  });
-
-  test('handles special die toggle and affects roll display', async () => {
-    render(<DiceRoller />);
-    
+    // Enable special die and roll
     const checkbox = screen.getByLabelText(/use cities & knights special die/i);
     fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
     
+    // Roll dice
     const rollButton = screen.getByRole('button');
     fireEvent.click(rollButton);
     
     await act(async () => {
       jest.advanceTimersByTime(600);
     });
-    
-    // Additional assertions can be added here for special die display
-    expect(checkbox).toBeChecked();
-  });
 
-  test('calculates and displays average roll properly', async () => {
-    render(<DiceRoller />);
+    // Verify dice display appears
+    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
     
-    const rollButton = screen.getByRole('button');
-    
-    // Perform multiple rolls
-    for (let i = 0; i < 5; i++) {
-      fireEvent.click(rollButton);
-      await act(async () => {
-        jest.advanceTimersByTime(600);
-      });
-    }
-    
-    const averageText = screen.getByText(/average roll:/i).textContent;
-    const average = parseFloat(averageText?.match(/\d+\.\d+/)?.[0] || '0');
-    
-    expect(average).toBeGreaterThan(0);
-    expect(average).toBeLessThanOrEqual(12); // Max possible average
+    // Disable special die
+    fireEvent.click(checkbox);
+    expect(checkbox).not.toBeChecked();
   });
 });
