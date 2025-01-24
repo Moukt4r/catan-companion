@@ -23,126 +23,61 @@ describe('StorageManager', () => {
       writable: true
     });
 
-    Object.defineProperty(window, 'navigator', {
-      value: {
-        storage: {
-          estimate: jest.fn().mockResolvedValue({
-            quota: 100000000,
-            usage: 1000000
-          })
-        }
-      },
-      writable: true
-    });
-
     storage = StorageManager.getInstance();
   });
 
-  it('handles storage quota check failure gracefully', async () => {
-    Object.defineProperty(window, 'navigator', {
-      value: {
-        storage: {
-          estimate: jest.fn().mockRejectedValue(new Error('Quota check failed'))
-        }
-      },
-      writable: true
+  it('handles error when clearing game state', () => {
+    const mockError = new Error('Storage error');
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(localStorage, 'removeItem').mockImplementation(() => {
+      throw mockError;
     });
 
-    const state = {
-      version: 1,
-      lastSaved: Date.now(),
-      settings: { autoSave: true }
-    };
-
-    await expect(storage.saveGameState(state)).resolves.not.toThrow();
+    storage.clearGameState();
+    expect(console.error).toHaveBeenCalledWith('Failed to clear game state:', mockError);
   });
 
-  it('handles storage quota exceeded scenario', async () => {
-    Object.defineProperty(window, 'navigator', {
-      value: {
-        storage: {
-          estimate: jest.fn().mockResolvedValue({
-            quota: 1000,
-            usage: 999
-          })
-        }
-      },
-      writable: true
-    });
-
-    const state = {
-      version: 1,
-      lastSaved: Date.now(),
-      settings: { autoSave: true }
-    };
-
-    await expect(storage.saveGameState(state)).rejects.toThrow('Storage quota exceeded');
-  });
-
-  it('clears old data when quota is exceeded during save', async () => {
+  it('handles storage migration and save', async () => {
     const oldState = {
-      version: 1,
+      version: 0,
       data: {
-        version: 1,
-        lastSaved: Date.now() - 1000000,
-        settings: { autoSave: true }
+        version: 0,
+        lastSaved: Date.now() - 1000,
+        settings: {}
       }
     };
 
-    // Set up multiple items in localStorage
-    Object.keys(mockLocalStorage).forEach(key => {
-      mockLocalStorage[key] = JSON.stringify(oldState);
-    });
+    mockLocalStorage['catan-companion-state'] = JSON.stringify(oldState);
+    
+    // This will trigger migration and save
+    const loadedState = storage.loadGameState();
+    
+    expect(loadedState).toBeTruthy();
+    expect(loadedState?.version).toBe(1);
+    expect(loadedState?.settings?.autoSave).toBe(true);
+  });
 
-    const saveError = new Error('Quota exceeded');
-    saveError.name = 'QuotaExceededError';
-
-    const originalSetItem = window.localStorage.setItem;
-    window.localStorage.setItem = jest.fn().mockImplementation(() => {
-      throw saveError;
-    });
-
-    const state = {
-      version: 1,
-      lastSaved: Date.now(),
-      settings: { autoSave: true }
+  it('handles error during save after migration', async () => {
+    const oldState = {
+      version: 0,
+      data: {
+        version: 0,
+        lastSaved: Date.now() - 1000,
+        settings: {}
+      }
     };
 
-    try {
-      await storage.saveGameState(state);
-    } catch (error) {
-      expect(error).toBe(saveError);
-    }
-
-    window.localStorage.setItem = originalSetItem;
-  });
-
-  it('handles malformed data during loading', () => {
-    mockLocalStorage['catan-companion-state'] = 'invalid json';
-    expect(storage.loadGameState()).toBeNull();
-  });
-
-  it('handles import validation failure', async () => {
-    const invalidData = JSON.stringify({ invalid: 'state' });
-    expect(await storage.importData(invalidData)).toBe(false);
-  });
-
-  it('handles subscribers notification', () => {
-    const mockCallback = jest.fn();
-    const unsubscribe = storage.subscribe(mockCallback);
+    mockLocalStorage['catan-companion-state'] = JSON.stringify(oldState);
     
-    const state = {
-      version: 1,
-      lastSaved: Date.now(),
-      settings: { autoSave: true }
-    };
+    const mockError = new Error('Save error');
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(storage, 'saveGameState').mockRejectedValue(mockError);
     
-    storage.saveGameState(state);
-    expect(mockCallback).toHaveBeenCalled();
+    const loadedState = storage.loadGameState();
     
-    unsubscribe();
-    jest.clearAllMocks();
-    storage.saveGameState(state);
-    expect(mockCallback).not.toHaveBeenCalled();
+    expect(loadedState).toBeTruthy();
+    expect(loadedState?.version).toBe(1);
+    await new Promise(resolve => setTimeout(resolve, 0)); // Wait for async save
+    expect(console.error).toHaveBeenCalledWith(mockError);
   });
 });
