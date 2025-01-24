@@ -4,53 +4,42 @@ describe('StorageManager', () => {
   let storage: StorageManager;
 
   beforeEach(() => {
-    // Create a minimal mock of localStorage that throws on all operations
+    // Mock the entire localStorage object
     Object.defineProperty(window, 'localStorage', {
       value: {
-        getItem: jest.fn().mockImplementation(() => {
-          throw new Error('getItem failed');
-        }),
-        setItem: jest.fn().mockImplementation(() => {
-          throw new Error('setItem failed');
-        }),
-        removeItem: jest.fn().mockImplementation(() => {
-          throw new Error('removeItem failed');
-        })
+        getItem: jest.fn(),
+        setItem: jest.fn(),
+        removeItem: jest.fn()
       },
       writable: true
     });
 
-    // Mock Object.keys to throw
-    jest.spyOn(Object, 'keys').mockImplementation(() => {
-      throw new Error('Object.keys failed');
-    });
-
     storage = StorageManager.getInstance();
+
+    // Mock Object.keys to always throw when called with localStorage
+    const originalKeys = Object.keys;
+    Object.keys = jest.fn((obj) => {
+      if (obj === localStorage) {
+        throw new Error('Object.keys failed');
+      }
+      return originalKeys(obj);
+    });
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  it('catches error in clearOldData', async () => {
+  it('catches error in clearOldData', () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-    // Force a QuotaExceededError to trigger clearOldData
-    const quotaError = new Error('Storage quota exceeded');
-    quotaError.name = 'QuotaExceededError';
     
-    jest.spyOn(localStorage, 'setItem')
-      .mockImplementationOnce(() => { throw quotaError; });
+    // Directly call clearOldData using type assertion
+    type StorageManagerPrivate = {
+      clearOldData: () => void;
+    };
+    const privateStorage = storage as unknown as StorageManagerPrivate;
+    privateStorage.clearOldData();
 
-    try {
-      await storage.saveGameState({
-        version: 1,
-        lastSaved: Date.now(),
-        settings: {}
-      });
-    } catch {}
-
-    // This verifies we hit the catch block in clearOldData
     expect(errorSpy).toHaveBeenCalledWith(
       'Failed to clear old data:',
       expect.any(Error)
