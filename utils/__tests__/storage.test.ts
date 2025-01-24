@@ -2,6 +2,7 @@ import { StorageManager } from '../storage';
 
 describe('StorageManager', () => {
   let storage: StorageManager;
+  let originalKeys: any;
 
   beforeEach(() => {
     Object.defineProperty(window, 'localStorage', {
@@ -13,15 +14,23 @@ describe('StorageManager', () => {
       writable: true
     });
 
+    // Store original Object.keys
+    originalKeys = Object.keys;
+
     storage = StorageManager.getInstance();
   });
 
   afterEach(() => {
+    // Restore Object.keys
+    Object.keys = originalKeys;
     jest.restoreAllMocks();
   });
 
-  it('handles errors in clearOldData', async () => {
+  it('handles errors in clearOldData when Object.keys throws', () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+    
+    // Set Object.keys to undefined to force error
+    (Object as any).keys = undefined;
     
     // Create a subclass just for testing protected method
     class TestableStorage extends StorageManager {
@@ -29,11 +38,6 @@ describe('StorageManager', () => {
         this._clearOldData();
       }
     }
-    
-    // Mock Object.keys to throw
-    jest.spyOn(Object, 'keys').mockImplementation(() => {
-      throw new Error('Object.keys failed');
-    });
 
     // Use the test subclass
     const testableStorage = (storage as any).constructor.instance = new TestableStorage();
@@ -41,7 +45,7 @@ describe('StorageManager', () => {
 
     expect(errorSpy).toHaveBeenCalledWith(
       'Failed to clear old data:',
-      expect.any(Error)
+      expect.any(TypeError)
     );
     
     errorSpy.mockRestore();
