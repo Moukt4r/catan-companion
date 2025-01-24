@@ -2,21 +2,27 @@ import { StorageManager } from '../storage';
 
 describe('StorageManager', () => {
   let storage: StorageManager;
-  let mockLocalStorage: { [key: string]: string };
 
   beforeEach(() => {
-    mockLocalStorage = {};
+    // Create a minimal mock of localStorage that throws on all operations
     Object.defineProperty(window, 'localStorage', {
       value: {
-        getItem: jest.fn((key: string) => mockLocalStorage[key]),
-        setItem: jest.fn((key: string, value: string) => {
-          mockLocalStorage[key] = value;
+        getItem: jest.fn().mockImplementation(() => {
+          throw new Error('getItem failed');
         }),
-        removeItem: jest.fn((key: string) => {
-          delete mockLocalStorage[key];
+        setItem: jest.fn().mockImplementation(() => {
+          throw new Error('setItem failed');
+        }),
+        removeItem: jest.fn().mockImplementation(() => {
+          throw new Error('removeItem failed');
         })
       },
       writable: true
+    });
+
+    // Mock Object.keys to throw
+    jest.spyOn(Object, 'keys').mockImplementation(() => {
+      throw new Error('Object.keys failed');
     });
 
     storage = StorageManager.getInstance();
@@ -26,43 +32,30 @@ describe('StorageManager', () => {
     jest.restoreAllMocks();
   });
 
-  it('handles Object.keys error in clearOldData', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    
-    // Make Object.keys throw
-    const originalKeys = Object.keys;
-    Object.keys = jest.fn().mockImplementation((obj) => {
-      if (obj === localStorage) {
-        throw new Error('Object.keys failed');
-      }
-      return originalKeys(obj);
-    });
+  it('catches error in clearOldData', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-    // Trigger clearOldData via QuotaExceededError
-    const quotaError = new Error('Quota exceeded');
+    // Force a QuotaExceededError to trigger clearOldData
+    const quotaError = new Error('Storage quota exceeded');
     quotaError.name = 'QuotaExceededError';
-    jest.spyOn(localStorage, 'setItem').mockImplementationOnce(() => {
-      throw quotaError;
-    });
+    
+    jest.spyOn(localStorage, 'setItem')
+      .mockImplementationOnce(() => { throw quotaError; });
 
-    // Attempt save which should trigger clearOldData
     try {
       await storage.saveGameState({
         version: 1,
         lastSaved: Date.now(),
         settings: {}
       });
-    } catch (e) {
-      // Expected to throw
-    }
+    } catch {}
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    // This verifies we hit the catch block in clearOldData
+    expect(errorSpy).toHaveBeenCalledWith(
       'Failed to clear old data:',
       expect.any(Error)
     );
-
-    // Cleanup
-    Object.keys = originalKeys;
-    consoleErrorSpy.mockRestore();
+    
+    errorSpy.mockRestore();
   });
 });
