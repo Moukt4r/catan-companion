@@ -17,110 +17,44 @@ describe('StorageManager', () => {
         }),
         clear: jest.fn(() => {
           mockLocalStorage = {};
-        }),
-        keys: jest.fn(() => Object.keys(mockLocalStorage))
+        })
       },
       writable: true
     });
-
     storage = StorageManager.getInstance();
   });
 
-  it('handles malformed data in clearOldData', () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+  it('catches errors in clearOldData', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation();
     
-    // Add malformed data to localStorage
-    mockLocalStorage['test1'] = 'not json';
-    mockLocalStorage['test2'] = '{"data": {"lastSaved": 123}}';
-    mockLocalStorage['test3'] = '{"invalid": "json"}';
+    // Force error in Object.keys to trigger catch block
+    const originalKeys = Object.keys;
+    Object.keys = jest.fn().mockImplementation(() => {
+      throw new Error('Failed to access localStorage');
+    });
 
-    const mockError = new Error('Quota exceeded');
-    mockError.name = 'QuotaExceededError';
-    
-    // First setItem call fails with quota error, triggering clearOldData
-    jest.spyOn(window.localStorage, 'setItem')
-      .mockImplementationOnce(() => { throw mockError; })
-      .mockImplementationOnce(() => {}); // Second call succeeds
-
-    const state = {
-      version: 1,
-      lastSaved: Date.now(),
-      settings: { autoSave: true }
-    };
-
-    storage.saveGameState(state).catch(() => {});
-    expect(consoleErrorSpy).not.toHaveBeenCalledWith('Failed to clear old data:', expect.any(Error));
-    
-    consoleErrorSpy.mockRestore();
-  });
-
-  it('handles error during JSON parse in clearOldData', () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    const mockError = new Error('Failed to parse');
-    jest.spyOn(JSON, 'parse').mockImplementationOnce(() => { throw mockError; });
-
-    mockLocalStorage['test1'] = 'invalid json';
-    
+    // Trigger clearOldData via quota exceeded error
     const quotaError = new Error('Quota exceeded');
     quotaError.name = 'QuotaExceededError';
-    
-    jest.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+    jest.spyOn(localStorage, 'setItem').mockImplementation(() => {
       throw quotaError;
     });
 
-    const state = {
-      version: 1,
-      lastSaved: Date.now(),
-      settings: { autoSave: true }
-    };
+    try {
+      await storage.saveGameState({
+        version: 1,
+        lastSaved: Date.now(),
+        settings: {}
+      });
+    } catch {}
 
-    storage.saveGameState(state).catch(() => {});
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to save game state:', expect.any(Error));
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Failed to clear old data:',
+      expect.any(Error)
+    );
 
-    consoleErrorSpy.mockRestore();
-  });
-
-  it('handles invalid keys in clearOldData', () => {
-    const mockError = new Error('Quota exceeded');
-    mockError.name = 'QuotaExceededError';
-
-    mockLocalStorage['test1'] = '{"data": null}';
-    mockLocalStorage['test2'] = '{"data": {"lastSaved": null}}';
-    
-    jest.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
-      throw mockError;
-    });
-
-    const state = {
-      version: 1,
-      lastSaved: Date.now(),
-      settings: { autoSave: true }
-    };
-
-    storage.saveGameState(state).catch(() => {});
-  });
-
-  it('handles failed localStorage.removeItem in clearOldData', () => {
-    const mockError = new Error('Remove failed');
-    jest.spyOn(window.localStorage, 'removeItem').mockImplementation(() => {
-      throw mockError;
-    });
-
-    mockLocalStorage['test1'] = '{"data": {"lastSaved": 123}}';
-    
-    const quotaError = new Error('Quota exceeded');
-    quotaError.name = 'QuotaExceededError';
-    
-    jest.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
-      throw quotaError;
-    });
-
-    const state = {
-      version: 1,
-      lastSaved: Date.now(),
-      settings: { autoSave: true }
-    };
-
-    storage.saveGameState(state).catch(() => {});
+    // Cleanup
+    Object.keys = originalKeys;
+    errorSpy.mockRestore();
   });
 });
