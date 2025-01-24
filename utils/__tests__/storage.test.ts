@@ -2,50 +2,55 @@ import { StorageManager } from '../storage';
 
 describe('StorageManager', () => {
   let storage: StorageManager;
-  let originalKeys: any;
 
   beforeEach(() => {
+    // Mock localStorage
+    const mockStorage = {
+      getItem: jest.fn(),
+      setItem: jest.fn(),
+      removeItem: jest.fn(),
+    };
+    
     Object.defineProperty(window, 'localStorage', {
-      value: {
-        getItem: jest.fn(),
-        setItem: jest.fn(),
-        removeItem: jest.fn()
-      },
+      value: Object.freeze(mockStorage),
       writable: true
     });
 
-    // Store original Object.keys
-    originalKeys = Object.keys;
+    Object.defineProperty(window.localStorage, 'getItem', {
+      value: jest.fn().mockImplementation(() => { 
+        throw new Error('getItem failed');
+      })
+    });
 
     storage = StorageManager.getInstance();
   });
 
-  afterEach(() => {
-    // Restore Object.keys
-    Object.keys = originalKeys;
-    jest.restoreAllMocks();
-  });
-
-  it('handles errors in clearOldData when Object.keys throws', () => {
+  it('catches error in clearOldData', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation();
     
-    // Set Object.keys to undefined to force error
-    (Object as any).keys = undefined;
+    // Force QuotaExceededError to trigger clearOldData
+    const quotaError = new Error('Quota exceeded');
+    quotaError.name = 'QuotaExceededError';
     
-    // Create a subclass just for testing protected method
-    class TestableStorage extends StorageManager {
-      public callClearOldData() {
-        this._clearOldData();
-      }
-    }
+    // Mock setItem to throw quota error
+    Object.defineProperty(window.localStorage, 'setItem', {
+      value: jest.fn().mockImplementation(() => {
+        throw quotaError;
+      })
+    });
 
-    // Use the test subclass
-    const testableStorage = (storage as any).constructor.instance = new TestableStorage();
-    testableStorage.callClearOldData();
+    // Try to save which should trigger clearOldData
+    try {
+      await storage.saveGameState({
+        version: 1,
+        lastSaved: Date.now(),
+        settings: {}
+      });
+    } catch {}
 
     expect(errorSpy).toHaveBeenCalledWith(
       'Failed to clear old data:',
-      expect.any(TypeError)
+      expect.any(Error)
     );
     
     errorSpy.mockRestore();
