@@ -67,24 +67,25 @@ export class StorageManager {
       this.notifySubscribers();
     } catch (error) {
       if (this.isQuotaError(error)) {
-        // Try to clear space and retry
+        // Try to clear some space
         await this.clearOldData();
         try {
           localStorage.setItem(StorageManager.STORAGE_KEY, serializedData);
           this.notifySubscribers();
-          return;
         } catch (retryError) {
           if (this.isQuotaError(retryError)) {
             throw new Error('Storage quota exceeded');
           }
           throw retryError;
         }
+      } else {
+        throw error; // Non-quota errors are thrown as-is
       }
-      throw error; // Rethrow non-quota errors directly
     }
   }
 
   private isQuotaError(error: any): boolean {
+    if (!error) return false;
     return (
       error.name === 'QuotaExceededError' ||
       error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
