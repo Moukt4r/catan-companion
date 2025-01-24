@@ -11,10 +11,12 @@ const consoleError = console.error;
 describe('ErrorBoundary', () => {
   beforeEach(() => {
     console.error = jest.fn();
+    process.env.NODE_ENV = 'development';
   });
 
   afterEach(() => {
     console.error = consoleError;
+    process.env.NODE_ENV = 'test';
   });
 
   it('renders children when no error occurs', () => {
@@ -27,9 +29,6 @@ describe('ErrorBoundary', () => {
   });
 
   it('renders error UI in development mode', () => {
-    const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
-
     render(
       <ErrorBoundary>
         <ErrorComponent />
@@ -39,14 +38,10 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
     expect(screen.getByText('Please refresh the page and try again.')).toBeInTheDocument();
     expect(screen.getByText('Error: Test error')).toBeInTheDocument();
-
-    process.env.NODE_ENV = originalEnv;
   });
 
   it('renders error UI in production mode', () => {
-    const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
-
     render(
       <ErrorBoundary>
         <ErrorComponent />
@@ -56,20 +51,42 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
     expect(screen.getByText('Please refresh the page and try again.')).toBeInTheDocument();
     expect(screen.queryByText(/Error: Test error/)).not.toBeInTheDocument();
-
-    process.env.NODE_ENV = originalEnv;
   });
 
-  it('calls componentDidCatch when error occurs', () => {
-    const spy = jest.spyOn(console, 'error');
-    
+  it('calls componentDidCatch with error info', () => {
+    const errorSpy = jest.spyOn(console, 'error');
     render(
       <ErrorBoundary>
         <ErrorComponent />
       </ErrorBoundary>
     );
 
-    expect(spy).toHaveBeenCalled();
-    expect(spy.mock.calls[0][0]).toBe('Uncaught error:');
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Uncaught error:',
+      expect.any(Error),
+      expect.objectContaining({
+        componentStack: expect.any(String)
+      })
+    );
+  });
+
+  it('handles null error in development mode', () => {
+    class NullErrorComponent extends React.Component {
+      componentDidMount() {
+        throw null;
+      }
+      render() {
+        return <div>Should not render</div>;
+      }
+    }
+
+    render(
+      <ErrorBoundary>
+        <NullErrorComponent />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.queryByText('Error: null')).not.toBeInTheDocument();
   });
 });
