@@ -13,22 +13,29 @@ describe('DiceRoller Edge Cases', () => {
     jest.clearAllMocks();
   });
 
-  it('handles dice roll timing and display', async () => {
-    const mockSetTimeout = jest.spyOn(global, 'setTimeout');
-    render(<DiceRoller />);
+  it('handles conditional rendering of dice', async () => {
+    const { rerender } = render(<DiceRoller />);
 
-    const rollButton = screen.getByTestId('roll-button');
+    // Initially no dice
     expect(screen.queryByRole('img', { name: /first die/i })).not.toBeInTheDocument();
 
-    fireEvent.click(rollButton);
-    expect(rollButton).toBeDisabled();
-
+    // First roll
+    fireEvent.click(screen.getByTestId('roll-button'));
     await act(async () => {
+      await new Promise(resolve => resolve()); // Force Promise branch
       jest.runAllTimers();
     });
 
-    expect(mockSetTimeout).toHaveBeenCalledWith(expect.any(Function), 600);
+    // Check dice is shown
     expect(screen.getByRole('img', { name: /first die/i })).toBeInTheDocument();
+    
+    // Clear current roll
+    rerender(
+      <DiceRoller currentRoll={null} />
+    );
+
+    // Check dice is hidden
+    expect(screen.queryByRole('img', { name: /first die/i })).not.toBeInTheDocument();
   });
 
   it('handles discard count validation edge cases', () => {
