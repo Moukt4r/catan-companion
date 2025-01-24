@@ -20,16 +20,24 @@ describe('StorageManager', () => {
     jest.restoreAllMocks();
   });
 
-  it('catches error in clearOldData', () => {
+  it('handles errors in clearOldData', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation();
     
-    // Force Object.keys to throw
+    // Create a subclass just for testing protected method
+    class TestableStorage extends StorageManager {
+      public callClearOldData() {
+        this._clearOldData();
+      }
+    }
+    
+    // Mock Object.keys to throw
     jest.spyOn(Object, 'keys').mockImplementation(() => {
       throw new Error('Object.keys failed');
     });
 
-    // Call _clearOldData directly
-    (storage as any)._clearOldData();
+    // Use the test subclass
+    const testableStorage = (storage as any).constructor.instance = new TestableStorage();
+    testableStorage.callClearOldData();
 
     expect(errorSpy).toHaveBeenCalledWith(
       'Failed to clear old data:',
