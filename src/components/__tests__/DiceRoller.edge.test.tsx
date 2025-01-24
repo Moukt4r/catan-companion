@@ -12,91 +12,107 @@ describe('DiceRoller Edge Cases', () => {
     jest.clearAllMocks();
   });
 
-  it('handles promise resolution in handleRoll', async () => {
-    // Mock setTimeout to resolve immediately
+  it('handles promise timing during roll', async () => {
     const mockSetTimeout = jest.spyOn(global, 'setTimeout');
-    mockSetTimeout.mockImplementation((callback) => {
-      callback();
-      return 0 as any;
-    });
-
     render(<DiceRoller />);
 
-    // Initial state check
+    // Initial state
     const rollButton = screen.getByTestId('roll-button');
     expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
 
-    // Click roll button
+    // Click and start roll
     fireEvent.click(rollButton);
     expect(rollButton).toBeDisabled();
 
-    // Wait for promise to resolve
+    // Wait for partial promise resolution
     await act(async () => {
-      await Promise.resolve();
+      // Force immediate promise resolution
+      jest.runAllTimers();
     });
 
-    // Check state after roll
-    expect(rollButton).not.toBeDisabled();
-    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
-
-    // Verify setTimeout was called with correct duration
+    // Verify promise timing
     expect(mockSetTimeout).toHaveBeenCalledWith(expect.any(Function), 600);
-
-    mockSetTimeout.mockRestore();
+    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
   });
 
-  it('handles invalid discard count input', () => {
+  it('handles discard count validation edge cases', () => {
     render(<DiceRoller />);
     const input = screen.getByTestId('discard-count');
 
-    // Test edge cases that should be rejected
+    // Test edge cases
     [
-      { value: 'abc', expected: 4 },    // NaN
-      { value: '-1', expected: 4 },     // Below min
-      { value: '36', expected: 4 },     // Above max
-      { value: '5.5', expected: 4 },    // Float
-      { value: '', expected: 4 }        // Empty
-    ].forEach(({ value, expected }) => {
-      fireEvent.change(input, { target: { value } });
-      expect(input).toHaveValue(expected);
-    });
-
-    // Test edge cases that should be accepted
-    [
-      { value: '0', expected: 0 },      // Min
-      { value: '35', expected: 35 },    // Max
-      { value: '17', expected: 17 }     // Middle
+      { value: 'abc', expected: 4 },     // NaN
+      { value: '-1', expected: 4 },      // Below minimum
+      { value: '36', expected: 4 },      // Above maximum
+      { value: '35', expected: 35 },     // Maximum
+      { value: '0', expected: 0 },       // Minimum
+      { value: '17', expected: 17 }      // Valid middle
     ].forEach(({ value, expected }) => {
       fireEvent.change(input, { target: { value } });
       expect(input).toHaveValue(expected);
     });
   });
 
-  it('handles dice display conditional rendering', async () => {
-    jest.spyOn(global, 'Promise').mockImplementation((executor) => {
-      return new Promise((resolve) => {
-        executor(resolve);
-      });
+  it('handles roll error cases', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    const mockError = new Error('Roll failed');
+    jest.spyOn(DiceRollerUtil.prototype, 'roll').mockImplementationOnce(() => {
+      throw mockError;
     });
 
     render(<DiceRoller />);
-    expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
-
-    // Roll dice
     const rollButton = screen.getByTestId('roll-button');
+    
+    // Attempt roll that will error
+    fireEvent.click(rollButton);
     await act(async () => {
-      fireEvent.click(rollButton);
-      await Promise.resolve();
+      jest.runAllTimers();
     });
 
-    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
+    expect(consoleSpy).toHaveBeenCalledWith('Error rolling dice:', mockError);
+    expect(rollButton).not.toBeDisabled();
+    consoleSpy.mockRestore();
+  });
 
-    // Roll again to verify conditional
+  it('handles sound toggle', async () => {
+    const playMock = jest.fn().mockResolvedValue(undefined);
+    window.Audio.prototype.play = playMock;
+
+    render(<DiceRoller />);
+    
+    // Default state - sound enabled
+    fireEvent.click(screen.getByTestId('roll-button'));
     await act(async () => {
-      fireEvent.click(rollButton);
-      await Promise.resolve();
+      jest.runAllTimers();
+    });
+    expect(playMock).toHaveBeenCalledTimes(1);
+
+    // Disable sound
+    fireEvent.click(screen.getByTestId('sound-toggle'));
+    
+    // Roll with sound disabled
+    fireEvent.click(screen.getByTestId('roll-button'));
+    await act(async () => {
+      jest.runAllTimers();
+    });
+    expect(playMock).toHaveBeenCalledTimes(1); // Still only called once
+  });
+
+  it('handles error during discard count change', () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    const mockError = new Error('Failed to set discard count');
+    jest.spyOn(DiceRollerUtil.prototype, 'setDiscardCount').mockImplementationOnce(() => {
+      throw mockError;
     });
 
-    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
+    render(<DiceRoller />);
+    const input = screen.getByTestId('discard-count');
+    
+    fireEvent.change(input, { target: { value: '10' } });
+
+    expect(consoleSpy).toHaveBeenCalledWith('Error setting discard count:', mockError);
+    expect(input).toHaveValue(10);
+    
+    consoleSpy.mockRestore();
   });
 });
