@@ -23,7 +23,7 @@ describe('DiceRoller Edge Cases', () => {
     render(<DiceRoller />);
 
     // Initial state check
-    const rollButton = screen.getByRole('button');
+    const rollButton = screen.getByTestId('roll-button');
     expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
 
     // Click roll button
@@ -47,7 +47,7 @@ describe('DiceRoller Edge Cases', () => {
 
   it('handles invalid discard count input', () => {
     render(<DiceRoller />);
-    const input = screen.getByLabelText(/discard count/i);
+    const input = screen.getByTestId('discard-count');
 
     // Test edge cases that should be rejected
     [
@@ -83,7 +83,7 @@ describe('DiceRoller Edge Cases', () => {
     expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
 
     // Roll dice
-    const rollButton = screen.getByRole('button');
+    const rollButton = screen.getByTestId('roll-button');
     await act(async () => {
       fireEvent.click(rollButton);
       await Promise.resolve();
