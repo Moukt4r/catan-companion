@@ -18,54 +18,51 @@ describe('StorageManager', () => {
       },
       writable: true
     });
+
+    storage = StorageManager.getInstance();
   });
 
-  it('handles every error path in clearOldData', async () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('handles Object.keys error in clearOldData', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     
-    // Set up test data
-    mockLocalStorage['test1'] = JSON.stringify({
-      data: { lastSaved: Date.now() - 1000 }
+    // Make Object.keys throw
+    const originalKeys = Object.keys;
+    Object.keys = jest.fn().mockImplementation((obj) => {
+      if (obj === localStorage) {
+        throw new Error('Object.keys failed');
+      }
+      return originalKeys(obj);
     });
 
-    // Mock reduce to throw error
-    const originalReduce = Array.prototype.reduce;
-    Array.prototype.reduce = jest.fn().mockImplementation(() => {
-      throw new Error('Reduce failed');
-    });
-
-    // Mock localStorage.getItem and removeItem to throw errors
-    jest.spyOn(localStorage, 'getItem').mockImplementation(() => {
-      throw new Error('getItem failed');
-    });
-
-    jest.spyOn(localStorage, 'removeItem').mockImplementation(() => {
-      throw new Error('removeItem failed');
-    });
-
-    // Force quota exceeded error to trigger clearOldData
-    const quotaError = new Error('Storage full');
+    // Trigger clearOldData via QuotaExceededError
+    const quotaError = new Error('Quota exceeded');
     quotaError.name = 'QuotaExceededError';
-    jest.spyOn(localStorage, 'setItem').mockImplementation(() => {
+    jest.spyOn(localStorage, 'setItem').mockImplementationOnce(() => {
       throw quotaError;
     });
 
-    // This should hit the catch block in clearOldData
+    // Attempt save which should trigger clearOldData
     try {
       await storage.saveGameState({
         version: 1,
         lastSaved: Date.now(),
         settings: {}
       });
-    } catch {}
+    } catch (e) {
+      // Expected to throw
+    }
 
-    expect(errorSpy).toHaveBeenCalledWith(
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
       'Failed to clear old data:',
       expect.any(Error)
     );
 
     // Cleanup
-    Array.prototype.reduce = originalReduce;
-    errorSpy.mockRestore();
+    Object.keys = originalKeys;
+    consoleErrorSpy.mockRestore();
   });
 });
