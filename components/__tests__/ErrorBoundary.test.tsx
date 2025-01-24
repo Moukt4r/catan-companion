@@ -1,80 +1,75 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { ErrorBoundary } from '../ErrorBoundary';
 
-// Mock console.error to avoid test output pollution
-const originalConsoleError = console.error;
-beforeAll(() => {
-  console.error = jest.fn();
-});
-
-afterAll(() => {
-  console.error = originalConsoleError;
-});
-
-const ThrowError = () => {
+const ErrorComponent = () => {
   throw new Error('Test error');
 };
 
+const consoleError = console.error;
+
 describe('ErrorBoundary', () => {
-  it('renders children when there is no error', () => {
-    const { getByText } = render(
-      <ErrorBoundary>
-        <div>Test Content</div>
-      </ErrorBoundary>
-    );
-    
-    expect(getByText('Test Content')).toBeInTheDocument();
+  beforeEach(() => {
+    console.error = jest.fn();
   });
 
-  it('renders error UI when there is an error', () => {
-    const { getByText } = render(
-      <ErrorBoundary>
-        <ThrowError />
-      </ErrorBoundary>
-    );
-
-    expect(getByText('Something went wrong')).toBeInTheDocument();
-    expect(getByText('Please refresh the page and try again.')).toBeInTheDocument();
+  afterEach(() => {
+    console.error = consoleError;
   });
 
-  it('shows error details in development mode', () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
-
-    const { getByText } = render(
-      <ErrorBoundary>
-        <ThrowError />
-      </ErrorBoundary>
-    );
-
-    expect(getByText('Error: Test error')).toBeInTheDocument();
-
-    process.env.NODE_ENV = originalNodeEnv;
-  });
-
-  it('logs error information to console.error', () => {
+  it('renders children when no error occurs', () => {
     render(
       <ErrorBoundary>
-        <ThrowError />
+        <div>Test content</div>
       </ErrorBoundary>
     );
-
-    expect(console.error).toHaveBeenCalled();
+    expect(screen.getByText('Test content')).toBeInTheDocument();
   });
 
-  it('does not show error details in production mode', () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
+  it('renders error UI in development mode', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
 
-    const { container } = render(
+    render(
       <ErrorBoundary>
-        <ThrowError />
+        <ErrorComponent />
       </ErrorBoundary>
     );
 
-    expect(container.querySelector('pre')).not.toBeInTheDocument();
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByText('Please refresh the page and try again.')).toBeInTheDocument();
+    expect(screen.getByText('Error: Test error')).toBeInTheDocument();
 
-    process.env.NODE_ENV = originalNodeEnv;
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  it('renders error UI in production mode', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    render(
+      <ErrorBoundary>
+        <ErrorComponent />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    expect(screen.getByText('Please refresh the page and try again.')).toBeInTheDocument();
+    expect(screen.queryByText(/Error: Test error/)).not.toBeInTheDocument();
+
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  it('calls componentDidCatch when error occurs', () => {
+    const spy = jest.spyOn(console, 'error');
+    
+    render(
+      <ErrorBoundary>
+        <ErrorComponent />
+      </ErrorBoundary>
+    );
+
+    expect(spy).toHaveBeenCalled();
+    expect(spy.mock.calls[0][0]).toBe('Uncaught error:');
   });
 });
