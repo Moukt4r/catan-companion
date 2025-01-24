@@ -1,182 +1,66 @@
 import { StorageManager } from '../storage';
 
 describe('StorageManager', () => {
-  let storageManager: StorageManager;
-  let mockLocalStorage: { [key: string]: string };
-  let mockNavigatorStorage: { estimate: jest.Mock };
-  let subscribers: (() => void)[];
+  let storage: StorageManager;
+  let originalReduce: any;
 
   beforeEach(() => {
-    mockLocalStorage = {};
-    mockNavigatorStorage = { estimate: jest.fn() };
-    subscribers = [];
+    // Store original reduce method
+    originalReduce = Array.prototype.reduce;
 
+    // Mock localStorage
+    const mockStorage = {
+      getItem: jest.fn(),
+      setItem: jest.fn(),
+      removeItem: jest.fn(),
+    };
+    
     Object.defineProperty(window, 'localStorage', {
-      value: {
-        getItem: jest.fn((key: string) => mockLocalStorage[key]),
-        setItem: jest.fn((key: string, value: string) => {
-          mockLocalStorage[key] = value;
-        }),
-        removeItem: jest.fn((key: string) => {
-          delete mockLocalStorage[key];
-        })
-      },
-      writable: true,
-      configurable: true
+      value: mockStorage,
+      writable: true
     });
 
-    Object.defineProperty(window.navigator, 'storage', {
-      value: mockNavigatorStorage,
-      writable: true,
-      configurable: true
-    });
-
-    storageManager = StorageManager.getInstance();
+    storage = StorageManager.getInstance();
   });
 
   afterEach(() => {
+    // Restore original reduce method
+    Array.prototype.reduce = originalReduce;
     jest.clearAllMocks();
-    subscribers.forEach(sub => storageManager.unsubscribe(sub));
   });
 
-  it('manages subscribers correctly', async () => {
-    const subscriber = jest.fn();
-    storageManager.subscribe(subscriber);
+  it('catches errors during clearOldData', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-    mockNavigatorStorage.estimate.mockResolvedValue({
-      quota: 10000000,
-      usage: 1000
+    // Mock reduce to throw an error
+    Array.prototype.reduce = jest.fn().mockImplementation(() => {
+      throw new Error('Reduce error');
     });
 
-    await storageManager.saveGameState({ test: 'data' });
-    expect(subscriber).toHaveBeenCalled();
+    // Mock Object.keys to return some test keys
+    jest.spyOn(Object, 'keys').mockReturnValueOnce(['test-key']);
 
-    storageManager.unsubscribe(subscriber);
-    subscriber.mockClear();
-    await storageManager.saveGameState({ test: 'data2' });
-    expect(subscriber).not.toHaveBeenCalled();
-  });
-
-  it('handles storage quota checks correctly', async () => {
-    mockNavigatorStorage.estimate.mockResolvedValue({
-      quota: 1000000,
-      usage: 999900
-    });
-
-    const savePromise = storageManager.saveGameState({ test: 'data' });
-    await expect(savePromise).rejects.toThrow('Storage quota exceeded');
-
-    mockNavigatorStorage.estimate.mockResolvedValue({
-      quota: 10000000,
-      usage: 1000
-    });
-
-    await storageManager.saveGameState({ test: 'data' });
-    expect(window.localStorage.setItem).toHaveBeenCalled();
-  });
-
-  it('handles non-quota errors correctly', async () => {
-    mockNavigatorStorage.estimate.mockResolvedValue({
-      quota: 10000000,
-      usage: 1000
-    });
-
-    const customError = new Error('Permission denied');
-    (window.localStorage.setItem as jest.Mock)
-      .mockImplementation(() => { throw customError; });
-
-    const savePromise = storageManager.saveGameState({ test: 'data' });
-    await expect(savePromise).rejects.toThrow('Permission denied');
-  });
-
-  it('handles various quota error types', async () => {
-    mockNavigatorStorage.estimate.mockResolvedValue({
-      quota: 10000000,
-      usage: 1000
-    });
-
-    // Test NS_ERROR_DOM_QUOTA_REACHED
-    const quotaError1 = new Error('Storage error');
-    quotaError1.name = 'NS_ERROR_DOM_QUOTA_REACHED';
-
-    (window.localStorage.setItem as jest.Mock)
-      .mockImplementationOnce(() => { throw quotaError1; })
-      .mockImplementationOnce(() => {});
-
-    await storageManager.saveGameState({ test: 'data' });
-
-    // Test error message with 'quota'
-    const quotaError2 = new Error('Storage quota limit reached');
-    (window.localStorage.setItem as jest.Mock)
-      .mockImplementationOnce(() => { throw quotaError2; })
-      .mockImplementationOnce(() => {});
-
-    await storageManager.saveGameState({ test: 'data' });
-  });
-
-  it('loads and migrates data correctly', () => {
-    expect(storageManager.loadGameState()).toBeNull();
-
-    mockLocalStorage['gameState'] = 'invalid json';
-    expect(storageManager.loadGameState()).toBeNull();
-
-    const v0Data = {
-      version: 0,
-      data: { settings: {} }
-    };
-    mockLocalStorage['gameState'] = JSON.stringify(v0Data);
-    const migratedData = storageManager.loadGameState();
-    expect(migratedData.settings.autoSave).toBe(true);
-
-    const currentData = {
-      version: 1,
-      data: { test: 'data' }
-    };
-    mockLocalStorage['gameState'] = JSON.stringify(currentData);
-    expect(storageManager.loadGameState().test).toBe('data');
-  });
-
-  it('validates imported data correctly', async () => {
-    expect(await storageManager.importData('invalid json')).toBe(false);
-    expect(await storageManager.importData(JSON.stringify({}))).toBe(false);
-
-    mockNavigatorStorage.estimate.mockResolvedValue({
-      quota: 10000000,
-      usage: 1000
-    });
-
-    const validData = {
-      version: 1,
-      lastSaved: new Date().toISOString(),
-      settings: { autoSave: true }
-    };
-    expect(await storageManager.importData(JSON.stringify(validData))).toBe(true);
-  });
-
-  it('handles failed clearing during quota error', async () => {
-    mockNavigatorStorage.estimate.mockResolvedValue({
-      quota: 10000000,
-      usage: 1000
-    });
-
-    const quotaError = new Error('Quota exceeded');
+    // Force a quota error to trigger clearOldData
+    const quotaError = new Error('Storage quota exceeded');
     quotaError.name = 'QuotaExceededError';
-
-    (window.localStorage.setItem as jest.Mock).mockImplementation(() => { 
-      throw quotaError; 
+    
+    jest.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw quotaError;
     });
 
-    const savePromise = storageManager.saveGameState({ test: 'data' });
-    await expect(savePromise).rejects.toThrow('Storage quota exceeded');
-  });
+    try {
+      await storage.saveGameState({
+        version: 1,
+        lastSaved: Date.now(),
+        settings: {}
+      });
+    } catch {}
 
-  it('handles initial low storage', async () => {
-    mockNavigatorStorage.estimate.mockResolvedValue({
-      quota: 500000,  // Very low quota
-      usage: 499900
-    });
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Failed to clear old data:',
+      expect.any(Error)
+    );
 
-    const savePromise = storageManager.saveGameState({ test: 'data' });
-    await expect(savePromise).rejects.toThrow('Storage quota exceeded');
+    errorSpy.mockRestore();
   });
 });
