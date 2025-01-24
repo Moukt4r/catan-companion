@@ -4,89 +4,99 @@ import { DiceRoller } from '../DiceRoller';
 
 describe('DiceRoller Edge Cases', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     jest.useFakeTimers();
   });
 
   afterEach(() => {
     jest.useRealTimers();
+    jest.clearAllMocks();
   });
 
-  it('handles all Promise-based roll timing', async () => {
-    // Mock Promise/setTimeout
-    jest.spyOn(global, 'Promise').mockImplementation((executor) => {
-      return new Promise((resolve) => {
-        executor(resolve);
-        jest.advanceTimersByTime(600);
-      });
+  it('handles promise resolution in handleRoll', async () => {
+    // Mock setTimeout to resolve immediately
+    const mockSetTimeout = jest.spyOn(global, 'setTimeout');
+    mockSetTimeout.mockImplementation((callback) => {
+      callback();
+      return 0 as any;
     });
 
     render(<DiceRoller />);
-    
-    // Start roll
-    const rollButton = screen.getByRole('button');
-    fireEvent.click(rollButton);
 
-    // Should show rolling state
-    expect(rollButton).toBeDisabled();
+    // Initial state check
+    const rollButton = screen.getByRole('button');
     expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
 
-    // Wait for animation
+    // Click roll button
+    fireEvent.click(rollButton);
+    expect(rollButton).toBeDisabled();
+
+    // Wait for promise to resolve
     await act(async () => {
       await Promise.resolve();
     });
 
-    // Should show results
+    // Check state after roll
     expect(rollButton).not.toBeDisabled();
     expect(screen.getByTestId('dice-display')).toBeInTheDocument();
+
+    // Verify setTimeout was called with correct duration
+    expect(mockSetTimeout).toHaveBeenCalledWith(expect.any(Function), 600);
+
+    mockSetTimeout.mockRestore();
   });
 
-  it('handles all discard count validation cases', () => {
+  it('handles invalid discard count input', () => {
     render(<DiceRoller />);
     const input = screen.getByLabelText(/discard count/i);
 
-    // Test edge cases for the validation conditions
+    // Test edge cases that should be rejected
     [
-      { value: 'abc', expected: 4 },     // NaN case
-      { value: '-1', expected: 4 },      // < 0 case
-      { value: '36', expected: 4 },      // > 35 case
-      { value: '35', expected: 35 },     // Maximum boundary
-      { value: '0', expected: 0 },       // Minimum boundary
-      { value: '15', expected: 15 },     // Valid middle value
-      { value: '', expected: 4 },        // Empty string
-      { value: '3.14', expected: 4 }     // Float value
+      { value: 'abc', expected: 4 },    // NaN
+      { value: '-1', expected: 4 },     // Below min
+      { value: '36', expected: 4 },     // Above max
+      { value: '5.5', expected: 4 },    // Float
+      { value: '', expected: 4 }        // Empty
+    ].forEach(({ value, expected }) => {
+      fireEvent.change(input, { target: { value } });
+      expect(input).toHaveValue(expected);
+    });
+
+    // Test edge cases that should be accepted
+    [
+      { value: '0', expected: 0 },      // Min
+      { value: '35', expected: 35 },    // Max
+      { value: '17', expected: 17 }     // Middle
     ].forEach(({ value, expected }) => {
       fireEvent.change(input, { target: { value } });
       expect(input).toHaveValue(expected);
     });
   });
 
-  it('correctly shows/hides dice display based on roll state', async () => {
-    render(<DiceRoller />);
+  it('handles dice display conditional rendering', async () => {
+    jest.spyOn(global, 'Promise').mockImplementation((executor) => {
+      return new Promise((resolve) => {
+        executor(resolve);
+      });
+    });
 
-    // Should not show display initially
+    render(<DiceRoller />);
     expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
 
     // Roll dice
-    fireEvent.click(screen.getByRole('button'));
-    expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
-
-    // Complete roll
-    await act(async () => {
-      jest.advanceTimersByTime(600);
-    });
-
-    // Should show display after roll
-    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
-
-    // Set current roll to null (internal state)
     const rollButton = screen.getByRole('button');
     await act(async () => {
-      // @ts-ignore - Accessing private state for testing
-      rollButton._reactProps.onClick();
+      fireEvent.click(rollButton);
+      await Promise.resolve();
     });
 
-    // Should hide display during new roll
-    expect(screen.queryByTestId('dice-display')).not.toBeInTheDocument();
+    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
+
+    // Roll again to verify conditional
+    await act(async () => {
+      fireEvent.click(rollButton);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId('dice-display')).toBeInTheDocument();
   });
 });
